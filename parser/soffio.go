@@ -1,10 +1,12 @@
-// Package parser defines the soffio extension and rules.
+// Package parser implements a parser for the soffio markup language.
 package parser
 
 import (
 	"bufio"
 	"io"
 	"strings"
+
+	"soffio/ast"
 )
 
 type state int
@@ -14,146 +16,117 @@ const (
 	stateBody
 )
 
-type BlockType int
-
-const (
-	BlockTypeText BlockType = iota
-	BlockTypeMedia
-)
-
-type Section struct {
-	ID     string
-	Title  string
-	Blocks []Block
+type parser struct {
+	scan  *bufio.Scanner
+	doc   ast.Document
+	buf   strings.Builder
+	state state
 }
 
-// Document represents a parsed soffio file.
-type Document struct {
-	ID        string
-	Language  string
-	Title     string
-	Author    string
-	Year      string
-	Technique string
+// Parse reads a soffio formatted document from r and returns its AST.
+func Parse(r io.Reader) (ast.Document, error) {
+	p := &parser{
+		scan:  bufio.NewScanner(r),
+		state: stateHeader,
+	}
 
-	Sections []Section
+	for p.scan.Scan() {
+		p.step(strings.TrimSpace(p.scan.Text()))
+	}
+
+	p.flush()
+	return p.doc, p.scan.Err()
 }
 
-type Block interface {
-	Type() BlockType
+func (p *parser) step(line string) {
+	switch p.state {
+	case stateHeader:
+		if line == "" {
+			p.state = stateBody
+			return
+		}
+		p.parseHeader(line)
+
+	case stateBody:
+		if line == "" {
+			p.flush()
+			return
+		}
+		if cmd, ok := strings.CutPrefix(line, ":: "); ok {
+			p.flush()
+			p.parseCommand(cmd)
+			return
+		}
+		p.appendLine(line)
+	}
 }
 
-type TextBlock struct {
-	Content string
-}
+func (p *parser) parseHeader(line string) {
+	key, val, ok := strings.Cut(line, ":")
+	if !ok {
+		return
+	}
 
-type MediaBlock struct {
-	Path    string
-	Caption string
-}
-
-func (t TextBlock) Type() BlockType {
-	return BlockTypeText
-}
-
-func (t MediaBlock) Type() BlockType {
-	return BlockTypeMedia
-}
-
-func parseHeaderField(d *Document, key, val string) {
-	val = strings.TrimSpace(val)
-
-	switch key {
+	switch strings.TrimSpace(key) {
 	case "ID":
-		d.ID = val
+		p.doc.ID = strings.TrimSpace(val)
 	case "Title", "Titolo":
-		d.Title = val
+		p.doc.Title = strings.TrimSpace(val)
 	case "Author", "Autore":
-		d.Author = val
+		p.doc.Author = strings.TrimSpace(val)
 	case "Year", "Anno":
-		d.Year = val
+		p.doc.Year = strings.TrimSpace(val)
 	case "Technique", "Tecnica":
-		d.Technique = val
+		p.doc.Technique = strings.TrimSpace(val)
 	case "Language", "Lingua":
-		d.Language = val
+		p.doc.Language = strings.TrimSpace(val)
 	}
 }
 
-// Parse reads a soffio formatted document from r.
-func Parse(r io.Reader) (Document, error) {
-	var doc Document
-	scanner := bufio.NewScanner(r)
-	currentState := stateHeader
-	var b strings.Builder
+func (p *parser) parseCommand(cmd string) {
+	if strings.HasPrefix(strings.ToLower(cmd), "media: ") {
+		_, payload, _ := strings.Cut(cmd, ": ")
+		path, caption, _ := strings.Cut(payload, "|")
 
-	flushText := func() {
-		if b.Len() > 0 && len(doc.Sections) > 0 {
-			lastIdx := len(doc.Sections) - 1
-			doc.Sections[lastIdx].Blocks = append(doc.Sections[lastIdx].Blocks, TextBlock{Content: b.String()})
-			b.Reset()
+		if len(p.doc.Sections) > 0 {
+			p.addBlock(ast.MediaBlock{
+				Path:    strings.TrimSpace(path),
+				Caption: strings.TrimSpace(caption),
+			})
 		}
+		return
 	}
 
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-
-		switch currentState {
-		case stateHeader:
-			if line == "" {
-				currentState = stateBody
-				continue
-			}
-			if key, val, ok := strings.Cut(line, ":"); ok {
-				parseHeaderField(&doc, strings.TrimSpace(key), val)
-			}
-
-		case stateBody:
-			if line == "" {
-				flushText()
-				continue
-			}
-
-			if cmd, isCmd := strings.CutPrefix(line, ":: "); isCmd {
-				flushText()
-
-				if strings.HasPrefix(strings.ToLower(cmd), "media: ") {
-					_, payload, _ := strings.Cut(cmd, ": ")
-					if path, caption, ok := strings.Cut(payload, "|"); ok && len(doc.Sections) > 0 {
-						lastIdx := len(doc.Sections) - 1
-						doc.Sections[lastIdx].Blocks = append(doc.Sections[lastIdx].Blocks, MediaBlock{
-							Path:    strings.TrimSpace(path),
-							Caption: strings.TrimSpace(caption),
-						})
-					}
-					continue
-				}
-
-				id, title, hasPipe := strings.Cut(cmd, "|")
-				if !hasPipe {
-					id = cmd
-					title = cmd
-				}
-
-				doc.Sections = append(doc.Sections, Section{
-					ID:    strings.TrimSpace(id),
-					Title: strings.TrimSpace(title),
-				})
-				continue
-			}
-
-			if len(doc.Sections) > 0 {
-				if b.Len() > 0 {
-					b.WriteByte('\n')
-				}
-				b.WriteString(line)
-			}
-		}
+	id, title, hasPipe := strings.Cut(cmd, "|")
+	if !hasPipe {
+		id, title = cmd, cmd
 	}
 
-	if err := scanner.Err(); err != nil {
-		return Document{}, err
-	}
+	p.doc.Sections = append(p.doc.Sections, ast.Section{
+		ID:    strings.TrimSpace(id),
+		Title: strings.TrimSpace(title),
+	})
+}
 
-	flushText()
-	return doc, nil
+func (p *parser) appendLine(line string) {
+	if len(p.doc.Sections) == 0 {
+		return
+	}
+	if p.buf.Len() > 0 {
+		p.buf.WriteByte('\n')
+	}
+	p.buf.WriteString(line)
+}
+
+func (p *parser) flush() {
+	if p.buf.Len() == 0 || len(p.doc.Sections) == 0 {
+		return
+	}
+	p.addBlock(ast.TextBlock{Content: p.buf.String()})
+	p.buf.Reset()
+}
+
+func (p *parser) addBlock(b ast.Block) {
+	last := len(p.doc.Sections) - 1
+	p.doc.Sections[last].Blocks = append(p.doc.Sections[last].Blocks, b)
 }

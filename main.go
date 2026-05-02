@@ -1,41 +1,40 @@
+// Command soffio compiles a static website from soffio markup files.
 package main
 
 import (
+	"embed"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log"
-	"os"
 
-	"soffio/parser"
+	"soffio/corpus"
 )
 
-func printValidationReport(errs []error) {
-	for _, err := range errs {
-		if brokenErr, ok := errors.AsType[*BrokenLinkError](err); ok {
-			log.Printf("[!] Warning: broken link %s in %s\n",
-				brokenErr.TargetID, brokenErr.SourceDocID)
-		} else {
-			log.Println("[?] generic error:", err)
-		}
-	}
-}
+//go:embed content/*.soffio
+var contentFS embed.FS
 
 func main() {
-	lib := Library{
-		Documents: make(map[string]*parser.Document),
+	soffioFS, err := fs.Sub(contentFS, "content")
+	if err != nil {
+		log.Fatalf("failed to create sub-filesystem: %v", err)
 	}
 
-	fsys := os.DirFS("content")
-
-	if err := lib.Load(fsys, "*.soffio"); err != nil {
-		log.Fatalf("Errors during library load:\n%v", err)
+	c := corpus.New()
+	if err := c.Load(soffioFS, "*.soffio"); err != nil {
+		log.Fatalf("load failed:\n%v", err)
 	}
 
-	errs := lib.ValidateLinks()
-	if len(errs) > 0 {
-		printValidationReport(errs)
+	if errs := c.ValidateLinks(); len(errs) > 0 {
+		for _, err := range errs {
+			var linkErr *corpus.BrokenLinkError
+			if errors.As(err, &linkErr) {
+				log.Printf("broken link: %s -> %s\n", linkErr.Source, linkErr.Target)
+			} else {
+				log.Printf("error: %v\n", err)
+			}
+		}
 	}
 
-	lib.PrintEntries()
-	fmt.Printf("Libreria caricata! Trovati %d documenti.\n", len(lib.Documents))
+	fmt.Printf("loaded %d documents.\n", len(c.Docs))
 }
