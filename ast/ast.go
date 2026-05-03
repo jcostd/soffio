@@ -6,44 +6,90 @@ type BlockType int
 
 const (
 	BlockTypeText BlockType = iota
-	BlockTypeMedia
+	BlockTypeImage
+	BlockTypeNote
+	BlockTypeList
 )
 
 // Block is the interface implemented by all document blocks.
 type Block interface {
 	Type() BlockType
+	Inlines() []Inline
 }
 
-// TextBlock represents a contiguous block of text.
+// Inline is the interface for all elements within a line of text.
+type Inline interface {
+	isInline()
+}
+
+type (
+	PlainText    struct{ Content string }
+	Bold         struct{ Elements []Inline }
+	Italic       struct{ Elements []Inline }
+	FootnoteRef  struct{ Target string }
+	InternalLink struct {
+		Target string
+		Label  []Inline
+	}
+	ExternalLink struct {
+		Target string
+		Label  []Inline
+	}
+)
+
+func (PlainText) isInline()    {}
+func (Bold) isInline()         {}
+func (Italic) isInline()       {}
+func (InternalLink) isInline() {}
+func (ExternalLink) isInline() {}
+func (FootnoteRef) isInline()  {}
+
 type TextBlock struct {
-	Content string
+	Elements []Inline
 }
 
-func (TextBlock) Type() BlockType { return BlockTypeText }
+func (TextBlock) Type() BlockType     { return BlockTypeText }
+func (t TextBlock) Inlines() []Inline { return t.Elements }
 
-// MediaBlock represents embedded media with an optional caption.
-type MediaBlock struct {
+type ImageBlock struct {
 	Path    string
-	Caption string
+	Caption []Inline
 }
 
-func (MediaBlock) Type() BlockType { return BlockTypeMedia }
+func (ImageBlock) Type() BlockType     { return BlockTypeImage }
+func (i ImageBlock) Inlines() []Inline { return i.Caption }
 
-// Section is a distinct part of a document, containing blocks.
+type NoteBlock struct {
+	ID       string
+	Elements []Inline
+}
+
+func (NoteBlock) Type() BlockType     { return BlockTypeNote }
+func (n NoteBlock) Inlines() []Inline { return n.Elements }
+
+type ListBlock struct {
+	Items [][]Inline
+}
+
+func (ListBlock) Type() BlockType { return BlockTypeList }
+func (l ListBlock) Inlines() []Inline {
+	var all []Inline
+	for _, item := range l.Items {
+		all = append(all, item...)
+	}
+	return all
+}
+
 type Section struct {
+	Level  int // 2 for ==, 3 for ===, etc.
 	ID     string
 	Title  string
 	Blocks []Block
 }
 
-// Document represents a complete parsed soffio file.
 type Document struct {
-	ID        string
-	Language  string
-	Title     string
-	Author    string
-	Year      string
-	Technique string
-
+	ID       string
+	Title    string
+	Meta     map[string]string
 	Sections []Section
 }

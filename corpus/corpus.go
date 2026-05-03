@@ -5,21 +5,17 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"regexp"
 	"strings"
 
 	"soffio/ast"
 	"soffio/parser"
 )
 
-var linkRX = regexp.MustCompile(`\[\[(.*?)->(.*?)\]\]`)
-
 var (
 	ErrNotFound    = errors.New("document not found")
 	ErrDuplicateID = errors.New("duplicate document ID")
 )
 
-// BrokenLinkError records a link that points to a non-existent document or section.
 type BrokenLinkError struct {
 	Source string
 	Target string
@@ -29,19 +25,16 @@ func (e *BrokenLinkError) Error() string {
 	return fmt.Sprintf("broken link: '%s' points to missing target '%s'", e.Source, e.Target)
 }
 
-// Collection holds parsed documents indexed by their ID.
 type Collection struct {
 	Docs map[string]*ast.Document
 }
 
-// New returns a newly allocated, empty Collection.
 func New() *Collection {
 	return &Collection{
 		Docs: make(map[string]*ast.Document),
 	}
 }
 
-// Load parses all documents matching pattern in fsys and adds them to the collection.
 func (c *Collection) Load(fsys fs.FS, pattern string) error {
 	files, err := fs.Glob(fsys, pattern)
 	if err != nil {
@@ -50,55 +43,64 @@ func (c *Collection) Load(fsys fs.FS, pattern string) error {
 
 	var errs []error
 	for _, name := range files {
-		f, err := fsys.Open(name)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("open %s: %w", name, err))
-			continue
+		if err := c.loadFile(fsys, name); err != nil {
+			errs = append(errs, err)
 		}
-
-		doc, err := parser.Parse(f)
-		f.Close()
-		if err != nil {
-			errs = append(errs, fmt.Errorf("parse %s: %w", name, err))
-			continue
-		}
-
-		if _, exists := c.Docs[doc.ID]; exists {
-			errs = append(errs, fmt.Errorf("%w: %s in %s", ErrDuplicateID, doc.ID, name))
-			continue
-		}
-
-		c.Docs[doc.ID] = &doc
 	}
 
 	return errors.Join(errs...)
 }
 
-// ValidateLinks checks all documents for broken internal links.
+func (c *Collection) loadFile(fsys fs.FS, name string) error {
+	f, err := fsys.Open(name)
+	if err != nil {
+		return fmt.Errorf("open %s: %w", name, err)
+	}
+	defer f.Close()
+
+	doc, err := parser.Parse(f)
+	if err != nil {
+		return fmt.Errorf("parse %s: %w", name, err)
+	}
+
+	if _, exists := c.Docs[doc.ID]; exists {
+		return fmt.Errorf("%w: %s in %s", ErrDuplicateID, doc.ID, name)
+	}
+
+	c.Docs[doc.ID] = &doc
+	return nil
+}
+
 func (c *Collection) ValidateLinks() []error {
 	var errs []error
 
 	for id, doc := range c.Docs {
 		for _, sec := range doc.Sections {
 			for _, block := range sec.Blocks {
-				text, ok := block.(ast.TextBlock)
-				if !ok {
-					continue
+
+				var walk func(inlines []ast.Inline)
+				walk = func(inlines []ast.Inline) {
+					for _, el := range inlines {
+						switch v := el.(type) {
+						case ast.InternalLink:
+							if !c.validTarget(v.Target) {
+								errs = append(errs, &BrokenLinkError{
+									Source: id,
+									Target: v.Target,
+								})
+							}
+							walk(v.Label)
+						case ast.ExternalLink:
+							walk(v.Label)
+						case ast.Bold:
+							walk(v.Elements)
+						case ast.Italic:
+							walk(v.Elements)
+						}
+					}
 				}
 
-				for _, match := range linkRX.FindAllStringSubmatch(text.Content, -1) {
-					target := strings.TrimSpace(match[2])
-					if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
-						continue
-					}
-
-					if !c.validTarget(target) {
-						errs = append(errs, &BrokenLinkError{
-							Source: id,
-							Target: target,
-						})
-					}
-				}
+				walk(block.Inlines())
 			}
 		}
 	}
@@ -123,7 +125,6 @@ func (c *Collection) validTarget(target string) bool {
 	return false
 }
 
-// Get returns the document with the given ID.
 func (c *Collection) Get(id string) (*ast.Document, error) {
 	if doc, ok := c.Docs[id]; ok {
 		return doc, nil
