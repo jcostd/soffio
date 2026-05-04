@@ -1,7 +1,6 @@
-// Package ast defines the abstract syntax tree for the soffio markup.
+// Package ast defines the Soffio abstract syntax tree.
 package ast
 
-// BlockType identifies the kind of content a block holds.
 type BlockType int
 
 const (
@@ -11,13 +10,11 @@ const (
 	BlockTypeList
 )
 
-// Block is the interface implemented by all document blocks.
 type Block interface {
 	Type() BlockType
-	Inlines() []Inline
+	isBlock()
 }
 
-// Inline is the interface for all elements within a line of text.
 type Inline interface {
 	isInline()
 }
@@ -48,40 +45,34 @@ type TextBlock struct {
 	Elements []Inline
 }
 
-func (TextBlock) Type() BlockType     { return BlockTypeText }
-func (t TextBlock) Inlines() []Inline { return t.Elements }
+func (TextBlock) Type() BlockType { return BlockTypeText }
+func (TextBlock) isBlock()        {}
 
 type ImageBlock struct {
 	Path    string
 	Caption []Inline
 }
 
-func (ImageBlock) Type() BlockType     { return BlockTypeImage }
-func (i ImageBlock) Inlines() []Inline { return i.Caption }
+func (ImageBlock) Type() BlockType { return BlockTypeImage }
+func (ImageBlock) isBlock()        {}
 
 type NoteBlock struct {
 	ID       string
 	Elements []Inline
 }
 
-func (NoteBlock) Type() BlockType     { return BlockTypeNote }
-func (n NoteBlock) Inlines() []Inline { return n.Elements }
+func (NoteBlock) Type() BlockType { return BlockTypeNote }
+func (NoteBlock) isBlock()        {}
 
 type ListBlock struct {
 	Items [][]Inline
 }
 
 func (ListBlock) Type() BlockType { return BlockTypeList }
-func (l ListBlock) Inlines() []Inline {
-	var all []Inline
-	for _, item := range l.Items {
-		all = append(all, item...)
-	}
-	return all
-}
+func (ListBlock) isBlock()        {}
 
 type Section struct {
-	Level  int // 2 for ==, 3 for ===, etc.
+	Level  int // Heading depth (e.g., 2 for ==).
 	ID     string
 	Title  string
 	Blocks []Block

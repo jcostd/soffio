@@ -1,5 +1,6 @@
 # Binaries for programs and plugins
 soffio
+preview
 *.exe
 *.exe~
 *.dll
@@ -31,4 +32,7 @@ go.work.sum
 *~
 
 content/
+static/
+public/
+templates/
 *.soffio

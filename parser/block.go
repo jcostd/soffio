@@ -1,4 +1,4 @@
-// Package parser implements a parser for the soffio markup language.
+// Package parser decodes Soffio markup.
 package parser
 
 import (
@@ -25,7 +25,7 @@ type parser struct {
 	state        state
 }
 
-// Parse reads a soffio formatted document from r and returns its AST.
+// Parse decodes r.
 func Parse(r io.Reader) (ast.Document, error) {
 	p := &parser{
 		scan:  bufio.NewScanner(r),
