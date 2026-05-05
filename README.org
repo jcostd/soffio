@@ -52,10 +52,10 @@ Because Soffio uses Isomorphic Routing, you can structure your site just by crea
   .
   ├── content/
   │   ├── index.soffio      # Becomes public/index.html
-  │   ├── it/               # Creates the public/it/ route
-  │   │   └── ernst.soffio  # Becomes public/it/ernst.html
+  │   ├── it/               # Creates the public/it/ namespace
+  │   │   └── about.soffio  # Becomes public/it/about.html
   │   ├── en/
-  │   │   └── ernst.soffio
+  │   │   └── about.soffio  # Becomes public/en/about.html
   │   └── static/           # Images, CSS, JS (mirrored to output)
   ├── templates/            # HTML layout overrides
   └── public/               # Generated output (discardable)
