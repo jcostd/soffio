@@ -58,7 +58,7 @@ func (c *Collection) Load(fsys fs.FS, pattern string) error {
 		return fmt.Errorf("glob: %w", err)
 	}
 
-	results := make(chan parseResult)
+	results := make(chan parseResult, len(files))
 	var wg sync.WaitGroup
 
 	for _, name := range files {

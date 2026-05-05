@@ -173,12 +173,29 @@ func (p *parser) flush() {
 		}
 	case "list":
 		var items [][]ast.Inline
+		var currentItem strings.Builder
+
 		for itemLine := range strings.SplitSeq(content, "\n") {
 			if after, ok := strings.CutPrefix(itemLine, "- "); ok {
-				items = append(items, parseInline(after))
+				// New item starts: flush the previous one if it exists
+				if currentItem.Len() > 0 {
+					items = append(items, parseInline(currentItem.String()))
+					currentItem.Reset()
+				}
+				currentItem.WriteString(after)
+			} else if currentItem.Len() > 0 {
+				// Natural Continuation: append to the current item
+				currentItem.WriteByte('\n')
+				currentItem.WriteString(itemLine)
 			}
 		}
+
+		// Flush the final accumulated item
+		if currentItem.Len() > 0 {
+			items = append(items, parseInline(currentItem.String()))
+		}
 		block = ast.ListBlock{Items: items}
+
 	default:
 		block = ast.TextBlock{Elements: parseInline(content)}
 	}
