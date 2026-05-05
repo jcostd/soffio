@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
 	"strings"
 	"sync"
 
@@ -51,11 +52,27 @@ type parseResult struct {
 	err      error
 }
 
-// Load concurrently decodes pattern-matched files into c.
+// Load concurrently decodes files. The filesystem path scopes the document ID.
 func (c *Collection) Load(fsys fs.FS, pattern string) error {
-	files, err := fs.Glob(fsys, pattern)
+	var files []string
+
+	err := fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && d.Name() == "static" {
+			return fs.SkipDir
+		}
+		if !d.IsDir() {
+			matched, mErr := path.Match(pattern, d.Name())
+			if mErr == nil && matched {
+				files = append(files, p)
+			}
+		}
+		return nil
+	})
 	if err != nil {
-		return fmt.Errorf("glob: %w", err)
+		return fmt.Errorf("walk: %w", err)
 	}
 
 	results := make(chan parseResult, len(files))
@@ -77,6 +94,16 @@ func (c *Collection) Load(fsys fs.FS, pattern string) error {
 			if err != nil {
 				results <- parseResult{err: fmt.Errorf("parse %s: %w", filename, err)}
 				return
+			}
+
+			// Composite ID: prefix frontmatter ID with relative directory path.
+			// Fallback to filename if ID is absent.
+			if doc.ID == "" {
+				doc.ID = strings.TrimSuffix(path.Base(filename), path.Ext(filename))
+			}
+			relDir := path.Dir(filename)
+			if relDir != "." {
+				doc.ID = path.Join(relDir, doc.ID)
 			}
 
 			results <- parseResult{filename: filename, doc: &doc}
@@ -118,12 +145,21 @@ func collectNotes(doc *ast.Document) map[string]struct{} {
 	return notes
 }
 
-func validTarget(docs map[string]*ast.Document, target string) bool {
+// validTarget resolves absolute and relative references within the corpus.
+func validTarget(docs map[string]*ast.Document, sourceID, target string) bool {
 	docID, secID, hasHash := strings.Cut(target, "#")
+
+	// Check absolute path first.
 	doc, ok := docs[docID]
 	if !ok {
-		return false
+		// Fallback to relative path resolution.
+		relPath := path.Join(path.Dir(sourceID), docID)
+		doc, ok = docs[relPath]
+		if !ok {
+			return false
+		}
 	}
+
 	if !hasHash {
 		return true
 	}
@@ -135,23 +171,23 @@ func validTarget(docs map[string]*ast.Document, target string) bool {
 	return false
 }
 
-func walk(inlines []ast.Inline, src string, notes map[string]struct{}, docs map[string]*ast.Document, errs *[]error) {
+func walk(inlines []ast.Inline, sourceID string, notes map[string]struct{}, docs map[string]*ast.Document, errs *[]error) {
 	for _, el := range inlines {
 		switch v := el.(type) {
 		case ast.InternalLink:
-			if !validTarget(docs, v.Target) {
-				*errs = append(*errs, &BrokenLinkError{Source: src, Target: v.Target})
+			if !validTarget(docs, sourceID, v.Target) {
+				*errs = append(*errs, &BrokenLinkError{Source: sourceID, Target: v.Target})
 			}
-			walk(v.Label, src, notes, docs, errs)
+			walk(v.Label, sourceID, notes, docs, errs)
 		case ast.ExternalLink:
-			walk(v.Label, src, notes, docs, errs)
+			walk(v.Label, sourceID, notes, docs, errs)
 		case ast.Bold:
-			walk(v.Elements, src, notes, docs, errs)
+			walk(v.Elements, sourceID, notes, docs, errs)
 		case ast.Italic:
-			walk(v.Elements, src, notes, docs, errs)
+			walk(v.Elements, sourceID, notes, docs, errs)
 		case ast.FootnoteRef:
 			if _, ok := notes[v.Target]; !ok {
-				*errs = append(*errs, &BrokenNoteError{Source: src, Target: v.Target})
+				*errs = append(*errs, &BrokenNoteError{Source: sourceID, Target: v.Target})
 			}
 		}
 	}

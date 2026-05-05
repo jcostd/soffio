@@ -113,7 +113,13 @@ func main() {
 				return
 			}
 
-			outPath := filepath.Join(*outDir, id+".html")
+			// Isomorphic output generation.
+			outPath := filepath.Join(*outDir, filepath.FromSlash(id)+".html")
+			if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+				log.Printf("error: mkdir %s: %v", filepath.Dir(outPath), err)
+				return
+			}
+
 			f, err := os.Create(outPath)
 			if err != nil {
 				log.Printf("error: create %s: %v", outPath, err)

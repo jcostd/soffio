@@ -47,7 +47,7 @@ func Render(w io.Writer, doc *ast.Document) error {
 	}
 
 	if len(r.refs) > 0 {
-		r.writef("\n<hr>\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">Note</h2>\n\t<ol>\n", doc.ID)
+		r.writef("\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">Notes</h2>\n\t<ol>\n", doc.ID)
 		for _, ref := range r.refs {
 			if note, ok := r.notes[ref]; ok {
 				r.writef("\t\t<li id=\"fn-%s\" role=\"doc-endnote\">", ref)

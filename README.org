@@ -5,11 +5,12 @@
 * Philosophy
 
 Soffio is a static site generator built for writers. It is not a Markdown clone.
-It is a tool designed to respect the rhythm of prose through the principle of *間 (Ma)*
+It is a tool designed to respect the rhythm of prose through the principle of *間 (Ma)*—
 the meaningful use of empty space.
 
 - *Orthogonality*: Small, discrete tools that compose via the filesystem.
 - *Natural Flow*: Single newlines preserve the block; double newlines (whitespace) define the breath.
+- *Isomorphic Routing*: The filesystem is the router. The directory tree of the input is mirrored exactly to the output. No configuration needed for multi-language or nested structures.
 - *No Magic*: A hand-rolled state machine parser. No complex regex. No external dependencies.
 
 * The Tools
@@ -27,6 +28,7 @@ The compiler. It transforms a corpus of =.soffio= files into a static website.
 The observer. A minimalist HTTP server to view the generated site.
 - *Auto-open*: Launches the system browser on startup.
 - *Focus*: Serves the =public/= directory with low latency.
+- *Flexible*: Configurable via =-dir= and =-port= flags.
 
 * Build System
 
@@ -42,14 +44,21 @@ A =Makefile= is provided to orchestrate the workflow.
 The tools are designed to work together by default but remain decoupled. You can
 override the directory structure via CLI flags (e.g., =./soffio -in my_drafts -out dist=).
 
-* File Structure
+* File Structure and Routing
+
+Because Soffio uses Isomorphic Routing, you can structure your site just by creating folders.
 
 #+BEGIN_EXAMPLE
   .
-  ├── content/          # Source .soffio files
-  │   └── static/      # Images, CSS, JS (mirrored to output)
-  ├── templates/        # HTML layout overrides
-  └── public/           # Generated output (discardable)
+  ├── content/
+  │   ├── index.soffio      # Becomes public/index.html
+  │   ├── it/               # Creates the public/it/ route
+  │   │   └── ernst.soffio  # Becomes public/it/ernst.html
+  │   ├── en/
+  │   │   └── ernst.soffio
+  │   └── static/           # Images, CSS, JS (mirrored to output)
+  ├── templates/            # HTML layout overrides
+  └── public/               # Generated output (discardable)
 #+END_EXAMPLE
 
 * Installation
