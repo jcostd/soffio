@@ -1,6 +1,6 @@
 # Binaries
-soffio
-preview
+/soffio
+/preview
 *.exe
 *.exe~
 *.dll
