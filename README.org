@@ -1,0 +1,62 @@
+#+TITLE: Soffio: A Minimalist Prose-Oriented SSG
+#+AUTHOR: Jacopo Costantini
+#+OPTIONS: toc:nil num:nil
+
+* Philosophy
+
+Soffio is a static site generator built for writers. It is not a Markdown clone.
+It is a tool designed to respect the rhythm of prose through the principle of *間 (Ma)*
+the meaningful use of empty space.
+
+- *Orthogonality*: Small, discrete tools that compose via the filesystem.
+- *Natural Flow*: Single newlines preserve the block; double newlines (whitespace) define the breath.
+- *No Magic*: A hand-rolled state machine parser. No complex regex. No external dependencies.
+
+* The Tools
+
+Soffio provides two distinct binaries located in =cmd/=:
+
+** soffio
+The compiler. It transforms a corpus of =.soffio= files into a static website.
+- *Input*: A directory of source files (default: =content/=).
+- *Static Assets*: Automatically mirrors the =content/static/= directory to the output.
+- *Validation*: Performs compile-time link checking across the entire corpus.
+- *Templates*: Uses Go's =html/template=. It looks for a local =templates/layout.html= or falls back to an internal embedded version.
+
+** preview
+The observer. A minimalist HTTP server to view the generated site.
+- *Auto-open*: Launches the system browser on startup.
+- *Focus*: Serves the =public/= directory with low latency.
+
+* Build System
+
+A =Makefile= is provided to orchestrate the workflow.
+
+#+BEGIN_SRC bash
+  make build    # Compiles 'soffio' and 'preview' binaries
+  make generate # Compiles the 'public/' site from 'content/'
+  make serve    # Generates the site and starts the preview server
+  make clean    # Removes binaries and generated artifacts
+#+END_SRC
+
+The tools are designed to work together by default but remain decoupled. You can
+override the directory structure via CLI flags (e.g., =./soffio -in my_drafts -out dist=).
+
+* File Structure
+
+#+BEGIN_EXAMPLE
+  .
+  ├── content/          # Source .soffio files
+  │   └── static/      # Images, CSS, JS (mirrored to output)
+  ├── templates/        # HTML layout overrides
+  └── public/           # Generated output (discardable)
+#+END_EXAMPLE
+
+* Installation
+
+Requires Go 1.26+.
+
+#+BEGIN_SRC bash
+  git clone <repo>
+  make build
+#+END_SRC
