@@ -1,4 +1,4 @@
-# Binaries for programs and plugins
+# Binaries
 soffio
 preview
 *.exe
@@ -7,32 +7,32 @@ preview
 *.so
 *.dylib
 
-# Test binary, built with `go test -c`
+# Test artifacts
 *.test
-
-# Code coverage profiles and other test artifacts
 *.out
 coverage.*
 *.coverprofile
 profile.cov
 
-# Dependency directories (remove the comment below to include it)
+# Dependencies
 # vendor/
 
-# Go workspace file
+# Workspace
 go.work
 go.work.sum
 
-# env file
+# Environment
 .env
-
 .DS_Store
 *.swp
 *.swo
 *~
 
-content/
-static/
-public/
-templates/
+# User content directories (ignore only at root)
+/content/
+/static/
+/public/
+/templates/
+
+# User soffio files
 *.soffio
