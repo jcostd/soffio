@@ -15,66 +15,68 @@ func TestParseInline(t *testing.T) {
 	}{
 		{
 			name:  "plain text",
-			input: "testo normale",
-			want:  []ast.Inline{ast.PlainText{Content: "testo normale"}},
+			input: "plain text",
+			want:  []ast.Inline{ast.PlainText{Content: "plain text"}},
 		},
 		{
 			name:  "bold",
-			input: "testo *grassetto*",
+			input: "some *bold* text",
 			want: []ast.Inline{
-				ast.PlainText{Content: "testo "},
-				ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "grassetto"}}},
+				ast.PlainText{Content: "some "},
+				ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "bold"}}},
+				ast.PlainText{Content: " text"},
 			},
 		},
 		{
 			name:  "italic",
-			input: "testo _corsivo_",
+			input: "some _italic_ text",
 			want: []ast.Inline{
-				ast.PlainText{Content: "testo "},
-				ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "corsivo"}}},
+				ast.PlainText{Content: "some "},
+				ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "italic"}}},
+				ast.PlainText{Content: " text"},
 			},
 		},
 		{
 			name:  "internal link",
-			input: "(Link interno -> doc-id)",
+			input: "(Internal link -> doc-id)",
 			want: []ast.Inline{
 				ast.InternalLink{
 					Target: "doc-id",
-					Label:  []ast.Inline{ast.PlainText{Content: "Link interno"}},
+					Label:  []ast.Inline{ast.PlainText{Content: "Internal link"}},
 				},
 			},
 		},
 		{
 			name:  "external link",
-			input: "(Sito -> https://example.com)",
+			input: "(Website -> https://example.com)",
 			want: []ast.Inline{
 				ast.ExternalLink{
 					Target: "https://example.com",
-					Label:  []ast.Inline{ast.PlainText{Content: "Sito"}},
+					Label:  []ast.Inline{ast.PlainText{Content: "Website"}},
 				},
 			},
 		},
 		{
 			name:  "footnote",
-			input: "testo (*nota1)",
+			input: "text (*note1)",
 			want: []ast.Inline{
-				ast.PlainText{Content: "testo "},
-				ast.FootnoteRef{Target: "nota1"},
+				ast.PlainText{Content: "text "},
+				ast.FootnoteRef{Target: "note1"},
 			},
 		},
 		{
 			name:  "escaping",
-			input: `questo \*non è\* grassetto e un backslash \\ fine`,
+			input: `this \*is not\* bold and a backslash \\ end`,
 			want: []ast.Inline{
-				ast.PlainText{Content: `questo *non è* grassetto e un backslash \ fine`},
+				ast.PlainText{Content: `this *is not* bold and a backslash \ end`},
 			},
 		},
 		{
 			name:  "nested formatting",
-			input: "*_corsivo nel grassetto_*",
+			input: "*_italic in bold_*",
 			want: []ast.Inline{
 				ast.Bold{Elements: []ast.Inline{
-					ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "corsivo nel grassetto"}}},
+					ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "italic in bold"}}},
 				}},
 			},
 		},
@@ -91,10 +93,10 @@ func TestParseInline(t *testing.T) {
 }
 
 func BenchmarkParseInline(b *testing.B) {
-	input := "Un testo con *grassetto*, un _corsivo_ e un (Link -> doc-id) per stressare il parser."
+	input := "A text with *bold*, an _italic_ and a (Link -> doc-id) to stress the parser."
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_ = parseInline(input)
 	}
 }

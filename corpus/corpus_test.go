@@ -24,21 +24,20 @@ func TestValidTarget(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		sourceID string // Da dove parte il link
-		target   string // Dove punta il link
+		sourceID string // Origin of the link
+		target   string // Link target
 		want     bool
 	}{
-		{"assoluto esistente", "it/home", "it/about", true},
-		{"relativo stessa cartella", "it/home", "about", true},
-		{"relativo con sezione", "it/home", "about#team", true},
-		{"relativo fallito (cartella diversa)", "en/home", "about", false}, // In en/ non c'è about
-		{"sezione interna", "it/home", "it/home#intro", true},
-		{"target inesistente", "it/home", "privacy", false},
+		{"absolute existing", "it/home", "it/about", true},
+		{"relative same folder", "it/home", "about", true},
+		{"relative with section", "it/home", "about#team", true},
+		{"relative failed (different folder)", "en/home", "about", false}, // No 'about' in en/
+		{"internal section", "it/home", "it/home#intro", true},
+		{"missing target", "it/home", "privacy", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Passiamo tt.sourceID come richiesto dalla nuova firma
 			got := validTarget(docs, tt.sourceID, tt.target)
 			if got != tt.want {
 				t.Errorf("validTarget(source=%q, target=%q) = %v; want %v", tt.sourceID, tt.target, got, tt.want)
@@ -50,7 +49,7 @@ func TestValidTarget(t *testing.T) {
 func TestValidateLinks(t *testing.T) {
 	c := New()
 
-	// Documento in 'it/'
+	// Document in 'it/'
 	c.Docs["it/doc1"] = &ast.Document{
 		ID: "it/doc1",
 		Sections: []ast.Section{
@@ -59,9 +58,9 @@ func TestValidateLinks(t *testing.T) {
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							ast.InternalLink{Target: "doc2"},   // Valido (relativo a it/)
-							ast.InternalLink{Target: "broken"}, // Errore
-							ast.FootnoteRef{Target: "n1"},      // Valido
+							ast.InternalLink{Target: "doc2"},   // Valid (relative to it/)
+							ast.InternalLink{Target: "broken"}, // Error
+							ast.FootnoteRef{Target: "n1"},      // Valid
 						},
 					},
 					ast.NoteBlock{ID: "n1"},
@@ -70,7 +69,7 @@ func TestValidateLinks(t *testing.T) {
 		},
 	}
 
-	// L'altro documento in 'it/'
+	// The other document in 'it/'
 	c.Docs["it/doc2"] = &ast.Document{
 		ID:       "it/doc2",
 		Sections: []ast.Section{{ID: "intro"}},
@@ -78,9 +77,9 @@ func TestValidateLinks(t *testing.T) {
 
 	errs := c.ValidateLinks()
 
-	// Ci aspettiamo solo 1 errore (it/doc1 -> broken)
+	// We expect exactly 1 error (it/doc1 -> broken)
 	if len(errs) != 1 {
-		t.Fatalf("atteso 1 errore, ottenuti %d: %v", len(errs), errs)
+		t.Fatalf("expected 1 error, got %d: %v", len(errs), errs)
 	}
 }
 

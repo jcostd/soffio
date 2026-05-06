@@ -8,45 +8,67 @@ import (
 	"soffio/ast"
 )
 
+// stripLines resets the Line field in all blocks to 0 for robust AST comparison.
+func stripLines(doc *ast.Document) {
+	for i := range doc.Sections {
+		for j, block := range doc.Sections[i].Blocks {
+			switch b := block.(type) {
+			case ast.TextBlock:
+				b.Line = 0
+				doc.Sections[i].Blocks[j] = b
+			case ast.ImageBlock:
+				b.Line = 0
+				doc.Sections[i].Blocks[j] = b
+			case ast.NoteBlock:
+				b.Line = 0
+				doc.Sections[i].Blocks[j] = b
+			case ast.ListBlock:
+				b.Line = 0
+				doc.Sections[i].Blocks[j] = b
+			}
+		}
+	}
+}
+
 func TestParse(t *testing.T) {
 	input := `ID: test-doc
-Title: Il Titolo
+Title: The Title
 
-== intro | Introduzione
+== intro | Introduction
 
-Questo è il primo paragrafo.
-Continua qui grazie alla continuazione naturale.
+This is the first paragraph.
+It continues here naturally.
 
-- Elemento lista 1
-continua lista
-- Elemento lista 2
+- List item 1
+list continuation
+- List item 2
 
-:: img: foto.jpg | Didascalia della foto`
+:: img: photo.jpg | Photo caption`
 
 	want := ast.Document{
 		ID:    "test-doc",
-		Title: "Il Titolo",
+		Title: "The Title",
 		Meta:  map[string]string{},
 		Sections: []ast.Section{
 			{
 				Level: 2,
 				ID:    "intro",
-				Title: "Introduzione",
+				Title: "Introduction",
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							ast.PlainText{Content: "Questo è il primo paragrafo.\nContinua qui grazie alla continuazione naturale."},
+							ast.PlainText{Content: "This is the first paragraph.\nIt continues here naturally."},
 						},
 					},
 					ast.ListBlock{
 						Items: [][]ast.Inline{
-							{ast.PlainText{Content: "Elemento lista 1\ncontinua lista"}},
-							{ast.PlainText{Content: "Elemento lista 2"}},
+							{ast.PlainText{Content: "List item 1\nlist continuation"}},
+							{ast.PlainText{Content: "List item 2"}},
 						},
 					},
 					ast.ImageBlock{
-						Path:    "foto.jpg",
-						Caption: []ast.Inline{ast.PlainText{Content: "Didascalia della foto"}},
+						Path:    "photo.jpg",
+						Caption: []ast.Inline{ast.PlainText{Content: "Photo caption"}},
 					},
 				},
 			},
@@ -56,11 +78,13 @@ continua lista
 	r := strings.NewReader(input)
 	got, err := Parse(r)
 	if err != nil {
-		t.Fatalf("Parse fallito: %v", err)
+		t.Fatalf("Parse failed: %v", err)
 	}
 
+	stripLines(&got)
+
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Mismatch dell'AST.\ngot:  %#v\nwant: %#v", got, want)
+		t.Errorf("AST mismatch.\ngot:  %#v\nwant: %#v", got, want)
 	}
 }
 
@@ -70,7 +94,7 @@ Title: Bench
 
 == sec | Section
 
-Testo con *grassetto*.
+Text with *bold*.
 
 - Item 1
 - Item 2

@@ -135,6 +135,7 @@ func (c *Collection) Load(fsys fs.FS, pattern string) error {
 	return errors.Join(errs...)
 }
 
+// collectNotes gathers all footnote IDs declared within a document to validate references.
 func collectNotes(doc *ast.Document) map[string]struct{} {
 	notes := make(map[string]struct{})
 	for _, sec := range doc.Sections {
