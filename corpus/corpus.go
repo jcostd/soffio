@@ -20,20 +20,22 @@ var (
 
 type BrokenLinkError struct {
 	Source string
+	Line   int
 	Target string
-}
-
-func (e *BrokenLinkError) Error() string {
-	return fmt.Sprintf("broken link: '%s' points to missing target '%s'", e.Source, e.Target)
 }
 
 type BrokenNoteError struct {
 	Source string
+	Line   int
 	Target string
 }
 
+func (e *BrokenLinkError) Error() string {
+	return fmt.Sprintf("%s:%d: [block start] broken link points to missing target '%s'", e.Source, e.Line, e.Target)
+}
+
 func (e *BrokenNoteError) Error() string {
-	return fmt.Sprintf("broken note ref: '%s' points to missing note '%s'", e.Source, e.Target)
+	return fmt.Sprintf("%s:%d: [block start] broken note ref points to missing note '%s'", e.Source, e.Line, e.Target)
 }
 
 type Collection struct {
@@ -171,23 +173,23 @@ func validTarget(docs map[string]*ast.Document, sourceID, target string) bool {
 	return false
 }
 
-func walk(inlines []ast.Inline, sourceID string, notes map[string]struct{}, docs map[string]*ast.Document, errs *[]error) {
+func walk(inlines []ast.Inline, sourceID string, line int, notes map[string]struct{}, docs map[string]*ast.Document, errs *[]error) {
 	for _, el := range inlines {
 		switch v := el.(type) {
 		case ast.InternalLink:
 			if !validTarget(docs, sourceID, v.Target) {
-				*errs = append(*errs, &BrokenLinkError{Source: sourceID, Target: v.Target})
+				*errs = append(*errs, &BrokenLinkError{Source: sourceID, Line: line, Target: v.Target})
 			}
-			walk(v.Label, sourceID, notes, docs, errs)
+			walk(v.Label, sourceID, line, notes, docs, errs)
 		case ast.ExternalLink:
-			walk(v.Label, sourceID, notes, docs, errs)
+			walk(v.Label, sourceID, line, notes, docs, errs)
 		case ast.Bold:
-			walk(v.Elements, sourceID, notes, docs, errs)
+			walk(v.Elements, sourceID, line, notes, docs, errs)
 		case ast.Italic:
-			walk(v.Elements, sourceID, notes, docs, errs)
+			walk(v.Elements, sourceID, line, notes, docs, errs)
 		case ast.FootnoteRef:
 			if _, ok := notes[v.Target]; !ok {
-				*errs = append(*errs, &BrokenNoteError{Source: sourceID, Target: v.Target})
+				*errs = append(*errs, &BrokenNoteError{Source: sourceID, Line: line, Target: v.Target})
 			}
 		}
 	}
@@ -202,14 +204,14 @@ func (c *Collection) ValidateLinks() []error {
 			for _, block := range sec.Blocks {
 				switch b := block.(type) {
 				case ast.TextBlock:
-					walk(b.Elements, id, notes, c.Docs, &errs)
+					walk(b.Elements, id, b.Line, notes, c.Docs, &errs)
 				case ast.ImageBlock:
-					walk(b.Caption, id, notes, c.Docs, &errs)
+					walk(b.Caption, id, b.Line, notes, c.Docs, &errs)
 				case ast.NoteBlock:
-					walk(b.Elements, id, notes, c.Docs, &errs)
+					walk(b.Elements, id, b.Line, notes, c.Docs, &errs)
 				case ast.ListBlock:
 					for _, item := range b.Items {
-						walk(item, id, notes, c.Docs, &errs)
+						walk(item, id, b.Line, notes, c.Docs, &errs)
 					}
 				}
 			}

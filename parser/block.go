@@ -23,6 +23,8 @@ type parser struct {
 	currentBlock string
 	blockMeta    string
 	state        state
+	lineCount    int
+	blockStart   int
 }
 
 // Parse decodes r.
@@ -36,6 +38,7 @@ func Parse(r io.Reader) (ast.Document, error) {
 	}
 
 	for p.scan.Scan() {
+		p.lineCount++
 		p.step(strings.TrimSpace(p.scan.Text()))
 	}
 
@@ -82,6 +85,7 @@ func (p *parser) stepBody(line string) {
 	}
 
 	if p.buf.Len() == 0 {
+		p.blockStart = p.lineCount
 		if p.tryParseSection(line) {
 			return
 		}
@@ -163,11 +167,13 @@ func (p *parser) flush() {
 	switch p.currentBlock {
 	case "img":
 		block = ast.ImageBlock{
+			Line:    p.blockStart,
 			Path:    p.blockMeta,
 			Caption: parseInline(content),
 		}
 	case "nota":
 		block = ast.NoteBlock{
+			Line:     p.blockStart,
 			ID:       p.blockMeta,
 			Elements: parseInline(content),
 		}
@@ -194,10 +200,16 @@ func (p *parser) flush() {
 		if currentItem.Len() > 0 {
 			items = append(items, parseInline(currentItem.String()))
 		}
-		block = ast.ListBlock{Items: items}
+		block = ast.ListBlock{
+			Line:  p.blockStart,
+			Items: items,
+		}
 
 	default:
-		block = ast.TextBlock{Elements: parseInline(content)}
+		block = ast.TextBlock{
+			Line:     p.blockStart,
+			Elements: parseInline(content),
+		}
 	}
 
 	last := len(p.doc.Sections) - 1

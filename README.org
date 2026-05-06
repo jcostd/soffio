@@ -5,8 +5,7 @@
 * Philosophy
 
 Soffio is a static site generator built for writers. It is not a Markdown clone.
-It is a tool designed to respect the rhythm of prose through the principle of *間 (Ma)*—
-the meaningful use of empty space.
+It is a tool designed to respect the rhythm of prose through the principle of *間 (Ma)* — the meaningful use of empty space.
 
 - *Orthogonality*: Small, discrete tools that compose via the filesystem.
 - *Natural Flow*: Single newlines preserve the block; double newlines (whitespace) define the breath.

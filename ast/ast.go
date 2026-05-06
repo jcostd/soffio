@@ -42,6 +42,7 @@ func (ExternalLink) isInline() {}
 func (FootnoteRef) isInline()  {}
 
 type TextBlock struct {
+	Line     int
 	Elements []Inline
 }
 
@@ -49,6 +50,7 @@ func (TextBlock) Type() BlockType { return BlockTypeText }
 func (TextBlock) isBlock()        {}
 
 type ImageBlock struct {
+	Line    int
 	Path    string
 	Caption []Inline
 }
@@ -57,6 +59,7 @@ func (ImageBlock) Type() BlockType { return BlockTypeImage }
 func (ImageBlock) isBlock()        {}
 
 type NoteBlock struct {
+	Line     int
 	ID       string
 	Elements []Inline
 }
@@ -65,6 +68,7 @@ func (NoteBlock) Type() BlockType { return BlockTypeNote }
 func (NoteBlock) isBlock()        {}
 
 type ListBlock struct {
+	Line  int
 	Items [][]Inline
 }
 
