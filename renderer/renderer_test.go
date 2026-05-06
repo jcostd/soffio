@@ -10,31 +10,31 @@ import (
 func TestRender_BlocksAndInlines(t *testing.T) {
 	doc := &ast.Document{
 		ID:    "doc-id",
-		Title: "Titolo Documento",
+		Title: "Document Title",
 		Sections: []ast.Section{
 			{
 				ID:    "sec1",
 				Level: 2,
-				Title: "La Sezione",
+				Title: "The Section",
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							ast.PlainText{Content: "Testo "},
-							ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "grassetto"}}},
-							ast.PlainText{Content: " e "},
-							ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "corsivo"}}},
-							ast.PlainText{Content: "."},
+							ast.PlainText{Content: "Some "},
+							ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "bold"}}},
+							ast.PlainText{Content: " and "},
+							ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "italic"}}},
+							ast.PlainText{Content: " text."},
 						},
 					},
 					ast.ListBlock{
 						Items: [][]ast.Inline{
-							{ast.PlainText{Content: "Primo elemento"}},
-							{ast.PlainText{Content: "Secondo elemento"}},
+							{ast.PlainText{Content: "First item"}},
+							{ast.PlainText{Content: "Second item"}},
 						},
 					},
 					ast.ImageBlock{
 						Path:    "img/test.jpg",
-						Caption: []ast.Inline{ast.PlainText{Content: "Didascalia"}},
+						Caption: []ast.Inline{ast.PlainText{Content: "Caption"}},
 					},
 				},
 			},
@@ -43,29 +43,29 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 
 	var buf strings.Builder
 	if err := Render(&buf, doc); err != nil {
-		t.Fatalf("Render fallito: %v", err)
+		t.Fatalf("Render failed: %v", err)
 	}
 
 	got := buf.String()
 
 	expectedParts := []string{
 		`<section id="sec1">`,
-		`<h2>La Sezione</h2>`,
-		`<p>Testo <strong>grassetto</strong> e <em>corsivo</em>.</p>`,
+		`<h2>The Section</h2>`,
+		`<p>Some <strong>bold</strong> and <em>italic</em> text.</p>`,
 		`<ul>`,
-		`<li>Primo elemento</li>`,
-		`<li>Secondo elemento</li>`,
+		`<li>First item</li>`,
+		`<li>Second item</li>`,
 		`</ul>`,
 		`<figure>`,
 		`<img src="img/test.jpg" alt="">`,
-		`<figcaption>Didascalia</figcaption>`,
+		`<figcaption>Caption</figcaption>`,
 		`</figure>`,
 		`</section>`,
 	}
 
 	for _, part := range expectedParts {
 		if !strings.Contains(got, part) {
-			t.Errorf("Manca l'HTML atteso:\nAtteso: %s\nOttenuto:\n%s", part, got)
+			t.Errorf("Missing expected HTML part.\nExpected: %s\nGot:\n%s", part, got)
 		}
 	}
 }
@@ -80,22 +80,22 @@ func TestRender_Links(t *testing.T) {
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							// Link esterno
+							// External link
 							ast.ExternalLink{
 								Target: "https://plan9.io",
 								Label:  []ast.Inline{ast.PlainText{Content: "Plan 9"}},
 							},
-							// Link interno: file e sezione
+							// Internal link: file and section
 							ast.InternalLink{
-								Target: "it/ernst#storia",
+								Target: "it/ernst#history",
 								Label:  []ast.Inline{ast.PlainText{Content: "Ernst"}},
 							},
-							// Link interno: solo file
+							// Internal link: file only
 							ast.InternalLink{
 								Target: "it/cocteau",
 								Label:  []ast.Inline{ast.PlainText{Content: "Cocteau"}},
 							},
-							// Link interno: solo sezione
+							// Internal link: section only
 							ast.InternalLink{
 								Target: "#intro",
 								Label:  []ast.Inline{ast.PlainText{Content: "Intro"}},
@@ -113,14 +113,14 @@ func TestRender_Links(t *testing.T) {
 
 	expectedLinks := []string{
 		`<a href="https://plan9.io" target="_blank" rel="noopener noreferrer">Plan 9</a>`,
-		`<a href="it/ernst.html#storia">Ernst</a>`,
+		`<a href="it/ernst.html#history">Ernst</a>`,
 		`<a href="it/cocteau.html">Cocteau</a>`,
 		`<a href="#intro">Intro</a>`,
 	}
 
 	for _, link := range expectedLinks {
 		if !strings.Contains(got, link) {
-			t.Errorf("Link errato o mancante:\nAtteso: %s\nOttenuto:\n%s", link, got)
+			t.Errorf("Wrong or missing link.\nExpected: %s\nGot:\n%s", link, got)
 		}
 	}
 }
@@ -131,25 +131,25 @@ func TestRender_Footnotes(t *testing.T) {
 		Sections: []ast.Section{
 			{
 				Level: 2,
-				Title: "Testo",
+				Title: "Text",
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							ast.PlainText{Content: "Un'affermazione"},
+							ast.PlainText{Content: "A statement"},
 							ast.FootnoteRef{Target: "n1"},
-							ast.PlainText{Content: " e un'altra"},
+							ast.PlainText{Content: " and another"},
 							ast.FootnoteRef{Target: "n2"},
-							ast.PlainText{Content: " e richiamo n1"},
+							ast.PlainText{Content: " and back to n1"},
 							ast.FootnoteRef{Target: "n1"},
 						},
 					},
 					ast.NoteBlock{
 						ID:       "n1",
-						Elements: []ast.Inline{ast.PlainText{Content: "Nota uno."}},
+						Elements: []ast.Inline{ast.PlainText{Content: "Note one."}},
 					},
 					ast.NoteBlock{
 						ID:       "n2",
-						Elements: []ast.Inline{ast.PlainText{Content: "Nota due."}},
+						Elements: []ast.Inline{ast.PlainText{Content: "Note two."}},
 					},
 				},
 			},
@@ -161,19 +161,19 @@ func TestRender_Footnotes(t *testing.T) {
 	got := buf.String()
 
 	expectedParts := []string{
-		// I riferimenti nel testo (n1 deve avere indice 1, n2 indice 2, e il richiamo n1 di nuovo indice 1)
+		// References in text
 		`<sup id="fnref-n1"><a href="#fn-n1" role="doc-noteref">1</a></sup>`,
 		`<sup id="fnref-n2"><a href="#fn-n2" role="doc-noteref">2</a></sup>`,
-		// La sezione note a piè di pagina
+		// Endnotes section
 		`<section role="doc-endnotes" aria-labelledby="footnotes-doc-note">`,
 		`<h2 id="footnotes-doc-note">Notes</h2>`,
-		`<li id="fn-n1" role="doc-endnote">Nota uno. <a href="#fnref-n1" aria-label="back to reference">↩</a></li>`,
-		`<li id="fn-n2" role="doc-endnote">Nota due. <a href="#fnref-n2" aria-label="back to reference">↩</a></li>`,
+		`<li id="fn-n1" role="doc-endnote">Note one. <a href="#fnref-n1" aria-label="back to reference">↩</a></li>`,
+		`<li id="fn-n2" role="doc-endnote">Note two. <a href="#fnref-n2" aria-label="back to reference">↩</a></li>`,
 	}
 
 	for _, part := range expectedParts {
 		if !strings.Contains(got, part) {
-			t.Errorf("Gestione note errata.\nManca: %s\nOttenuto:\n%s", part, got)
+			t.Errorf("Footnote handling error.\nMissing: %s\nGot:\n%s", part, got)
 		}
 	}
 }
@@ -189,9 +189,9 @@ func BenchmarkRender(b *testing.B) {
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							ast.PlainText{Content: "Testo "},
-							ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "grassetto"}}},
-							ast.InternalLink{Target: "altro-doc", Label: []ast.Inline{ast.PlainText{Content: "link"}}},
+							ast.PlainText{Content: "Some "},
+							ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "bold"}}},
+							ast.InternalLink{Target: "other-doc", Label: []ast.Inline{ast.PlainText{Content: "link"}}},
 						},
 					},
 				},
@@ -200,8 +200,7 @@ func BenchmarkRender(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var buf strings.Builder
 		_ = Render(&buf, doc)
 	}

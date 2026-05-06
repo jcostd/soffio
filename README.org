@@ -1,70 +1,90 @@
-#+TITLE: Soffio: A Minimalist Prose-Oriented SSG
+#+TITLE: Soffio
 #+AUTHOR: Jacopo Costantini
 #+OPTIONS: toc:nil num:nil
 
-* Philosophy
+Soffio is a static site generator. Text in, HTML out. It reads =.soffio= files,
+validates internal links across the corpus, and writes a static site preserving
+the input directory structure. Zero external dependencies.
 
-Soffio is a static site generator built for writers. It is not a Markdown clone.
-It is a tool designed to respect the rhythm of prose through the principle of *間 (Ma)* — the meaningful use of empty space.
+* Markup
 
-- *Orthogonality*: Small, discrete tools that compose via the filesystem.
-- *Natural Flow*: Single newlines preserve the block; double newlines (whitespace) define the breath.
-- *Isomorphic Routing*: The filesystem is the router. The directory tree of the input is mirrored exactly to the output. No configuration needed for multi-language or nested structures.
-- *No Magic*: A hand-rolled state machine parser. No complex regex. No external dependencies.
+#+BEGIN_SRC text
+id: about
+title: About This Project
 
-* The Tools
+== intro | Introduction
 
-Soffio provides two distinct binaries located in =cmd/=:
+A paragraph with *bold* and _italic_ text.
+A single newline continues the same block.
 
-** soffio
-The compiler. It transforms a corpus of =.soffio= files into a static website.
-- *Input*: A directory of source files (default: =content/=).
-- *Static Assets*: Automatically mirrors the =content/static/= directory to the output.
-- *Validation*: Performs compile-time link checking across the entire corpus.
-- *Templates*: Uses Go's =html/template=. It looks for a local =templates/layout.html= or falls back to an internal embedded version.
+- First list item
+- Second item with a (link -> other-doc)
+- Third item with a footnote(*n1)
 
-** preview
-The observer. A minimalist HTTP server to view the generated site.
-- *Auto-open*: Launches the system browser on startup.
-- *Focus*: Serves the =public/= directory with low latency.
-- *Flexible*: Configurable via =-dir= and =-port= flags.
+== gallery | Gallery
 
-* Build System
+:: img: static/img/photo.jpg | A caption with _italic_.
 
-A =Makefile= is provided to orchestrate the workflow.
-
-#+BEGIN_SRC bash
-  make build    # Compiles 'soffio' and 'preview' binaries
-  make generate # Compiles the 'public/' site from 'content/'
-  make serve    # Generates the site and starts the preview server
-  make clean    # Removes binaries and generated artifacts
+:: nota: n1 | Footnote text rendered at end of document.
 #+END_SRC
 
-The tools are designed to work together by default but remain decoupled. You can
-override the directory structure via CLI flags (e.g., =./soffio -in my_drafts -out dist=).
+* Syntax
 
-* File Structure and Routing
+| Construct       | Syntax                           |
+|-----------------+----------------------------------|
+| Section         | === id \vert Title=              |
+| Bold            | =*text*=                         |
+| Italic          | =_text_=                         |
+| Internal link   | =(Label -> doc-id)=              |
+| External link   | =(Label -> https://example.com)= |
+| Footnote ref    | =(*note-id)=                     |
+| Image           | =:: img: path \vert caption=     |
+| Footnote def    | =:: note: id \vert text=         |
+| List item       | =- text=                         |
 
-Because Soffio uses Isomorphic Routing, you can structure your site just by creating folders.
 
-#+BEGIN_EXAMPLE
-  .
-  ├── content/
-  │   ├── index.soffio      # Becomes public/index.html
-  │   ├── it/               # Creates the public/it/ namespace
-  │   │   └── about.soffio  # Becomes public/it/about.html
-  │   ├── en/
-  │   │   └── about.soffio  # Becomes public/en/about.html
-  │   └── static/           # Images, CSS, JS (mirrored to output)
-  ├── templates/            # HTML layout overrides
-  └── public/               # Generated output (discardable)
-#+END_EXAMPLE
+A blank line ends a block. A =layout= key in the frontmatter selects an
+alternate template.
 
-* Installation
+* Build
+
+#+BEGIN_SRC bash
+make        # build soffio and preview binaries
+make public # generate the site
+make serve  # generate and start the preview server
+make test   # run tests with race detector
+make clean  # remove binaries and generated output
+#+END_SRC
 
 Requires Go 1.26+.
 
+* Usage
+
 #+BEGIN_SRC bash
-  git clone <repo>
-  make build
+./soffio [-i content] [-o public] [-t templates]
+./preview [-d public] [-p 8080]
 #+END_SRC
+
+=soffio= reads =.soffio= files from =-i=, writes HTML to =-o=, and loads layout
+templates from =-t=. If =-t= directory is absent, the embedded fallback template
+is used. Files in =<input>/static/= are mirrored verbatim to =<output>/static/=.
+
+=preview= serves =-d= on =:-p= and opens the system browser.
+
+* Structure
+
+#+BEGIN_EXAMPLE
+<input>/              .soffio source files
+<input>/static/       assets mirrored verbatim to <output>/static/
+<templates>/          layout overrides (optional)
+<output>/             generated HTML (discardable)
+cmd/soffio/           compiler
+cmd/preview/          local preview server
+#+END_EXAMPLE
+
+* Routing
+
+The filesystem scopes the output directory. The frontmatter =id= field names the
+output file. =<input>/it/about.soffio= with =id: my-id= becomes
+=<output>/it/my-id.html=. If =id= is absent, the filename is used as fallback.
+Internal links use the composite path: =(Label -> it/my-id)=.

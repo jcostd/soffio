@@ -171,7 +171,7 @@ func (p *parser) flush() {
 			Path:    p.blockMeta,
 			Caption: parseInline(content),
 		}
-	case "nota":
+	case "note":
 		block = ast.NoteBlock{
 			Line:     p.blockStart,
 			ID:       p.blockMeta,
