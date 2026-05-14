@@ -32,7 +32,7 @@ A single newline continues the same block.
 
 | Construct     | Syntax                           |
 |---------------+----------------------------------|
-| Section       | ~===id ｜ Title=~                |
+| Section       | ~== id ｜ Title~                 |
 | Bold          | ~*text*~                         |
 | Italic        | ~_text_~                         |
 | Internal link | ~(Label -> doc-id)~              |
