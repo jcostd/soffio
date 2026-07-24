@@ -12,11 +12,12 @@ import (
 
 // renderer tracks state during document emission.
 type renderer struct {
-	w       io.Writer
-	err     error
-	notes   map[string]ast.NoteBlock
-	refs    []string
-	refsIdx map[string]int
+	w        io.Writer
+	err      error
+	notes    map[string]ast.NoteBlock
+	refs     []string
+	refsIdx  map[string]int
+	refCount map[string]int
 }
 
 func (r *renderer) write(s string) {
@@ -36,10 +37,11 @@ func (r *renderer) writef(format string, args ...any) {
 // Render emits doc to w.
 func Render(w io.Writer, doc *ast.Document) error {
 	r := renderer{
-		w:       w,
-		notes:   make(map[string]ast.NoteBlock),
-		refs:    make([]string, 0, 8),
-		refsIdx: make(map[string]int),
+		w:        w,
+		notes:    make(map[string]ast.NoteBlock),
+		refs:     make([]string, 0, 8),
+		refsIdx:  make(map[string]int),
+		refCount: make(map[string]int),
 	}
 
 	for _, s := range doc.Sections {
@@ -52,7 +54,7 @@ func Render(w io.Writer, doc *ast.Document) error {
 			if note, ok := r.notes[ref]; ok {
 				r.writef("\t\t<li id=\"fn-%s\" role=\"doc-endnote\">", ref)
 				r.renderInlines(note.Elements)
-				r.writef(" <a href=\"#fnref-%s\" aria-label=\"back to reference\">↩</a></li>\n", ref)
+				r.writef(" <a href=\"#fnref-%s-1\" aria-label=\"back to reference\">↩</a></li>\n", ref)
 			}
 		}
 		r.write("\t</ol>\n</section>\n")
@@ -143,7 +145,8 @@ func (r *renderer) renderInline(in ast.Inline) {
 			r.refs = append(r.refs, v.Target)
 			r.refsIdx[v.Target] = len(r.refs)
 		}
-		r.writef("<sup id=\"fnref-%[1]s\"><a href=\"#fn-%[1]s\" role=\"doc-noteref\">%d</a></sup>",
-			html.EscapeString(v.Target), r.refsIdx[v.Target])
+		r.refCount[v.Target]++
+		r.writef("<sup id=\"fnref-%[1]s-%[2]d\"><a href=\"#fn-%[1]s\" role=\"doc-noteref\">%[3]d</a></sup>",
+			html.EscapeString(v.Target), r.refCount[v.Target], r.refsIdx[v.Target])
 	}
 }

@@ -2,45 +2,151 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"flag"
-	"fmt"
 	"html/template"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"soffio/ast"
 	"soffio/corpus"
+	"soffio/parser"
 	"soffio/renderer"
 )
 
 //go:embed templates/*.html
-var assets embed.FS
+var embeddedAssets embed.FS
 
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
+func main() {
+	outDir := flag.String("o", "public", "output directory for size generation")
+	tmplDir := flag.String("t", "templates", "local templates direcotry")
+	visFlag := flag.String("v", "public", "visibility filter (public, private, all)")
+	flag.Parse()
+
+	// pipe mode: (stdin -> stdout)
+	if flag.NArg() == 0 {
+		src, err := io.ReadAll(os.Stdin)
+		if err != nil {
+			log.Fatalf("soffio: read stdin: %v", err)
+		}
+		doc, err := parser.Parse(bytes.NewReader(src))
+		if err != nil {
+			log.Fatalf("soffio: parse: %v", err)
+		}
+
+		if err := renderer.Render(os.Stdout, &doc); err != nil {
+			log.Fatalf("soffio: render: %v", err)
+		}
+		return
+	}
+
+	// site generator mode: arg is src directory
+	inDir := flag.Arg(0)
+
+	c := corpus.New()
+	if err := c.Load(os.DirFS(inDir), "*.soffio"); err != nil {
+		log.Fatalf("soffio: load: %v", err)
+	}
+
+	if err := c.ValidateLinks(); err != nil {
+		log.Fatalf("soffio: link verification failed:\n%v", err)
+	}
+
+	tmpl := loadTemplates(*tmplDir)
+
+	staticSrc := filepath.Join(inDir, "static")
+	if stat, err := os.Stat(staticSrc); err == nil && stat.IsDir() {
+		_ = copyDir(staticSrc, filepath.Join(*outDir, "static"))
+	}
+
+	for id, doc := range c.Docs {
+		vis := doc.Meta["visibility"]
+		if vis == "" {
+			vis = "public"
+		}
+		if *visFlag != "all" && vis != *visFlag {
+			continue
+		}
+
+		if err := writeDoc(id, doc, tmpl, *outDir); err != nil {
+			log.Printf("soffio: err %s: %v", id, err)
+		}
+	}
+
+	if tmpl.Lookup("index.html") != nil {
+		if err := writeIndex(c.Docs, tmpl, *outDir); err != nil {
+			log.Printf("soffio: error index: %v", err)
+		}
+	}
+}
+
+// loadTemplates loads all embedded templates, then overwrites them with any local files
+// found in the specified templates directory.
+func loadTemplates(dir string) *template.Template {
+	tmpl, err := template.ParseFS(embeddedAssets, "templates/*.html")
+	if err != nil {
+		log.Fatalf("soffio: embedded templates: %v", err)
+	}
+	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
+		tmpl, err = tmpl.ParseGlob(filepath.Join(dir, "*.html"))
+		if err != nil {
+			log.Fatalf("soffio: local templates: %v", err)
+		}
+	}
+	return tmpl
+}
+
+func writeDoc(id string, doc *ast.Document, tmpl *template.Template, outDir string) error {
+	layout := doc.Meta["layout"]
+	if layout == "" || tmpl.Lookup(layout+".html") == nil {
+		layout = "layout"
+	}
+
+	var buf strings.Builder
+	if err := renderer.Render(&buf, doc); err != nil {
+		return err
+	}
+
+	outPath := filepath.Join(outDir, filepath.FromSlash(id)+".html")
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+		return err
+	}
+
+	f, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
-	defer in.Close()
+	defer f.Close()
 
-	out, err := os.Create(dst)
+	return tmpl.ExecuteTemplate(f, layout+".html", map[string]any{
+		"Title":   doc.Title,
+		"Meta":    doc.Meta,
+		"Content": template.HTML(buf.String()),
+	})
+}
+
+func writeIndex(docs map[string]*ast.Document, tmpl *template.Template, outDir string) error {
+	outPath := filepath.Join(outDir, "index.html")
+	f, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	defer f.Close()
 
-	_, err = io.Copy(out, in)
-	return err
+	return tmpl.ExecuteTemplate(f, "index.html", map[string]any{
+		"Title": "Index",
+		"Docs":  docs,
+	})
 }
 
 // copyDir mirrors src into dst, preserving the directory tree.
 func copyDir(src, dst string) error {
-	return filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -49,125 +155,25 @@ func copyDir(src, dst string) error {
 		if err != nil {
 			return err
 		}
-
 		target := filepath.Join(dst, rel)
+
 		if d.IsDir() {
 			return os.MkdirAll(target, 0o755)
 		}
 
-		return copyFile(path, target)
-	})
-}
-
-// loadTemplates loads all embedded templates, then overwrites them with any local files
-// found in the specified templates directory.
-func loadTemplates(dir string) (*template.Template, error) {
-	tmpl, err := template.ParseFS(assets, "templates/*.html")
-	if err != nil {
-		return nil, fmt.Errorf("embedded templates: %w", err)
-	}
-
-	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
-		log.Printf("info: template: parsing local overrides from %s/", dir)
-		pattern := filepath.Join(dir, "*.html")
-		tmpl, err = tmpl.ParseGlob(pattern)
+		in, err := os.Open(path)
 		if err != nil {
-			return nil, fmt.Errorf("local templates in %s: %w", dir, err)
+			return err
 		}
-	} else {
-		log.Printf("info: template: directory '%s' not found, using embedded fallbacks", dir)
-	}
+		defer in.Close()
 
-	return tmpl, nil
-}
-
-func main() {
-	var (
-		inDir   string
-		outDir  string
-		tmplDir string
-	)
-
-	flag.StringVar(&inDir, "in", "content", "input directory")
-	flag.StringVar(&inDir, "i", "content", "input directory (shorthand)")
-
-	flag.StringVar(&outDir, "out", "public", "output directory")
-	flag.StringVar(&outDir, "o", "public", "output directory (shorthand)")
-
-	flag.StringVar(&tmplDir, "templates", "templates", "templates directory containing layouts")
-	flag.StringVar(&tmplDir, "t", "templates", "templates directory containing layouts (shorthand)")
-
-	flag.Parse()
-
-	c := corpus.New()
-	if err := c.Load(os.DirFS(inDir), "*.soffio"); err != nil {
-		log.Fatalf("fatal: load: %v", err)
-	}
-
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		log.Fatalf("fatal: mkdir %s: %v", outDir, err)
-	}
-
-	staticDir := filepath.Join(inDir, "static")
-	if stat, err := os.Stat(staticDir); err == nil && stat.IsDir() {
-		dst := filepath.Join(outDir, "static")
-		log.Printf("info: static: copying to %s", dst)
-		if err := copyDir(staticDir, dst); err != nil {
-			log.Fatalf("fatal: copy static: %v", err)
+		out, err := os.Create(target)
+		if err != nil {
+			return err
 		}
-	}
+		defer out.Close()
 
-	for _, err := range c.ValidateLinks() {
-		log.Printf("warn: %v", err)
-	}
-
-	tmpl, err := loadTemplates(tmplDir)
-	if err != nil {
-		log.Fatalf("fatal: load templates: %v", err)
-	}
-
-	var wg sync.WaitGroup
-	for id, doc := range c.Docs {
-		wg.Add(1)
-		go func(id string, doc *ast.Document) {
-			defer wg.Done()
-
-			layoutName := doc.Meta["layout"]
-			if layoutName == "" {
-				layoutName = "layout"
-			}
-			templateTarget := layoutName + ".html"
-
-			var buf strings.Builder
-			if err := renderer.Render(&buf, doc); err != nil {
-				log.Printf("error: render %s: %v", id, err)
-				return
-			}
-
-			// Isomorphic output generation.
-			outPath := filepath.Join(outDir, filepath.FromSlash(id)+".html")
-			if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-				log.Printf("error: mkdir %s: %v", filepath.Dir(outPath), err)
-				return
-			}
-
-			f, err := os.Create(outPath)
-			if err != nil {
-				log.Printf("error: create %s: %v", outPath, err)
-				return
-			}
-			defer f.Close()
-
-			if err := tmpl.ExecuteTemplate(f, templateTarget, map[string]any{
-				"Title":   doc.Title,
-				"Meta":    doc.Meta,
-				"Content": template.HTML(buf.String()),
-			}); err != nil {
-				log.Printf("error: execute template %s for %s: %v", templateTarget, id, err)
-			}
-		}(id, doc)
-	}
-
-	wg.Wait()
-	log.Printf("done: %d documents written to %s", len(c.Docs), outDir)
+		_, err = io.Copy(out, in)
+		return err
+	})
 }

@@ -80,6 +80,33 @@ func TestParseInline(t *testing.T) {
 				}},
 			},
 		},
+		{
+			name:  "escaping inside link target",
+			input: `(Wiki -> https://en.wikipedia.org/wiki/Test_\(disambiguation\))`,
+			want: []ast.Inline{
+				ast.ExternalLink{
+					Target: "https://en.wikipedia.org/wiki/Test_(disambiguation)", // il backslash qui non ci deve essere!
+					Label:  []ast.Inline{ast.PlainText{Content: "Wiki"}},
+				},
+			},
+		},
+		{
+			name:  "mailto link should be external",
+			input: "(Contact -> mailto:hello@soffio.org)",
+			want: []ast.Inline{
+				ast.ExternalLink{
+					Target: "mailto:hello@soffio.org",
+					Label:  []ast.Inline{ast.PlainText{Content: "Contact"}},
+				},
+			},
+		},
+		{
+			name:  "closing marker preceded by tab is ignored",
+			input: "text *not bold\t*",
+			want: []ast.Inline{
+				ast.PlainText{Content: "text *not bold\t*"},
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -1,10 +1,105 @@
 package corpus
 
 import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"soffio/ast"
 )
+
+func TestGet(t *testing.T) {
+	c := New()
+	c.Docs["test-doc"] = &ast.Document{ID: "test-doc", Title: "Test"}
+
+	// Caso di successo
+	doc, err := c.Get("test-doc")
+	if err != nil {
+		t.Fatalf("unexpected error getting document: %v", err)
+	}
+	if doc.Title != "Test" {
+		t.Errorf("expected Title 'Test', got '%s'", doc.Title)
+	}
+
+	// Caso documento non trovato
+	_, err = c.Get("missing-doc")
+	if !errors.Is(err, ErrNotFound) {
+		t.Errorf("expected ErrNotFound, got %v", err)
+	}
+}
+
+func TestLoad(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Funzione helper per creare file finti nella cartella temporanea
+	writeFile := func(name, content string) {
+		// Assicuriamoci che la sottocartella esista
+		dir := filepath.Dir(name)
+		if dir != "." {
+			os.MkdirAll(filepath.Join(tmpDir, dir), 0755)
+		}
+		// Scriviamo il file
+		err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// 1. File valido con ID esplicito nel frontmatter
+	writeFile("doc1.txt", "ID: explicit-id\nTitle: Doc 1\n\n== s1 | S1\nText")
+
+	// 2. File valido senza ID (dovrebbe usare il nome del file 'doc2')
+	writeFile("doc2.txt", "Title: Doc 2\n\n== s1 | S1\nText")
+
+	// 3. File in una sottocartella senza ID (dovrebbe diventare 'sub/doc3')
+	writeFile("sub/doc3.txt", "Title: Doc 3\n\n== s1 | S1\nText")
+
+	// 4. File duplicato (usa l'ID esplicito già preso da doc1.txt)
+	writeFile("dup.txt", "ID: explicit-id\nTitle: Dup\n\n== s1 | S1\nText")
+
+	// 5. File con sintassi non valida per scatenare un errore del parser
+	writeFile("bad.txt", "Title: Bad\n\nTesto senza sezione dichiarata")
+
+	// 6. File dentro una cartella 'static' (dovrebbe essere ignorato da WalkDir)
+	writeFile("static/ignored.txt", "Title: Ignored\n\n== s1 | S1\nText")
+
+	c := New()
+	fsys := os.DirFS(tmpDir)
+
+	// Eseguiamo il load
+	err := c.Load(fsys, "*.txt")
+
+	// Ci aspettiamo che restituisca errori a causa di bad.txt e dup.txt
+	if err == nil {
+		t.Fatal("expected Load to return errors for duplicates and bad syntax, got nil")
+	}
+
+	// Verifichiamo che gli errori intercettati siano quelli giusti
+	if !strings.Contains(err.Error(), "duplicate document ID") {
+		t.Errorf("expected duplicate ID error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "found block content outside any section") {
+		t.Errorf("expected parser error, got: %v", err)
+	}
+
+	// Verifichiamo che i documenti validi siano stati caricati correttamente
+	if _, err := c.Get("explicit-id"); err != nil {
+		t.Errorf("missing explicitly named doc 'explicit-id'")
+	}
+	if _, err := c.Get("doc2"); err != nil {
+		t.Errorf("missing fallback named doc 'doc2'")
+	}
+	if _, err := c.Get("sub/doc3"); err != nil {
+		t.Errorf("missing subfolder doc 'sub/doc3'")
+	}
+
+	// Verifichiamo che la cartella 'static' sia stata saltata
+	if _, err := c.Get("static/ignored"); err == nil {
+		t.Errorf("document inside 'static' dir should have been skipped")
+	}
+}
 
 func TestValidTarget(t *testing.T) {
 	docs := map[string]*ast.Document{
@@ -32,7 +127,8 @@ func TestValidTarget(t *testing.T) {
 		{"relative same folder", "it/home", "about", true},
 		{"relative with section", "it/home", "about#team", true},
 		{"relative failed (different folder)", "en/home", "about", false}, // No 'about' in en/
-		{"internal section", "it/home", "it/home#intro", true},
+		{"internal section absolute", "it/home", "it/home#intro", true},
+		{"internal section relative (hash only)", "it/home", "#intro", true}, // NUOVO TEST
 		{"missing target", "it/home", "privacy", false},
 	}
 
@@ -58,9 +154,15 @@ func TestValidateLinks(t *testing.T) {
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							ast.InternalLink{Target: "doc2"},   // Valid (relative to it/)
-							ast.InternalLink{Target: "broken"}, // Error
-							ast.FootnoteRef{Target: "n1"},      // Valid
+							ast.InternalLink{
+								Target: "doc2",
+								Label:  []ast.Inline{ast.PlainText{Content: "Vai a doc2"}}, // Popoliamo il Label
+							},
+							ast.InternalLink{
+								Target: "broken",
+								Label:  []ast.Inline{ast.PlainText{Content: "Link rotto"}},
+							},
+							ast.FootnoteRef{Target: "n1"},
 						},
 					},
 					ast.NoteBlock{ID: "n1"},
@@ -75,11 +177,16 @@ func TestValidateLinks(t *testing.T) {
 		Sections: []ast.Section{{ID: "intro"}},
 	}
 
-	errs := c.ValidateLinks()
+	err := c.ValidateLinks()
 
-	// We expect exactly 1 error (it/doc1 -> broken)
-	if len(errs) != 1 {
-		t.Fatalf("expected 1 error, got %d: %v", len(errs), errs)
+	// We expect an error because of the broken link
+	if err == nil {
+		t.Fatalf("expected an error, got nil")
+	}
+
+	// Optional: we can check if the error message contains what we expect
+	if !strings.Contains(err.Error(), "broken") {
+		t.Fatalf("expected error about 'broken' link, got: %v", err)
 	}
 }
 
@@ -93,7 +200,10 @@ func BenchmarkValidateLinks(b *testing.B) {
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							ast.InternalLink{Target: "bench#s1"},
+							ast.InternalLink{
+								Target: "bench#s1",
+								Label:  []ast.Inline{ast.PlainText{Content: "Self ref"}},
+							},
 						},
 					},
 				},

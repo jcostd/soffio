@@ -162,13 +162,14 @@ func TestRender_Footnotes(t *testing.T) {
 
 	expectedParts := []string{
 		// References in text
-		`<sup id="fnref-n1"><a href="#fn-n1" role="doc-noteref">1</a></sup>`,
-		`<sup id="fnref-n2"><a href="#fn-n2" role="doc-noteref">2</a></sup>`,
+		`<sup id="fnref-n1-1"><a href="#fn-n1" role="doc-noteref">1</a></sup>`,
+		`<sup id="fnref-n2-1"><a href="#fn-n2" role="doc-noteref">2</a></sup>`,
+		`<sup id="fnref-n1-2"><a href="#fn-n1" role="doc-noteref">1</a></sup>`,
 		// Endnotes section
 		`<section role="doc-endnotes" aria-labelledby="footnotes-doc-note">`,
 		`<h2 id="footnotes-doc-note">Notes</h2>`,
-		`<li id="fn-n1" role="doc-endnote">Note one. <a href="#fnref-n1" aria-label="back to reference">↩</a></li>`,
-		`<li id="fn-n2" role="doc-endnote">Note two. <a href="#fnref-n2" aria-label="back to reference">↩</a></li>`,
+		`<li id="fn-n1" role="doc-endnote">Note one. <a href="#fnref-n1-1" aria-label="back to reference">↩</a></li>`,
+		`<li id="fn-n2" role="doc-endnote">Note two. <a href="#fnref-n2-1" aria-label="back to reference">↩</a></li>`,
 	}
 
 	for _, part := range expectedParts {

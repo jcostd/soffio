@@ -2,6 +2,7 @@ package parser
 
 import (
 	"strings"
+	"unicode"
 
 	"soffio/ast"
 )
@@ -86,7 +87,7 @@ func findClosingMarker(runes []rune, start int, marker rune) (int, bool) {
 		return 0, false
 	}
 
-	if runes[start+1] == ' ' {
+	if unicode.IsSpace(runes[start+1]) {
 		return 0, false
 	}
 
@@ -101,7 +102,7 @@ func findClosingMarker(runes []rune, start int, marker rune) (int, bool) {
 		}
 
 		if runes[i] == marker {
-			if runes[i-1] == ' ' {
+			if unicode.IsSpace(runes[i-1]) {
 				continue
 			}
 
@@ -110,6 +111,18 @@ func findClosingMarker(runes []rune, start int, marker rune) (int, bool) {
 	}
 
 	return 0, false
+}
+
+func unescape(s string) string {
+	var buf strings.Builder
+	runes := []rune(s)
+	for i := 0; i < len(runes); i++ {
+		if runes[i] == '\\' && i+1 < len(runes) {
+			i++
+		}
+		buf.WriteRune(runes[i])
+	}
+	return buf.String()
 }
 
 func scanLinkOrNote(runes []rune, start int) (ast.Inline, int, bool) {
@@ -146,14 +159,17 @@ func scanLinkOrNote(runes []rune, start int) (ast.Inline, int, bool) {
 		return nil, 0, false
 	}
 
-	target := strings.TrimSpace(targetStr)
+	target := unescape(strings.TrimSpace(targetStr))
 	if target == "" {
 		return nil, 0, false
 	}
 
 	labelNodes := parseInline(strings.TrimSpace(labelStr))
 
-	if strings.HasPrefix(target, "http://") || strings.HasPrefix(target, "https://") {
+	if strings.HasPrefix(target, "http://") ||
+		strings.HasPrefix(target, "https://") ||
+		strings.HasPrefix(target, "mailto:") ||
+		strings.HasPrefix(target, "tel:") {
 		return ast.ExternalLink{Target: target, Label: labelNodes}, closeIndex, true
 	}
 

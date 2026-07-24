@@ -77,6 +77,7 @@ func (c *Collection) Load(fsys fs.FS, pattern string) error {
 		return fmt.Errorf("walk: %w", err)
 	}
 
+	sem := make(chan struct{}, 100)
 	results := make(chan parseResult, len(files))
 	var wg sync.WaitGroup
 
@@ -84,6 +85,9 @@ func (c *Collection) Load(fsys fs.FS, pattern string) error {
 		wg.Add(1)
 		go func(filename string) {
 			defer wg.Done()
+
+			sem <- struct{}{}        // get token
+			defer func() { <-sem }() // release token
 
 			f, err := fsys.Open(filename)
 			if err != nil {
@@ -97,7 +101,6 @@ func (c *Collection) Load(fsys fs.FS, pattern string) error {
 				results <- parseResult{err: fmt.Errorf("parse %s: %w", filename, err)}
 				return
 			}
-
 			// Composite ID: prefix frontmatter ID with relative directory path.
 			// Fallback to filename if ID is absent.
 			if doc.ID == "" {
@@ -152,6 +155,11 @@ func collectNotes(doc *ast.Document) map[string]struct{} {
 func validTarget(docs map[string]*ast.Document, sourceID, target string) bool {
 	docID, secID, hasHash := strings.Cut(target, "#")
 
+	// internal link
+	if docID == "" {
+		docID = sourceID
+	}
+
 	// Check absolute path first.
 	doc, ok := docs[docID]
 	if !ok {
@@ -197,7 +205,7 @@ func walk(inlines []ast.Inline, sourceID string, line int, notes map[string]stru
 }
 
 // ValidateLinks asserts the integrity of all intra-corpus references.
-func (c *Collection) ValidateLinks() []error {
+func (c *Collection) ValidateLinks() error {
 	var errs []error
 	for id, doc := range c.Docs {
 		notes := collectNotes(doc)
@@ -218,7 +226,10 @@ func (c *Collection) ValidateLinks() []error {
 			}
 		}
 	}
-	return errs
+	if len(errs) == 0 {
+		return nil
+	}
+	return errors.Join(errs...)
 }
 
 func (c *Collection) Get(id string) (*ast.Document, error) {

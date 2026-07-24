@@ -3,6 +3,8 @@ package parser
 
 import (
 	"bufio"
+	"errors"
+	"fmt"
 	"io"
 	"strings"
 
@@ -16,6 +18,15 @@ const (
 	stateBody
 )
 
+type ParseError struct {
+	Line    int
+	Message string
+}
+
+func (e ParseError) Error() string {
+	return fmt.Sprintf("parser error at line %d: %s", e.Line, e.Message)
+}
+
 type parser struct {
 	scan         *bufio.Scanner
 	doc          ast.Document
@@ -25,9 +36,10 @@ type parser struct {
 	state        state
 	lineCount    int
 	blockStart   int
+	errors       []error
 }
 
-// Parse decodes r.
+// Parse decodes r strictly.
 func Parse(r io.Reader) (ast.Document, error) {
 	p := &parser{
 		scan:  bufio.NewScanner(r),
@@ -39,11 +51,26 @@ func Parse(r io.Reader) (ast.Document, error) {
 
 	for p.scan.Scan() {
 		p.lineCount++
-		p.step(strings.TrimSpace(p.scan.Text()))
+		line := strings.TrimSpace(p.scan.Text())
+		p.step(line)
 	}
 
 	p.flush()
-	return p.doc, p.scan.Err()
+
+	if err := p.scan.Err(); err != nil {
+		p.errors = append(p.errors, err)
+	}
+	if len(p.errors) > 0 {
+		return p.doc, errors.Join(p.errors...)
+	}
+	return p.doc, nil
+}
+
+func (p *parser) addError(msg string) {
+	p.errors = append(p.errors, ParseError{
+		Line:    p.lineCount,
+		Message: msg,
+	})
 }
 
 func (p *parser) step(line string) {
@@ -55,6 +82,7 @@ func (p *parser) step(line string) {
 }
 
 func (p *parser) stepHeader(line string) {
+	// RFC 822 Mail style: an empty line terminates the header.
 	if line == "" {
 		p.state = stateBody
 		return
@@ -62,11 +90,18 @@ func (p *parser) stepHeader(line string) {
 
 	key, val, ok := strings.Cut(line, ":")
 	if !ok {
+		// invalid metadata!
+		p.addError(fmt.Sprintf("invalid syntax (expected 'key: value'), found: %q", line))
 		return
 	}
 
 	key = strings.ToLower(strings.TrimSpace(key))
 	val = strings.TrimSpace(val)
+
+	if key == "" {
+		p.addError("empty header key found")
+		return
+	}
 
 	switch key {
 	case "id":
@@ -82,6 +117,10 @@ func (p *parser) stepBody(line string) {
 	if line == "" {
 		p.flush()
 		return
+	}
+
+	if strings.HasPrefix(line, "==") || strings.HasPrefix(line, ":: ") {
+		p.flush()
 	}
 
 	if p.buf.Len() == 0 {
@@ -118,19 +157,29 @@ func (p *parser) tryParseSection(line string) bool {
 	}
 
 	if level < 2 || level > 6 {
-		return false
+		p.addError(fmt.Sprintf("invalid section level (%d), must be between 2 and 6.", level))
+		return true
 	}
 
-	payload := strings.TrimSpace(line[level:])
-	id, title, ok := strings.Cut(payload, " | ")
+	payload := line[level:]
+	rawID, rawTitle, ok := strings.Cut(payload, "|")
 	if !ok {
-		return false
+		p.addError(fmt.Sprintf("malformed section (expected '== id | Title'), found: %q", line))
+		return true
+	}
+
+	id := strings.TrimSpace(rawID)
+	title := strings.TrimSpace(rawTitle)
+
+	if id == "" || title == "" {
+		p.addError(fmt.Sprintf("malformed section (both ID and Title must be non-empty), found: %q", line))
+		return true
 	}
 
 	p.doc.Sections = append(p.doc.Sections, ast.Section{
 		Level: level,
-		ID:    strings.TrimSpace(id),
-		Title: strings.TrimSpace(title),
+		ID:    id,
+		Title: title,
 	})
 	return true
 }
@@ -140,14 +189,24 @@ func (p *parser) tryParseCommand(line string) bool {
 		return false
 	}
 
-	cmd, payload, ok := strings.Cut(line[3:], ": ")
+	// syntax: :: cmd: meta | content
+	raw := line[3:]
+	cmd, payload, ok := strings.Cut(raw, ": ")
 	if !ok {
-		return false
+		p.addError(fmt.Sprintf("malformed command (expected ':: cmd: ...'), found: %q", line))
+		return true
+	}
+
+	cmd = strings.TrimSpace(cmd)
+	if cmd != "img" && cmd != "note" {
+		p.addError(fmt.Sprintf("unknown command %q (expected 'img' or 'note')", cmd))
+		return true
 	}
 
 	meta, content, ok := strings.Cut(payload, " | ")
 	if !ok {
-		return false
+		p.addError(fmt.Sprintf("malformed command (expected ':: cmd: meta | content'), found: %q", line))
+		return true
 	}
 
 	p.currentBlock = strings.TrimSpace(cmd)
@@ -157,7 +216,16 @@ func (p *parser) tryParseCommand(line string) bool {
 }
 
 func (p *parser) flush() {
-	if p.buf.Len() == 0 || len(p.doc.Sections) == 0 {
+	if p.buf.Len() == 0 {
+		return
+	}
+
+	// found text but no section created, error
+	if len(p.doc.Sections) == 0 {
+		p.addError("found block content outside any section (no '== id | Title' declared)")
+		p.buf.Reset()
+		p.currentBlock = ""
+		p.blockMeta = ""
 		return
 	}
 
