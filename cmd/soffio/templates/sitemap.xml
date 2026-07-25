@@ -1,0 +1,16 @@
+{{- $siteURL := "https://example.com" -}}
+{{ .XMLHeader -}}
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>{{ $siteURL }}/</loc>
+  </url>
+
+  {{- range $id, $doc := .Docs }}
+  <url>
+    <loc>{{ $siteURL }}/{{ $id }}.html</loc>
+    {{- if $doc.Meta.date }}
+    <lastmod>{{ $doc.Meta.date }}</lastmod>
+    {{- end }}
+  </url>
+  {{- end }}
+</urlset>

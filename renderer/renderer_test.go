@@ -57,7 +57,7 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 		`<li>Second item</li>`,
 		`</ul>`,
 		`<figure>`,
-		`<img src="img/test.jpg" alt="">`,
+		`<img src="img/test.jpg" alt="Caption" loading="lazy">`,
 		`<figcaption>Caption</figcaption>`,
 		`</figure>`,
 		`</section>`,

@@ -89,8 +89,12 @@ func (r *renderer) renderBlock(b ast.Block) {
 		r.write("</ul>\n")
 
 	case ast.ImageBlock:
+		altText := extractPlainText(v.Caption)
 		r.write("<figure>\n")
-		r.writef("\t<img src=\"%s\" alt=\"\">\n", html.EscapeString(v.Path))
+		r.writef("\t<img src=\"%s\" alt=\"%s\" loading=\"lazy\">\n",
+			html.EscapeString(v.Path),
+			html.EscapeString(altText),
+		)
 		r.write("\t<figcaption>")
 		r.renderInlines(v.Caption)
 		r.write("</figcaption>\n</figure>\n")
@@ -149,4 +153,23 @@ func (r *renderer) renderInline(in ast.Inline) {
 		r.writef("<sup id=\"fnref-%[1]s-%[2]d\"><a href=\"#fn-%[1]s\" role=\"doc-noteref\">%[3]d</a></sup>",
 			html.EscapeString(v.Target), r.refCount[v.Target], r.refsIdx[v.Target])
 	}
+}
+
+func extractPlainText(elements []ast.Inline) string {
+	var b strings.Builder
+	for _, el := range elements {
+		switch v := el.(type) {
+		case ast.PlainText:
+			b.WriteString(v.Content)
+		case ast.Bold:
+			b.WriteString(extractPlainText(v.Elements))
+		case ast.Italic:
+			b.WriteString(extractPlainText(v.Elements))
+		case ast.InternalLink:
+			b.WriteString(extractPlainText(v.Label))
+		case ast.ExternalLink:
+			b.WriteString(extractPlainText(v.Label))
+		}
+	}
+	return b.String()
 }

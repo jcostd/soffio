@@ -1,25 +1,19 @@
-CGO_ENABLED := 0
-LDFLAGS     := -ldflags "-s -w"
-BUILDFLAGS  := -trimpath $(LDFLAGS)
-
-.PHONY: all serve clean test
+.PHONY: all test serve clean
 
 all: soffio preview
 
 soffio:
-	go build $(BUILDFLAGS) -o $@ ./cmd/soffio
+	go build ./cmd/soffio
 
 preview:
-	go build $(BUILDFLAGS) -o $@ ./cmd/preview
+	go build ./cmd/preview
 
-public: soffio
-	./soffio -in content -out $@
-
-serve: preview public
+serve: all
 	./preview
 
 test:
-	go test -race ./...
+	go test ./...
 
 clean:
-	rm -rf soffio preview public
+	rm -f soffio preview
+	rm -rf public

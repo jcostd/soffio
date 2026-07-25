@@ -1,38 +1,23 @@
-# Binaries
+# Artifacts from local build and release
 /soffio
 /preview
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+/dist/
+/public/
 
-# Test artifacts
-*.test
+# Test and profiling
 *.out
-coverage.*
 *.coverprofile
-profile.cov
 
-# Dependencies
-# vendor/
+# Local user content (personal site)
+# Core templates live in cmd/soffio/templates/ and are embedded
+/content/
+/static/
+/templates/
+*.soffio
 
-# Workspace
-go.work
-go.work.sum
-
-# Environment
+# Environment and editor files
 .env
 .DS_Store
 *.swp
 *.swo
 *~
-
-# User content directories (ignore only at root)
-/content/
-/static/
-/public/
-/templates/
-
-# User soffio files
-*.soffio

@@ -4,6 +4,6 @@ package main
 
 import "os/exec"
 
-func openBrowser(url string) {
-	exec.Command("open", url).Start()
+func openBrowser(url string) error {
+	return exec.Command("open", url).Start()
 }
