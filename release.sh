@@ -1,5 +1,5 @@
 #!/bin/sh
-# release.sh - Compile fully static binaries with embedded versioning.
+# release.sh - Compile static binaries and pack them into release archives.
 set -e
 
 VERSION=$(cat VERSION)
@@ -7,35 +7,40 @@ DIST_DIR="dist"
 LDFLAGS="-s -w -X main.Version=$VERSION"
 
 rm -rf "$DIST_DIR"
+mkdir -p "$DIST_DIR"
 
-echo "==> Building Soffio v$VERSION release..."
+echo "==> Building Soffio v$VERSION release archives..."
 
-# Linux (amd64)
-echo "==> Compiling for Linux (amd64)..."
-TARGET="$DIST_DIR/soffio-$VERSION-linux-amd64"
-mkdir -p "$TARGET"
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o "$TARGET/soffio" ./cmd/soffio
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o "$TARGET/preview" ./cmd/preview
+build() {
+    os=$1
+    arch=$2
+    ext=""
+    if [ "$os" = "windows" ]; then
+        ext=".exe"
+    fi
 
-# Windows (amd64)
-echo "==> Compiling for Windows (amd64)..."
-TARGET="$DIST_DIR/soffio-$VERSION-windows-amd64"
-mkdir -p "$TARGET"
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o "$TARGET/soffio.exe" ./cmd/soffio
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o "$TARGET/preview.exe" ./cmd/preview
+    name="soffio-$VERSION-$os-$arch"
+    target="$DIST_DIR/$name"
+    mkdir -p "$target"
 
-# macOS (Apple Silicon)
-echo "==> Compiling for macOS (arm64)..."
-TARGET="$DIST_DIR/soffio-$VERSION-darwin-arm64"
-mkdir -p "$TARGET"
-CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "$LDFLAGS" -o "$TARGET/soffio" ./cmd/soffio
-CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -trimpath -ldflags "$LDFLAGS" -o "$TARGET/preview" ./cmd/preview
+    echo "==> Compiling for $os ($arch)..."
+    CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o "$target/soffio$ext" ./cmd/soffio
+    CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o "$target/preview$ext" ./cmd/preview
 
-# macOS (Intel)
-echo "==> Compiling for macOS (amd64)..."
-TARGET="$DIST_DIR/soffio-$VERSION-darwin-amd64"
-mkdir -p "$TARGET"
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o "$TARGET/soffio" ./cmd/soffio
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -trimpath -ldflags "$LDFLAGS" -o "$TARGET/preview" ./cmd/preview
+    cp -f README.org LICENSE "$target/" 2>/dev/null || true
 
-echo "==> Done! Release packages are available in ./$DIST_DIR/"
+    if [ "$os" = "windows" ] && command -v zip >/dev/null 2>&1; then
+        (cd "$DIST_DIR" && zip -q -r "$name.zip" "$name")
+    else
+        tar -czf "$DIST_DIR/$name.tar.gz" -C "$DIST_DIR" "$name"
+    fi
+
+    rm -rf "$target"
+}
+
+build linux amd64
+build windows amd64
+build darwin arm64
+build darwin amd64
+
+echo "==> Done! Release archives available in ./$DIST_DIR/:"

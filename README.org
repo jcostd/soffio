@@ -48,11 +48,10 @@ alternate template.
 * Build
 
 #+BEGIN_SRC bash
-make        # build soffio and preview binaries
-make public # generate the site
-make serve  # generate and start the preview server
-make test   # run tests with race detector
-make clean  # remove binaries and generated output
+  make         # build soffio and preview binaries
+  make soffio  # build only soffio binary
+  make preview # build only preview binary
+  make clean   # remove binaries and generated output
 #+END_SRC
 
 Requires Go 1.26+.
@@ -60,25 +59,43 @@ Requires Go 1.26+.
 * Usage
 
 #+BEGIN_SRC bash
-./soffio [-i content] [-o public] [-t templates]
-./preview [-d public] [-p 8080]
+  # Site generator mode
+  soffio [flags] <src_sir>
+
+  # Pipe mode (stdin -> stdout)
+  soffio < input.soffio
+
+  # Preview server
+  preview [flags] [dir]
 #+END_SRC
 
-=soffio= reads =.soffio= files from =-i=, writes HTML to =-o=, and loads layout
-templates from =-t=. If =-t= directory is absent, the embedded fallback template
-is used. Files in =<input>/static/= are mirrored verbatim to =<output>/static/=.
+** Flags for =soffio=
 
-=preview= serves =-d= on =:-p= and opens the system browser.
+- =-o= :: Output directory (default: =public=)
+- =-t= :: Local templates directory (default: =templates=)
+- =-s= :: Static assets directory (default: =static=)
+- =-vis= :: Visibility filter: =public=, =private=, =all= (default: =public=)
+- =-html= :: Generate HTML pages and index (default: =true=)
+- =-rss= :: Generate RSS feed (default: =true=)
+- =-sitemap= :: Generate XML sitemap (default: =true=)
+- =-v=, =-version= :: Print version and exit
+
+** Flags for =preview=
+
+- =-d= :: Directory to serve (default: =public=, or positional arg)
+- =-p= :: Port to listen on (default: =8080=)
 
 * Structure
 
 #+BEGIN_EXAMPLE
-<input>/              .soffio source files
-<input>/static/       assets mirrored verbatim to <output>/static/
-<templates>/          layout overrides (optional)
-<output>/             generated HTML (discardable)
-cmd/soffio/           compiler
-cmd/preview/          local preview server
+<src_dir>/             .soffio source files
+<src_dir>/static/      assets mirrored verbatim to <out>/static/
+templates/             custom template overrides (optional)
+cmd/soffio/            site generator CLI
+cmd/preview/           local preview web server
+VERSION                plain-text version identifier
+release.sh             cross-compilation script
+dist/                  compressed release packages
 #+END_EXAMPLE
 
 * Routing
