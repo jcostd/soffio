@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Jacopo Costantini
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package parser decodes Soffio markup.
 package parser
 
@@ -106,7 +109,7 @@ func (p *parser) stepHeader(line string) {
 	switch key {
 	case "id":
 		p.doc.ID = val
-	case "title", "titolo":
+	case "title":
 		p.doc.Title = val
 	default:
 		p.doc.Meta[key] = val
@@ -131,7 +134,7 @@ func (p *parser) stepBody(line string) {
 		if p.tryParseCommand(line) {
 			return
 		}
-		if strings.HasPrefix(line, "- ") {
+		if strings.HasPrefix(line, "-") {
 			p.currentBlock = "list"
 		}
 	}
@@ -250,17 +253,18 @@ func (p *parser) flush() {
 		var currentItem strings.Builder
 
 		for itemLine := range strings.SplitSeq(content, "\n") {
-			if after, ok := strings.CutPrefix(itemLine, "- "); ok {
-				// New item starts: flush the previous one if it exists
+			trimmedLine := strings.TrimSpace(itemLine)
+
+			if strings.HasPrefix(trimmedLine, "-") {
 				if currentItem.Len() > 0 {
 					items = append(items, parseInline(currentItem.String()))
 					currentItem.Reset()
 				}
+				after := strings.TrimSpace(trimmedLine[1:])
 				currentItem.WriteString(after)
-			} else if currentItem.Len() > 0 {
-				// Natural Continuation: append to the current item
+			} else if currentItem.Len() > 0 && trimmedLine != "" {
 				currentItem.WriteByte('\n')
-				currentItem.WriteString(itemLine)
+				currentItem.WriteString(trimmedLine)
 			}
 		}
 

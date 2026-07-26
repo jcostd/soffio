@@ -12,7 +12,7 @@ func TestInterfaces(t *testing.T) {
 	}
 
 	inlines := []Inline{
-		PlainText{}, Bold{}, Italic{}, InternalLink{}, ExternalLink{}, FootnoteRef{},
+		PlainText{}, Bold{}, Italic{}, Link{}, FootnoteRef{},
 	}
 	for _, i := range inlines {
 		i.isInline()

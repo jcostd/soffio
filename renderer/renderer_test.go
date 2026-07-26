@@ -42,7 +42,7 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := Render(&buf, doc); err != nil {
+	if err := Render(&buf, doc, ""); err != nil {
 		t.Fatalf("Render failed: %v", err)
 	}
 
@@ -71,8 +71,9 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 }
 
 func TestRender_Links(t *testing.T) {
+	// We set the ID to a subfolder path to properly test relative URL resolution
 	doc := &ast.Document{
-		ID: "links",
+		ID: "it/about",
 		Sections: []ast.Section{
 			{
 				Level: 2,
@@ -80,25 +81,29 @@ func TestRender_Links(t *testing.T) {
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							// External link
-							ast.ExternalLink{
+							ast.Link{
 								Target: "https://plan9.io",
 								Label:  []ast.Inline{ast.PlainText{Content: "Plan 9"}},
 							},
-							// Internal link: file and section
-							ast.InternalLink{
-								Target: "it/ernst#history",
-								Label:  []ast.Inline{ast.PlainText{Content: "Ernst"}},
+							// logical link: cross-folder (should resolve to ../en/home.html#intro)
+							ast.Link{
+								Target: "/en/home#intro",
+								Label:  []ast.Inline{ast.PlainText{Content: "Home"}},
 							},
-							// Internal link: file only
-							ast.InternalLink{
-								Target: "it/cocteau",
-								Label:  []ast.Inline{ast.PlainText{Content: "Cocteau"}},
+							// logical link: same-folder (should resolve to contact.html)
+							ast.Link{
+								Target: "/it/contact",
+								Label:  []ast.Inline{ast.PlainText{Content: "Contact"}},
 							},
-							// Internal link: section only
-							ast.InternalLink{
-								Target: "#intro",
-								Label:  []ast.Inline{ast.PlainText{Content: "Intro"}},
+							// physical asset: cross-folder (should NOT append .html)
+							ast.Link{
+								Target: "/static/docs/manual.pdf",
+								Label:  []ast.Inline{ast.PlainText{Content: "Manual"}},
+							},
+							// link: section only (same page)
+							ast.Link{
+								Target: "#history",
+								Label:  []ast.Inline{ast.PlainText{Content: "History"}},
 							},
 						},
 					},
@@ -108,14 +113,17 @@ func TestRender_Links(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	_ = Render(&buf, doc)
+	if err := Render(&buf, doc, ""); err != nil {
+		t.Fatalf("Render failed: %v", err)
+	}
 	got := buf.String()
 
 	expectedLinks := []string{
 		`<a href="https://plan9.io" target="_blank" rel="noopener noreferrer">Plan 9</a>`,
-		`<a href="it/ernst.html#history">Ernst</a>`,
-		`<a href="it/cocteau.html">Cocteau</a>`,
-		`<a href="#intro">Intro</a>`,
+		`<a href="../en/home.html#intro">Home</a>`,
+		`<a href="contact.html">Contact</a>`,
+		`<a href="../static/docs/manual.pdf">Manual</a>`, // Notice the missing .html extension!
+		`<a href="#history">History</a>`,
 	}
 
 	for _, link := range expectedLinks {
@@ -157,7 +165,7 @@ func TestRender_Footnotes(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	_ = Render(&buf, doc)
+	_ = Render(&buf, doc, "")
 	got := buf.String()
 
 	expectedParts := []string{
@@ -192,7 +200,7 @@ func BenchmarkRender(b *testing.B) {
 						Elements: []ast.Inline{
 							ast.PlainText{Content: "Some "},
 							ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "bold"}}},
-							ast.InternalLink{Target: "other-doc", Label: []ast.Inline{ast.PlainText{Content: "link"}}},
+							ast.Link{Target: "other-doc", Label: []ast.Inline{ast.PlainText{Content: "link"}}},
 						},
 					},
 				},
@@ -203,6 +211,6 @@ func BenchmarkRender(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		var buf strings.Builder
-		_ = Render(&buf, doc)
+		_ = Render(&buf, doc, "")
 	}
 }

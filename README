@@ -1,0 +1,80 @@
+SOFFIO(1)                     System Reference                     SOFFIO(1)
+
+NAME
+    soffio - A minimalist, strict static site generator
+
+DESCRIPTION
+    Soffio takes text in and outputs HTML. It reads .soffio files,
+    validates the integrity of the entire corpus (internal links,
+    footnotes, and assets), and writes a static site preserving the
+    input directory structure.
+
+    It has zero external dependencies. It does not guess. If a link
+    is broken, the build fails.
+
+FEATURES
+    Strict Validation: Fails on broken links, missing notes, or assets.
+    Privacy Guards: Public documents cannot link to private ones.
+    UNIX Pathing: Standard POSIX rules for relative cross-folder links.
+    Dual Mode: Directory generator or stdin/stdout UNIX filter.
+    Syndication: Generates RSS feeds and XML Sitemaps.
+
+BUILD
+    Requires Go 1.26 or higher.
+
+    make         build soffio and preview binaries
+    make clean   remove binaries and generated output
+
+USAGE
+    Generator mode:
+        soffio [flags] <src_dir>
+
+    Pipe mode:
+        soffio < input.soffio > output.html
+
+    Preview server:
+        preview [flags] [dir]
+
+    Run 'soffio -help' or 'preview -help' for flag details.
+
+MARKUP SYNTAX
+    A document requires a frontmatter, a blank line, and the body.
+    Frontmatter keys include 'id', 'title', 'layout', 'visibility',
+    and 'notes_title'.
+
+    == id | Title             Section header
+    *text*                    Bold
+    _text_                    Italic
+    (Label -> target)         Hyperlink
+    :: img: path | caption    Image block
+    - text                    List item
+    :: note: id | text        Footnote definition
+    (*note-id)                Footnote reference
+
+ROUTING & LINKS
+    The filesystem scopes the output directory. <input>/it/about.soffio
+    with 'id: my-id' becomes <output>/it/my-id.html.
+
+    Links use (Label -> target).
+    Targets without a leading slash are resolved relative to the
+    current document's directory (zero-config i18n).
+    Targets with a leading slash are resolved from the site root.
+
+ASSETS
+    Static assets are kept in the 'static' directory (or via -s).
+    During build, they are mirrored to the output folder.
+    Relative image paths (:: img: img/file.jpg | cap) automatically
+    receive the static asset prefix for the browser.
+
+AUTHOR
+    Written and designed by Jacopo Costantini.
+
+COPYRIGHT AND LICENSE
+    Copyright (C) 2026 Jacopo Costantini.
+
+    Soffio is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published
+    by the Free Software Foundation, either version 3 of the License,
+    or (at your option) any later version.
+
+    See the LICENSE file in the source distribution for full details.

@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Jacopo Costantini
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Command preview serves the public directory and opens it in the browser.
 package main
 
@@ -5,8 +8,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
-	"time"
 )
 
 func main() {
@@ -24,7 +27,6 @@ func main() {
 	flag.Parse()
 
 	// overwrite -d if positional arg present
-	// "preview content_html" is equal to "preview -d content_html"
 	if flag.NArg() > 0 {
 		*dir = flag.Arg(0)
 	}
@@ -32,8 +34,12 @@ func main() {
 	addr := "127.0.0.1:" + *port
 	url := "http://" + addr
 
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		log.Fatalf("preview: failed to listen on %s: %v", addr, err)
+	}
+
 	go func() {
-		time.Sleep(500 * time.Millisecond)
 		if err := openBrowser(url); err != nil {
 			log.Printf("preview: warning: open browser: %v", err)
 		}
@@ -42,7 +48,7 @@ func main() {
 	log.Printf("preview: serving %s at %s", *dir, url)
 	log.Printf("preview: press Ctrl+C to stop")
 
-	if err := http.ListenAndServe(addr, http.FileServer(http.Dir(*dir))); err != nil {
+	if err := http.Serve(listener, http.FileServer(http.Dir(*dir))); err != nil {
 		log.Fatalf("preview: %v", err)
 	}
 }

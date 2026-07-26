@@ -35,12 +35,10 @@ func TestLoad(t *testing.T) {
 
 	// Funzione helper per creare file finti nella cartella temporanea
 	writeFile := func(name, content string) {
-		// Assicuriamoci che la sottocartella esista
 		dir := filepath.Dir(name)
 		if dir != "." {
 			os.MkdirAll(filepath.Join(tmpDir, dir), 0755)
 		}
-		// Scriviamo il file
 		err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644)
 		if err != nil {
 			t.Fatal(err)
@@ -68,15 +66,12 @@ func TestLoad(t *testing.T) {
 	c := New()
 	fsys := os.DirFS(tmpDir)
 
-	// Eseguiamo il load
-	err := c.Load(fsys, "*.txt")
+	err := c.Load(fsys, "*.txt", "static")
 
-	// Ci aspettiamo che restituisca errori a causa di bad.txt e dup.txt
 	if err == nil {
 		t.Fatal("expected Load to return errors for duplicates and bad syntax, got nil")
 	}
 
-	// Verifichiamo che gli errori intercettati siano quelli giusti
 	if !strings.Contains(err.Error(), "duplicate document ID") {
 		t.Errorf("expected duplicate ID error, got: %v", err)
 	}
@@ -84,7 +79,6 @@ func TestLoad(t *testing.T) {
 		t.Errorf("expected parser error, got: %v", err)
 	}
 
-	// Verifichiamo che i documenti validi siano stati caricati correttamente
 	if _, err := c.Get("explicit-id"); err != nil {
 		t.Errorf("missing explicitly named doc 'explicit-id'")
 	}
@@ -94,15 +88,13 @@ func TestLoad(t *testing.T) {
 	if _, err := c.Get("sub/doc3"); err != nil {
 		t.Errorf("missing subfolder doc 'sub/doc3'")
 	}
-
-	// Verifichiamo che la cartella 'static' sia stata saltata
 	if _, err := c.Get("static/ignored"); err == nil {
 		t.Errorf("document inside 'static' dir should have been skipped")
 	}
 }
 
-func TestValidTarget(t *testing.T) {
-	docs := map[string]*ast.Document{
+func TestCheckTarget(t *testing.T) {
+	allDocs := map[string]*ast.Document{
 		"it/home": {
 			ID:       "it/home",
 			Sections: []ast.Section{{ID: "intro"}},
@@ -115,28 +107,40 @@ func TestValidTarget(t *testing.T) {
 			ID:       "en/home",
 			Sections: []ast.Section{{ID: "intro"}},
 		},
+		"private/secret": {
+			ID:       "private/secret",
+			Sections: []ast.Section{{ID: "data"}},
+		},
+	}
+
+	// activeDocs simula la "vista" pubblica, omettendo il file privato
+	activeDocs := map[string]*ast.Document{
+		"it/home":  allDocs["it/home"],
+		"it/about": allDocs["it/about"],
+		"en/home":  allDocs["en/home"],
 	}
 
 	tests := []struct {
 		name     string
-		sourceID string // Origin of the link
-		target   string // Link target
-		want     bool
+		sourceID string
+		target   string
+		want     targetResult
 	}{
-		{"absolute existing", "it/home", "it/about", true},
-		{"relative same folder", "it/home", "about", true},
-		{"relative with section", "it/home", "about#team", true},
-		{"relative failed (different folder)", "en/home", "about", false}, // No 'about' in en/
-		{"internal section absolute", "it/home", "it/home#intro", true},
-		{"internal section relative (hash only)", "it/home", "#intro", true}, // NUOVO TEST
-		{"missing target", "it/home", "privacy", false},
+		{"absolute existing", "it/home", "/it/about", targetOK},
+		{"relative same folder", "it/home", "about", targetOK},
+		{"relative with section", "it/home", "about#team", targetOK},
+		{"relative failed (different folder)", "en/home", "about", targetNotFound},
+		{"internal section absolute", "it/home", "/it/home#intro", targetOK},
+		{"internal section relative (hash only)", "it/home", "#intro", targetOK},
+		{"missing target", "it/home", "privacy", targetNotFound},
+		{"privacy leak target", "it/home", "/private/secret", targetPrivacyLeak},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := validTarget(docs, tt.sourceID, tt.target)
+			got := checkTarget(allDocs, activeDocs, tt.sourceID, tt.target)
 			if got != tt.want {
-				t.Errorf("validTarget(source=%q, target=%q) = %v; want %v", tt.sourceID, tt.target, got, tt.want)
+				t.Errorf("checkTarget(source=%q, target=%q) = %v; want %v", tt.sourceID, tt.target, got, tt.want)
 			}
 		})
 	}
@@ -145,7 +149,6 @@ func TestValidTarget(t *testing.T) {
 func TestValidateLinks(t *testing.T) {
 	c := New()
 
-	// Document in 'it/'
 	c.Docs["it/doc1"] = &ast.Document{
 		ID: "it/doc1",
 		Sections: []ast.Section{
@@ -154,11 +157,11 @@ func TestValidateLinks(t *testing.T) {
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							ast.InternalLink{
+							ast.Link{
 								Target: "doc2",
-								Label:  []ast.Inline{ast.PlainText{Content: "Vai a doc2"}}, // Popoliamo il Label
+								Label:  []ast.Inline{ast.PlainText{Content: "Vai a doc2"}},
 							},
-							ast.InternalLink{
+							ast.Link{
 								Target: "broken",
 								Label:  []ast.Inline{ast.PlainText{Content: "Link rotto"}},
 							},
@@ -171,22 +174,63 @@ func TestValidateLinks(t *testing.T) {
 		},
 	}
 
-	// The other document in 'it/'
 	c.Docs["it/doc2"] = &ast.Document{
 		ID:       "it/doc2",
 		Sections: []ast.Section{{ID: "intro"}},
 	}
 
-	err := c.ValidateLinks()
+	// Passiamo c.Docs come activeDocs per testare la validazione standard
+	err := c.ValidateLinks(c.Docs, "static")
 
-	// We expect an error because of the broken link
 	if err == nil {
 		t.Fatalf("expected an error, got nil")
 	}
 
-	// Optional: we can check if the error message contains what we expect
 	if !strings.Contains(err.Error(), "broken") {
 		t.Fatalf("expected error about 'broken' link, got: %v", err)
+	}
+}
+
+func TestPrivacyLeak(t *testing.T) {
+	c := New()
+
+	c.Docs["public/post"] = &ast.Document{
+		ID: "public/post",
+		Sections: []ast.Section{
+			{
+				ID: "sec1",
+				Blocks: []ast.Block{
+					ast.TextBlock{
+						Elements: []ast.Inline{
+							ast.Link{
+								Target: "/private/secret",
+								Label:  []ast.Inline{ast.PlainText{Content: "Nota Segreta"}},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	c.Docs["private/secret"] = &ast.Document{
+		ID:       "private/secret",
+		Sections: []ast.Section{{ID: "sec1"}},
+	}
+
+	// Simuliamo una build pubblica dove private/secret viene escluso
+	activeDocs := map[string]*ast.Document{
+		"public/post": c.Docs["public/post"],
+	}
+
+	err := c.ValidateLinks(activeDocs, "static")
+	if err == nil {
+		t.Fatalf("expected privacy leak error, got nil")
+	}
+
+	var leakErr *PrivacyLeakError
+	if !errors.As(err, &leakErr) {
+		t.Fatalf("expected error of type *PrivacyLeakError, got: %v", err)
 	}
 }
 
@@ -200,7 +244,7 @@ func BenchmarkValidateLinks(b *testing.B) {
 				Blocks: []ast.Block{
 					ast.TextBlock{
 						Elements: []ast.Inline{
-							ast.InternalLink{
+							ast.Link{
 								Target: "bench#s1",
 								Label:  []ast.Inline{ast.PlainText{Content: "Self ref"}},
 							},
@@ -215,6 +259,6 @@ func BenchmarkValidateLinks(b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		_ = c.ValidateLinks()
+		_ = c.ValidateLinks(c.Docs, "static")
 	}
 }

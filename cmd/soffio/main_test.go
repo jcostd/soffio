@@ -45,7 +45,7 @@ func TestWriteDoc(t *testing.T) {
 	}
 
 	// 3. Execute writeDoc (which relies on renderer.Render internally)
-	err = writeDoc("test-doc", doc, tmpl, outDir)
+	err = writeDoc("test-doc", doc, tmpl, outDir, "")
 	if err != nil {
 		t.Fatalf("writeDoc failed: %v", err)
 	}

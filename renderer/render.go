@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Jacopo Costantini
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package renderer emits semantic HTML from a Soffio AST.
 package renderer
 
@@ -5,6 +8,9 @@ import (
 	"fmt"
 	"html"
 	"io"
+	"log"
+	"net/url"
+	"path"
 	"strings"
 
 	"soffio/ast"
@@ -12,12 +18,14 @@ import (
 
 // renderer tracks state during document emission.
 type renderer struct {
-	w        io.Writer
-	err      error
-	notes    map[string]ast.NoteBlock
-	refs     []string
-	refsIdx  map[string]int
-	refCount map[string]int
+	w           io.Writer
+	err         error
+	docID       string
+	assetPrefix string // The global prefix for static assets (e.g., "/static")
+	notes       map[string]ast.NoteBlock
+	refs        []string
+	refsIdx     map[string]int
+	refCount    map[string]int
 }
 
 func (r *renderer) write(s string) {
@@ -34,14 +42,16 @@ func (r *renderer) writef(format string, args ...any) {
 	_, r.err = fmt.Fprintf(r.w, format, args...)
 }
 
-// Render emits doc to w.
-func Render(w io.Writer, doc *ast.Document) error {
+// Render emits doc to w. assetPrefix is prepended to relative asset paths.
+func Render(w io.Writer, doc *ast.Document, assetPrefix string) error {
 	r := renderer{
-		w:        w,
-		notes:    make(map[string]ast.NoteBlock),
-		refs:     make([]string, 0, 8),
-		refsIdx:  make(map[string]int),
-		refCount: make(map[string]int),
+		w:           w,
+		docID:       doc.ID,
+		assetPrefix: assetPrefix,
+		notes:       make(map[string]ast.NoteBlock),
+		refs:        make([]string, 0, 8),
+		refsIdx:     make(map[string]int),
+		refCount:    make(map[string]int),
 	}
 
 	for _, s := range doc.Sections {
@@ -49,7 +59,12 @@ func Render(w io.Writer, doc *ast.Document) error {
 	}
 
 	if len(r.refs) > 0 {
-		r.writef("\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">Notes</h2>\n\t<ol>\n", doc.ID)
+		notesTitle := "Notes"
+		if customTitle, ok := doc.Meta["notes_title"]; ok && customTitle != "" {
+			notesTitle = customTitle
+		}
+
+		r.writef("\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">%s</h2>\n\t<ol>\n", doc.ID, html.EscapeString(notesTitle))
 		for _, ref := range r.refs {
 			if note, ok := r.notes[ref]; ok {
 				r.writef("\t\t<li id=\"fn-%s\" role=\"doc-endnote\">", ref)
@@ -58,6 +73,12 @@ func Render(w io.Writer, doc *ast.Document) error {
 			}
 		}
 		r.write("\t</ol>\n</section>\n")
+	}
+
+	for noteID := range r.notes {
+		if _, used := r.refsIdx[noteID]; !used {
+			log.Printf("soffio: warning: unused footnote ':: note: %s' in document '%s'", noteID, doc.ID)
+		}
 	}
 
 	return r.err
@@ -89,10 +110,19 @@ func (r *renderer) renderBlock(b ast.Block) {
 		r.write("</ul>\n")
 
 	case ast.ImageBlock:
+		src := v.Path
+		isAbs := strings.HasPrefix(src, "/")
+		isExt := strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://")
+
+		// Apply prefix only if it's a relative path and a prefix is provided
+		if !isAbs && !isExt && r.assetPrefix != "" {
+			src = path.Join(r.assetPrefix, src)
+		}
+
 		altText := extractPlainText(v.Caption)
 		r.write("<figure>\n")
 		r.writef("\t<img src=\"%s\" alt=\"%s\" loading=\"lazy\">\n",
-			html.EscapeString(v.Path),
+			html.EscapeString(src),
 			html.EscapeString(altText),
 		)
 		r.write("\t<figcaption>")
@@ -125,22 +155,14 @@ func (r *renderer) renderInline(in ast.Inline) {
 		r.renderInlines(v.Elements)
 		r.write("</em>")
 
-	case ast.InternalLink:
-		baseID, hash, hasHash := strings.Cut(v.Target, "#")
-		href := baseID
-		if baseID != "" {
-			href += ".html"
+	case ast.Link:
+		href := resolveURL(r.docID, v.Target)
+		u, _ := url.Parse(href)
+		if u != nil && (u.Scheme == "http" || u.Scheme == "https") {
+			r.writef("<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">", html.EscapeString(href))
+		} else {
+			r.writef("<a href=\"%s\">", html.EscapeString(href))
 		}
-		if hasHash {
-			href += "#" + hash
-		}
-
-		r.writef("<a href=\"%s\">", html.EscapeString(href))
-		r.renderInlines(v.Label)
-		r.write("</a>")
-
-	case ast.ExternalLink:
-		r.writef("<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">", html.EscapeString(v.Target))
 		r.renderInlines(v.Label)
 		r.write("</a>")
 
@@ -165,9 +187,7 @@ func extractPlainText(elements []ast.Inline) string {
 			b.WriteString(extractPlainText(v.Elements))
 		case ast.Italic:
 			b.WriteString(extractPlainText(v.Elements))
-		case ast.InternalLink:
-			b.WriteString(extractPlainText(v.Label))
-		case ast.ExternalLink:
+		case ast.Link:
 			b.WriteString(extractPlainText(v.Label))
 		}
 	}

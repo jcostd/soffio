@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Jacopo Costantini
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 // Package ast defines the Soffio abstract syntax tree.
 package ast
 
@@ -24,11 +27,7 @@ type (
 	Bold         struct{ Elements []Inline }
 	Italic       struct{ Elements []Inline }
 	FootnoteRef  struct{ Target string }
-	InternalLink struct {
-		Target string
-		Label  []Inline
-	}
-	ExternalLink struct {
+	Link struct {
 		Target string
 		Label  []Inline
 	}
@@ -37,8 +36,7 @@ type (
 func (PlainText) isInline()    {}
 func (Bold) isInline()         {}
 func (Italic) isInline()       {}
-func (InternalLink) isInline() {}
-func (ExternalLink) isInline() {}
+func (Link) isInline() {}
 func (FootnoteRef) isInline()  {}
 
 type TextBlock struct {

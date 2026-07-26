@@ -38,11 +38,11 @@ func TestParseInline(t *testing.T) {
 		},
 		{
 			name:  "internal link",
-			input: "(Internal link -> doc-id)",
+			input: "(link -> doc-id)",
 			want: []ast.Inline{
-				ast.InternalLink{
+				ast.Link{
 					Target: "doc-id",
-					Label:  []ast.Inline{ast.PlainText{Content: "Internal link"}},
+					Label:  []ast.Inline{ast.PlainText{Content: "link"}},
 				},
 			},
 		},
@@ -50,7 +50,7 @@ func TestParseInline(t *testing.T) {
 			name:  "external link",
 			input: "(Website -> https://example.com)",
 			want: []ast.Inline{
-				ast.ExternalLink{
+				ast.Link{
 					Target: "https://example.com",
 					Label:  []ast.Inline{ast.PlainText{Content: "Website"}},
 				},
@@ -84,8 +84,28 @@ func TestParseInline(t *testing.T) {
 			name:  "escaping inside link target",
 			input: `(Wiki -> https://en.wikipedia.org/wiki/Test_\(disambiguation\))`,
 			want: []ast.Inline{
-				ast.ExternalLink{
-					Target: "https://en.wikipedia.org/wiki/Test_(disambiguation)", // il backslash qui non ci deve essere!
+				ast.Link{
+					Target: "https://en.wikipedia.org/wiki/Test_(disambiguation)",
+					Label:  []ast.Inline{ast.PlainText{Content: "Wiki"}},
+				},
+			},
+		},
+		{
+			name:  "balanced parentheses in link label",
+			input: `(Download the (PDF) attached -> doc-id)`,
+			want: []ast.Inline{
+				ast.Link{
+					Target: "doc-id",
+					Label:  []ast.Inline{ast.PlainText{Content: "Download the (PDF) attached"}},
+				},
+			},
+		},
+		{
+			name:  "balanced parentheses in link target without escaping",
+			input: "(Wiki -> https://en.wikipedia.org/wiki/Test_(disambiguation))",
+			want: []ast.Inline{
+				ast.Link{
+					Target: "https://en.wikipedia.org/wiki/Test_(disambiguation)",
 					Label:  []ast.Inline{ast.PlainText{Content: "Wiki"}},
 				},
 			},
@@ -94,7 +114,7 @@ func TestParseInline(t *testing.T) {
 			name:  "mailto link should be external",
 			input: "(Contact -> mailto:hello@soffio.org)",
 			want: []ast.Inline{
-				ast.ExternalLink{
+				ast.Link{
 					Target: "mailto:hello@soffio.org",
 					Label:  []ast.Inline{ast.PlainText{Content: "Contact"}},
 				},

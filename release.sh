@@ -27,7 +27,7 @@ build() {
     CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o "$target/soffio$ext" ./cmd/soffio
     CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o "$target/preview$ext" ./cmd/preview
 
-    cp -f README.org LICENSE "$target/" 2>/dev/null || true
+    cp -f README LICENSE "$target/" 2>/dev/null || true
 
     if [ "$os" = "windows" ] && command -v zip >/dev/null 2>&1; then
         (cd "$DIST_DIR" && zip -q -r "$name.zip" "$name")

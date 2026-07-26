@@ -1,3 +1,6 @@
+// Copyright (C) 2026 Jacopo Costantini
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package parser
 
 import (
@@ -127,16 +130,25 @@ func unescape(s string) string {
 
 func scanLinkOrNote(runes []rune, start int) (ast.Inline, int, bool) {
 	closeIndex := -1
+	depth := 0
 
 	for i := start + 1; i < len(runes); i++ {
 		if runes[i] == '\\' {
 			i++
 			continue
 		}
-		if runes[i] == ')' {
-			closeIndex = i
-			break
+		if runes[i] == '(' {
+			depth++
+			continue
 		}
+		if runes[i] == ')' {
+			if depth == 0 {
+				closeIndex = i
+				break
+			}
+			depth--
+		}
+
 	}
 
 	if closeIndex == -1 {
@@ -154,10 +166,13 @@ func scanLinkOrNote(runes []rune, start int) (ast.Inline, int, bool) {
 		return ast.FootnoteRef{Target: id}, closeIndex, true
 	}
 
-	labelStr, targetStr, ok := strings.Cut(innerStr, " -> ")
-	if !ok {
+	sepIdx := strings.LastIndex(innerStr, " -> ")
+	if sepIdx == -1 {
 		return nil, 0, false
 	}
+
+	labelStr := innerStr[:sepIdx]
+	targetStr := innerStr[sepIdx+4:] // len(" -> ") == 4
 
 	target := unescape(strings.TrimSpace(targetStr))
 	if target == "" {
@@ -166,12 +181,8 @@ func scanLinkOrNote(runes []rune, start int) (ast.Inline, int, bool) {
 
 	labelNodes := parseInline(strings.TrimSpace(labelStr))
 
-	if strings.HasPrefix(target, "http://") ||
-		strings.HasPrefix(target, "https://") ||
-		strings.HasPrefix(target, "mailto:") ||
-		strings.HasPrefix(target, "tel:") {
-		return ast.ExternalLink{Target: target, Label: labelNodes}, closeIndex, true
-	}
-
-	return ast.InternalLink{Target: target, Label: labelNodes}, closeIndex, true
+	return ast.Link{
+		Target: target,
+		Label: labelNodes,
+	}, closeIndex, true
 }
