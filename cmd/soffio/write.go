@@ -15,9 +15,18 @@ import (
 	"soffio/renderer"
 )
 
-func writeDoc(id string, doc *ast.Document, tmpl *template.Template, outDir string, assetPrefix string) error {
+// SiteContext holds the global state required to generate the site.
+type SiteContext struct {
+	BaseURL        string
+	SupportedLangs []string
+	OutDir         string
+	Template       *template.Template
+	AllDocs        map[string]*ast.Document
+}
+
+func (ctx *SiteContext) writeDoc(id string, doc *ast.Document, assetPrefix string) error {
 	layout := doc.Meta["layout"]
-	if layout == "" || tmpl.Lookup(layout+".html") == nil {
+	if layout == "" || ctx.Template.Lookup(layout+".html") == nil {
 		layout = "layout"
 	}
 
@@ -26,7 +35,29 @@ func writeDoc(id string, doc *ast.Document, tmpl *template.Template, outDir stri
 		return err
 	}
 
-	outPath := filepath.Join(outDir, filepath.FromSlash(id)+".html")
+	permalink := ctx.BaseURL + "/" + filepath.ToSlash(id) + ".html"
+	parts := strings.SplitN(filepath.ToSlash(id), "/", 2)
+
+	type Alternate struct {
+		Lang string
+		URL  string
+	}
+	var alternates []Alternate
+
+	if len(parts) == 2 {
+		slug := parts[1]
+		for _, l := range ctx.SupportedLangs {
+			altID := l + "/" + slug
+			if _, exists := ctx.AllDocs[filepath.FromSlash(altID)]; exists {
+				alternates = append(alternates, Alternate{
+					Lang: l,
+					URL:  ctx.BaseURL + "/" + altID + ".html",
+				})
+			}
+		}
+	}
+
+	outPath := filepath.Join(ctx.OutDir, filepath.FromSlash(id)+".html")
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
 		return err
 	}
@@ -37,55 +68,58 @@ func writeDoc(id string, doc *ast.Document, tmpl *template.Template, outDir stri
 	}
 	defer f.Close()
 
-	return tmpl.ExecuteTemplate(f, layout+".html", map[string]any{
-		"Title":   doc.Title,
-		"Meta":    doc.Meta,
-		"Content": template.HTML(buf.String()),
+	return ctx.Template.ExecuteTemplate(f, layout+".html", map[string]any{
+		"Title":       doc.Title,
+		"Meta":        doc.Meta,
+		"Content":     template.HTML(buf.String()),
+		"AssetPrefix": assetPrefix,
+		"Permalink":   permalink,
+		"Alternates":  alternates,
 	})
 }
 
-func writeIndex(docs map[string]*ast.Document, tmpl *template.Template, outDir string) error {
-	outPath := filepath.Join(outDir, "index.html")
+func (ctx *SiteContext) writeIndex() error {
+	outPath := filepath.Join(ctx.OutDir, "index.html")
 	f, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	return tmpl.ExecuteTemplate(f, "index.html", map[string]any{
+	return ctx.Template.ExecuteTemplate(f, "index.html", map[string]any{
 		"Title": "Index",
-		"Docs":  docs,
+		"Docs":  ctx.AllDocs,
 	})
 }
 
-func writeFeed(docs map[string]*ast.Document, tmpl *template.Template, outDir string) error {
-	outPath := filepath.Join(outDir, "rss.xml")
+func (ctx *SiteContext) writeFeed() error {
+	outPath := filepath.Join(ctx.OutDir, "rss.xml")
 	f, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	return tmpl.ExecuteTemplate(f, "rss.xml", map[string]any{
-		"Docs":      docs,
+	return ctx.Template.ExecuteTemplate(f, "rss.xml", map[string]any{
+		"Docs":      ctx.AllDocs,
 		"XMLHeader": template.HTML("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"),
 	})
 }
 
-func writeSitemap(docs map[string]*ast.Document, tmpl *template.Template, outDir string) error {
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
+func (ctx *SiteContext) writeSitemap() error {
+	if err := os.MkdirAll(ctx.OutDir, 0o755); err != nil {
 		return err
 	}
 
-	outPath := filepath.Join(outDir, "sitemap.xml")
+	outPath := filepath.Join(ctx.OutDir, "sitemap.xml")
 	f, err := os.Create(outPath)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
 
-	return tmpl.ExecuteTemplate(f, "sitemap.xml", map[string]any{
-		"Docs":      docs,
+	return ctx.Template.ExecuteTemplate(f, "sitemap.xml", map[string]any{
+		"Docs":      ctx.AllDocs,
 		"XMLHeader": template.HTML("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"),
 	})
 }

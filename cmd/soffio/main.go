@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"soffio/ast"
 	"soffio/corpus"
@@ -23,6 +24,8 @@ import (
 var Version = "dev"
 
 func main() {
+	baseURL := flag.String("baseurl", "http://localhost:8080", "The absolute base URL of the site")
+	langs := flag.String("langs", "en", "Comma-separated list of supported languages")
 	outDir := flag.String("o", "public", "output directory for site generation")
 	tmplDir := flag.String("t", "templates", "local templates directory")
 	staticDir := flag.String("s", "static", "static assets directory")
@@ -99,6 +102,15 @@ func main() {
 		log.Fatalf("soffio: unable to create the output directory: %v", err)
 	}
 
+	supportedLangs := strings.Split(*langs, ",")
+	ctx := &SiteContext{
+		BaseURL:        *baseURL,
+		SupportedLangs: supportedLangs,
+		OutDir:         *outDir,
+		Template:       tmpl,
+		AllDocs:        visibleDocs,
+	}
+
 	// html generation
 	if *genHTML {
 		// copy static dir
@@ -107,16 +119,14 @@ func main() {
 		}
 
 		assetPrefix := "/" + filepath.ToSlash(filepath.Base(*staticDir))
-
-		// copy filtered docs
 		for id, doc := range visibleDocs {
-			if err := writeDoc(id, doc, tmpl, *outDir, assetPrefix); err != nil {
+			if err := ctx.writeDoc(id, doc, assetPrefix); err != nil {
 				log.Printf("soffio: err %s: %v", id, err)
 			}
 		}
 
 		if tmpl.Lookup("index.html") != nil {
-			if err := writeIndex(visibleDocs, tmpl, *outDir); err != nil {
+			if err := ctx.writeIndex(); err != nil {
 				log.Printf("soffio: error index: %v", err)
 			}
 		}
@@ -124,14 +134,14 @@ func main() {
 
 	// rss generation
 	if *genRSS && tmpl.Lookup("rss.xml") != nil {
-		if err := writeFeed(visibleDocs, tmpl, *outDir); err != nil {
+		if err := ctx.writeFeed(); err != nil {
 			log.Printf("soffio: error feed: %v", err)
 		}
 	}
 
 	// sitemap generation
 	if *genSitemap && tmpl.Lookup("sitemap.xml") != nil {
-		if err := writeSitemap(visibleDocs, tmpl, *outDir); err != nil {
+		if err := ctx.writeSitemap(); err != nil {
 			log.Printf("soffio: error sitemap: %v", err)
 		}
 	}

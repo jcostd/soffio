@@ -44,8 +44,16 @@ func TestWriteDoc(t *testing.T) {
 		},
 	}
 
-	// 3. Execute writeDoc (which relies on renderer.Render internally)
-	err = writeDoc("test-doc", doc, tmpl, outDir, "")
+	// 3. Execute writeDoc using SiteContext
+	ctx := &SiteContext{
+		BaseURL:        "http://localhost",
+		SupportedLangs: []string{"en"},
+		OutDir:         outDir,
+		Template:       tmpl,
+		AllDocs:        map[string]*ast.Document{"test-doc": doc},
+	}
+
+	err = ctx.writeDoc("test-doc", doc, "")
 	if err != nil {
 		t.Fatalf("writeDoc failed: %v", err)
 	}
@@ -93,8 +101,14 @@ func TestWriteIndex(t *testing.T) {
 		"post2": {Title: "Second Post"},
 	}
 
-	// 3. Execute writeIndex
-	err = writeIndex(docs, tmpl, outDir)
+	// 3. Execute writeIndex using SiteContext
+	ctx := &SiteContext{
+		OutDir:   outDir,
+		Template: tmpl,
+		AllDocs:  docs,
+	}
+
+	err = ctx.writeIndex()
 	if err != nil {
 		t.Fatalf("writeIndex failed: %v", err)
 	}
