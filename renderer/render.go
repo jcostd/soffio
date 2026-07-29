@@ -17,13 +17,13 @@ import (
 
 // renderer tracks state during document emission.
 type renderer struct {
-	w           io.Writer
-	err         error
-	docID       string
-	notes       map[string]ast.NoteBlock
-	refs        []string
-	refsIdx     map[string]int
-	refCount    map[string]int
+	w        io.Writer
+	err      error
+	docID    string
+	notes    map[string]ast.NoteBlock
+	refs     []string
+	refsIdx  map[string]int
+	refCount map[string]int
 }
 
 func (r *renderer) write(s string) {
@@ -43,12 +43,12 @@ func (r *renderer) writef(format string, args ...any) {
 // Render emits doc to w.
 func Render(w io.Writer, doc *ast.Document) error {
 	r := renderer{
-		w:           w,
-		docID:       doc.ID,
-		notes:       make(map[string]ast.NoteBlock),
-		refs:        make([]string, 0, 8),
-		refsIdx:     make(map[string]int),
-		refCount:    make(map[string]int),
+		w:        w,
+		docID:    doc.ID,
+		notes:    make(map[string]ast.NoteBlock),
+		refs:     make([]string, 0, 8),
+		refsIdx:  make(map[string]int),
+		refCount: make(map[string]int),
 	}
 
 	for _, s := range doc.Sections {

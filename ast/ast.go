@@ -23,21 +23,21 @@ type Inline interface {
 }
 
 type (
-	PlainText    struct{ Content string }
-	Bold         struct{ Elements []Inline }
-	Italic       struct{ Elements []Inline }
-	FootnoteRef  struct{ Target string }
-	Link struct {
+	PlainText   struct{ Content string }
+	Bold        struct{ Elements []Inline }
+	Italic      struct{ Elements []Inline }
+	FootnoteRef struct{ Target string }
+	Link        struct {
 		Target string
 		Label  []Inline
 	}
 )
 
-func (PlainText) isInline()    {}
-func (Bold) isInline()         {}
-func (Italic) isInline()       {}
-func (Link) isInline() {}
-func (FootnoteRef) isInline()  {}
+func (PlainText) isInline()   {}
+func (Bold) isInline()        {}
+func (Italic) isInline()      {}
+func (Link) isInline()        {}
+func (FootnoteRef) isInline() {}
 
 type TextBlock struct {
 	Line     int

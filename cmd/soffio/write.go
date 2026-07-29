@@ -69,12 +69,12 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 	defer f.Close()
 
 	return ctx.Template.ExecuteTemplate(f, layout+".html", map[string]any{
-		"Title":       doc.Title,
-		"Meta":        doc.Meta,
-		"Content":     template.HTML(buf.String()),
-		"BaseURL":     ctx.BaseURL,
-		"Permalink":   permalink,
-		"Alternates":  alternates,
+		"Title":      doc.Title,
+		"Meta":       doc.Meta,
+		"Content":    template.HTML(buf.String()),
+		"BaseURL":    ctx.BaseURL,
+		"Permalink":  permalink,
+		"Alternates": alternates,
 	})
 }
 

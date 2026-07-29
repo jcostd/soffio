@@ -183,6 +183,6 @@ func scanLinkOrNote(runes []rune, start int) (ast.Inline, int, bool) {
 
 	return ast.Link{
 		Target: target,
-		Label: labelNodes,
+		Label:  labelNodes,
 	}, closeIndex, true
 }
