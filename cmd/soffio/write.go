@@ -24,14 +24,14 @@ type SiteContext struct {
 	AllDocs        map[string]*ast.Document
 }
 
-func (ctx *SiteContext) writeDoc(id string, doc *ast.Document, assetPrefix string) error {
+func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 	layout := doc.Meta["layout"]
 	if layout == "" || ctx.Template.Lookup(layout+".html") == nil {
 		layout = "layout"
 	}
 
 	var buf strings.Builder
-	if err := renderer.Render(&buf, doc, assetPrefix); err != nil {
+	if err := renderer.Render(&buf, doc); err != nil {
 		return err
 	}
 
@@ -72,7 +72,7 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document, assetPrefix strin
 		"Title":       doc.Title,
 		"Meta":        doc.Meta,
 		"Content":     template.HTML(buf.String()),
-		"AssetPrefix": assetPrefix,
+		"BaseURL":     ctx.BaseURL,
 		"Permalink":   permalink,
 		"Alternates":  alternates,
 	})
@@ -125,20 +125,35 @@ func (ctx *SiteContext) writeSitemap() error {
 }
 
 // copyDir mirrors src into dst, preserving the directory tree.
+// It handles symbolic links transparently.
 func copyDir(src, dst string) error {
-	return filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
+	realSrc, err := filepath.EvalSymlinks(src)
+	if err != nil {
+		return err
+	}
+
+	return filepath.WalkDir(realSrc, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		rel, err := filepath.Rel(src, path)
+		rel, err := filepath.Rel(realSrc, path)
 		if err != nil {
 			return err
 		}
 		target := filepath.Join(dst, rel)
 
-		if d.IsDir() {
+		info, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() {
 			return os.MkdirAll(target, 0o755)
+		}
+
+		if !info.Mode().IsRegular() {
+			return nil
 		}
 
 		in, err := os.Open(path)

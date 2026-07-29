@@ -42,7 +42,7 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := Render(&buf, doc, ""); err != nil {
+	if err := Render(&buf, doc); err != nil {
 		t.Fatalf("Render failed: %v", err)
 	}
 
@@ -113,7 +113,7 @@ func TestRender_Links(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	if err := Render(&buf, doc, ""); err != nil {
+	if err := Render(&buf, doc); err != nil {
 		t.Fatalf("Render failed: %v", err)
 	}
 	got := buf.String()
@@ -165,7 +165,7 @@ func TestRender_Footnotes(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	_ = Render(&buf, doc, "")
+	_ = Render(&buf, doc)
 	got := buf.String()
 
 	expectedParts := []string{
@@ -211,6 +211,6 @@ func BenchmarkRender(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
 		var buf strings.Builder
-		_ = Render(&buf, doc, "")
+		_ = Render(&buf, doc)
 	}
 }

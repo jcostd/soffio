@@ -64,7 +64,7 @@ func main() {
 			log.Fatalf("soffio: parse: %v", err)
 		}
 
-		if err := renderer.Render(os.Stdout, &doc, ""); err != nil {
+		if err := renderer.Render(os.Stdout, &doc); err != nil {
 			log.Fatalf("soffio: render: %v", err)
 		}
 		return
@@ -72,8 +72,8 @@ func main() {
 
 	// site generator mode: arg is src directory
 	inDir := flag.Arg(0)
-
 	c := corpus.New()
+
 	skipDir := filepath.Base(*staticDir)
 	if err := c.Load(os.DirFS(inDir), "*.soffio", skipDir); err != nil {
 		log.Fatalf("soffio: load: %v", err)
@@ -102,10 +102,9 @@ func main() {
 		log.Fatalf("soffio: unable to create the output directory: %v", err)
 	}
 
-	supportedLangs := strings.Split(*langs, ",")
 	ctx := &SiteContext{
 		BaseURL:        *baseURL,
-		SupportedLangs: supportedLangs,
+		SupportedLangs: strings.Split(*langs, ","),
 		OutDir:         *outDir,
 		Template:       tmpl,
 		AllDocs:        visibleDocs,
@@ -113,14 +112,18 @@ func main() {
 
 	// html generation
 	if *genHTML {
-		// copy static dir
+		staticOut := filepath.Join(*outDir, "static")
 		if stat, err := os.Stat(*staticDir); err == nil && stat.IsDir() {
-			_ = copyDir(*staticDir, filepath.Join(*outDir, "static"))
+			if err := os.MkdirAll(staticOut, 0o755); err != nil {
+				log.Fatalf("soffio: unable to create static output directory: %v", err)
+			}
+			if err := copyDir(*staticDir, staticOut); err != nil {
+				log.Fatalf("soffio: failed to copy static assets: %v", err)
+			}
 		}
 
-		assetPrefix := "/" + filepath.ToSlash(filepath.Base(*staticDir))
 		for id, doc := range visibleDocs {
-			if err := ctx.writeDoc(id, doc, assetPrefix); err != nil {
+			if err := ctx.writeDoc(id, doc); err != nil {
 				log.Printf("soffio: err %s: %v", id, err)
 			}
 		}

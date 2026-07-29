@@ -10,7 +10,6 @@ import (
 	"io"
 	"log"
 	"net/url"
-	"path"
 	"strings"
 
 	"soffio/ast"
@@ -21,7 +20,6 @@ type renderer struct {
 	w           io.Writer
 	err         error
 	docID       string
-	assetPrefix string // The global prefix for static assets (e.g., "/static")
 	notes       map[string]ast.NoteBlock
 	refs        []string
 	refsIdx     map[string]int
@@ -42,12 +40,11 @@ func (r *renderer) writef(format string, args ...any) {
 	_, r.err = fmt.Fprintf(r.w, format, args...)
 }
 
-// Render emits doc to w. assetPrefix is prepended to relative asset paths.
-func Render(w io.Writer, doc *ast.Document, assetPrefix string) error {
+// Render emits doc to w.
+func Render(w io.Writer, doc *ast.Document) error {
 	r := renderer{
 		w:           w,
 		docID:       doc.ID,
-		assetPrefix: assetPrefix,
 		notes:       make(map[string]ast.NoteBlock),
 		refs:        make([]string, 0, 8),
 		refsIdx:     make(map[string]int),
@@ -111,14 +108,6 @@ func (r *renderer) renderBlock(b ast.Block) {
 
 	case ast.ImageBlock:
 		src := v.Path
-		isAbs := strings.HasPrefix(src, "/")
-		isExt := strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://")
-
-		// Apply prefix only if it's a relative path and a prefix is provided
-		if !isAbs && !isExt && r.assetPrefix != "" {
-			src = path.Join(r.assetPrefix, src)
-		}
-
 		altText := extractPlainText(v.Caption)
 		r.write("<figure>\n")
 		r.writef("\t<img src=\"%s\" alt=\"%s\" loading=\"lazy\">\n",
