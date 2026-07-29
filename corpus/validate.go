@@ -70,10 +70,15 @@ func (c *Collection) ValidateLinks(activeDocs map[string]*ast.Document, staticDi
 				case ast.TextBlock:
 					walk(b.Elements, id, b.Line, notes, c.Docs, activeDocs, &errs)
 				case ast.ImageBlock:
-					// Check physical presence of the asset.
-					imgPath := filepath.Join(staticDir, b.Path)
-					if _, err := os.Stat(imgPath); os.IsNotExist(err) {
-						log.Printf("soffio: warning: missing image '%s' referenced in document '%s'", b.Path, id)
+					u, err := url.Parse(b.Path)
+					if err == nil && u.Scheme == "" && !strings.HasPrefix(b.Path, "//") {
+						relPath := strings.TrimPrefix(b.Path, "/static/")
+						relPath = strings.TrimPrefix(relPath, "/") // Fallback safety
+
+						imgPath := filepath.Join(staticDir, filepath.FromSlash(relPath))
+						if _, err := os.Stat(imgPath); os.IsNotExist(err) {
+							log.Printf("soffio: warning: missing image '%s' referenced in document '%s'", b.Path, id)
+						}
 					}
 					walk(b.Caption, id, b.Line, notes, c.Docs, activeDocs, &errs)
 				case ast.NoteBlock:

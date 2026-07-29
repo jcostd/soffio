@@ -42,14 +42,14 @@ MARKUP SYNTAX
     Frontmatter keys include 'id', 'title', 'layout', 'visibility',
     and 'notes_title'.
 
-    == id | Title             Section header
-    *text*                    Bold
-    _text_                    Italic
-    (Label -> target)         Hyperlink
-    :: img: path | caption    Image block
-    - text                    List item
-    :: note: id | text        Footnote definition
-    (*note-id)                Footnote reference
+    == id | Title                     Section header
+    *text*                            Bold
+    _text_                            Italic
+    (Label -> target)                 Hyperlink
+    :: img: /static/path | caption    Image block
+    - text                            List item
+    :: note: id | text                Footnote definition
+    (*note-id)                        Footnote reference
 
 ROUTING & LINKS
     The filesystem scopes the output directory. <input>/it/about.soffio
@@ -63,8 +63,8 @@ ROUTING & LINKS
 ASSETS
     Static assets are kept in the 'static' directory (or via -s).
     During build, they are mirrored to the output folder.
-    Relative image paths (:: img: img/file.jpg | cap) automatically
-    receive the static asset prefix for the browser.
+    Asset paths in documents must be explicitly prefixed from the site root
+    (e.g. :: img: /static/img/file.jpg | caption).
 
 AUTHOR
     Written and designed by Jacopo Costantini.
