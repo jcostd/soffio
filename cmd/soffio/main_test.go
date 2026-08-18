@@ -74,43 +74,6 @@ func TestWriteDoc(t *testing.T) {
 	}
 }
 
-func TestWriteIndex(t *testing.T) {
-	outDir := t.TempDir()
-
-	tmplStr := `<ul>{{range $id, $doc := .Docs}}<li>{{$id}}: {{$doc.Title}}</li>{{end}}</ul>`
-	tmpl, err := template.New("index.html").Parse(tmplStr)
-	if err != nil {
-		t.Fatalf("failed to parse template: %v", err)
-	}
-
-	docs := map[string]*ast.Document{
-		"post1": {Title: "First Post"},
-		"post2": {Title: "Second Post"},
-	}
-
-	ctx := &SiteContext{
-		OutDir:   outDir,
-		Template: tmpl,
-		AllDocs:  docs,
-	}
-
-	err = ctx.writeIndex()
-	if err != nil {
-		t.Fatalf("writeIndex failed: %v", err)
-	}
-
-	outPath := filepath.Join(outDir, "index.html")
-	content, err := os.ReadFile(outPath)
-	if err != nil {
-		t.Fatalf("failed to read index file: %v", err)
-	}
-
-	got := string(content)
-	if !strings.Contains(got, "post1: First Post") || !strings.Contains(got, "post2: Second Post") {
-		t.Errorf("expected docs in index, got: %s", got)
-	}
-}
-
 func TestCopyDir(t *testing.T) {
 	srcDir := t.TempDir()
 

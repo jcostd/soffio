@@ -10,7 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
+	"sort"
 	"soffio/ast"
 	"soffio/renderer"
 )
@@ -68,6 +68,15 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 	}
 	defer f.Close()
 
+	var children []*ast.Document
+	prefix := filepath.ToSlash(id) + "/"
+	for cid, cdoc := range ctx.AllDocs {
+		if strings.HasPrefix(filepath.ToSlash(cid), prefix) {
+			children = append(children, cdoc)
+		}
+	}
+	sort.Slice(children, func(i, j int) bool { return children[i].Title < children[j].Title })
+
 	return ctx.Template.ExecuteTemplate(f, layout+".html", map[string]any{
 		"Title":      doc.Title,
 		"Meta":       doc.Meta,
@@ -75,20 +84,7 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 		"BaseURL":    ctx.BaseURL,
 		"Permalink":  permalink,
 		"Alternates": alternates,
-	})
-}
-
-func (ctx *SiteContext) writeIndex() error {
-	outPath := filepath.Join(ctx.OutDir, "index.html")
-	f, err := os.Create(outPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return ctx.Template.ExecuteTemplate(f, "index.html", map[string]any{
-		"Title": "Index",
-		"Docs":  ctx.AllDocs,
+		"Children":   children,
 	})
 }
 

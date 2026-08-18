@@ -127,12 +127,6 @@ func main() {
 				log.Printf("soffio: err %s: %v", id, err)
 			}
 		}
-
-		if tmpl.Lookup("index.html") != nil {
-			if err := ctx.writeIndex(); err != nil {
-				log.Printf("soffio: error index: %v", err)
-			}
-		}
 	}
 
 	// rss generation
