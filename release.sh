@@ -38,8 +38,18 @@ build() {
     rm -rf "$target"
 }
 
+# LINUX
 build linux amd64
+build linux 386
+build linux arm
+build linux arm64
+
+# WINDOWS
 build windows amd64
+build windows 386
+build windows arm64
+
+# MACOS
 build darwin arm64
 build darwin amd64
 

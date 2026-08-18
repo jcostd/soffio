@@ -68,11 +68,21 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 	}
 	defer f.Close()
 
-	var children []*ast.Document
+	type ChildDoc struct {
+		Title     string
+		Permalink string
+		Meta      map[string]string
+	}
+
+	var children []ChildDoc
 	prefix := filepath.ToSlash(id) + "/"
 	for cid, cdoc := range ctx.AllDocs {
 		if strings.HasPrefix(filepath.ToSlash(cid), prefix) {
-			children = append(children, cdoc)
+			children = append(children, ChildDoc{
+				Title:     cdoc.Title,
+				Permalink: ctx.BaseURL + "/" + filepath.ToSlash(cid) + ".html",
+				Meta:      cdoc.Meta,
+			})
 		}
 	}
 	sort.Slice(children, func(i, j int) bool { return children[i].Title < children[j].Title })
