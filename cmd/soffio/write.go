@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sort"
 	"soffio/ast"
 	"soffio/renderer"
 )
@@ -68,24 +67,13 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 	}
 	defer f.Close()
 
-	type ChildDoc struct {
-		Title     string
-		Permalink string
-		Meta      map[string]string
-	}
-
-	var children []ChildDoc
+	var children []*ast.Document
 	prefix := filepath.ToSlash(id) + "/"
 	for cid, cdoc := range ctx.AllDocs {
 		if strings.HasPrefix(filepath.ToSlash(cid), prefix) {
-			children = append(children, ChildDoc{
-				Title:     cdoc.Title,
-				Permalink: ctx.BaseURL + "/" + filepath.ToSlash(cid) + ".html",
-				Meta:      cdoc.Meta,
-			})
+			children = append(children, cdoc)
 		}
 	}
-	sort.Slice(children, func(i, j int) bool { return children[i].Title < children[j].Title })
 
 	return ctx.Template.ExecuteTemplate(f, layout+".html", map[string]any{
 		"Title":      doc.Title,

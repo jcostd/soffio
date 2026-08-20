@@ -4,35 +4,51 @@
 package main
 
 import (
+	"cmp"
 	"embed"
 	"html/template"
 	"log"
 	"os"
 	"path/filepath"
+	"slices"
+
+	"soffio/ast"
 )
 
 //go:embed templates/*.html templates/*.xml
 var embeddedAssets embed.FS
 
-// loadTemplates loads all embedded templates, then overwrites them with any local files
-// found in the specified templates directory.
+// sortby returns a cloned slice sorted descending by meta key.
+// falls back to id (ascending A-Z) for tie-breaking.
+func sortBy(docs []*ast.Document, key string) []*ast.Document {
+	sorted := slices.Clone(docs)
+	slices.SortFunc(sorted, func(a, b *ast.Document) int {
+		if r := cmp.Compare(b.Meta[key], a.Meta[key]); r != 0 {
+			return r
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
+	return sorted
+}
+
+// loadtemplates parses embedded files, overriding with local templates if present.
 func loadTemplates(dir string) *template.Template {
-	tmpl, err := template.ParseFS(embeddedAssets, "templates/*.html", "templates/*.xml")
+	tmpl := template.New("base").Funcs(template.FuncMap{
+		"sortBy": sortBy,
+	})
+
+	tmpl, err := tmpl.ParseFS(embeddedAssets, "templates/*.html", "templates/*.xml")
 	if err != nil {
 		log.Fatalf("soffio: embedded templates: %v", err)
 	}
 
 	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
-		if matches, _ := filepath.Glob(filepath.Join(dir, "*.html")); len(matches) > 0 {
-			tmpl, err = tmpl.ParseGlob(filepath.Join(dir, "*.html"))
-			if err != nil {
-				log.Fatalf("soffio: local html templates: %v", err)
-			}
-		}
-		if matches, _ := filepath.Glob(filepath.Join(dir, "*.xml")); len(matches) > 0 {
-			tmpl, err = tmpl.ParseGlob(filepath.Join(dir, "*.xml"))
-			if err != nil {
-				log.Fatalf("soffio: local xml templates: %v", err)
+		for _, ext := range []string{"*.html", "*.xml"} {
+			pattern := filepath.Join(dir, ext)
+			if matches, _ := filepath.Glob(pattern); len(matches) > 0 {
+				if tmpl, err = tmpl.ParseGlob(pattern); err != nil {
+					log.Fatalf("soffio: parse %s: %v", ext, err)
+				}
 			}
 		}
 	}
