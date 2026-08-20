@@ -9,9 +9,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"soffio/ast"
 	"soffio/renderer"
+	"strings"
 )
 
 // SiteContext holds the global state required to generate the site.

@@ -18,6 +18,7 @@ FEATURES
     UNIX Pathing: Standard POSIX rules for relative cross-folder links.
     Dual Mode: Directory generator or stdin/stdout UNIX filter.
     Syndication: Generates RSS feeds and XML Sitemaps.
+    Agnostic Templates: Sort and format data entirely at the presentation layer.
 
 BUILD
     Requires Go 1.26 or higher.
@@ -50,6 +51,16 @@ MARKUP SYNTAX
     - text                            List item
     :: note: id | text                Footnote definition
     (*note-id)                        Footnote reference
+
+TEMPLATES
+    Soffio exposes the document tree to standard Go HTML templates.
+    Presentation logic is handled entirely by the theme. Use the built-in
+    sortBy function to order a document's children by any frontmatter key:
+
+        {{ range sortBy .Children "event_date" }}
+          <a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>
+        {{ end }}
+
 
 ROUTING & LINKS
     The filesystem scopes the output directory. <input>/it/about.soffio
