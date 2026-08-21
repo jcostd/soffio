@@ -15,7 +15,7 @@ import (
 	"soffio/ast"
 )
 
-//go:embed templates/*.html templates/*.xml
+//go:embed templates/*.html templates/*.xml templates/*.txt templates/*.json
 var embeddedAssets embed.FS
 
 // sortby returns a cloned slice sorted descending by meta key.
@@ -37,13 +37,13 @@ func loadTemplates(dir string) *template.Template {
 		"sortBy": sortBy,
 	})
 
-	tmpl, err := tmpl.ParseFS(embeddedAssets, "templates/*.html", "templates/*.xml")
+	tmpl, err := tmpl.ParseFS(embeddedAssets, "templates/*.html", "templates/*.xml", "templates/*.txt", "templates/*.json")
 	if err != nil {
 		log.Fatalf("soffio: embedded templates: %v", err)
 	}
 
 	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
-		for _, ext := range []string{"*.html", "*.xml"} {
+		for _, ext := range []string{"*.html", "*.xml", "*.txt", "*.json"} {
 			pattern := filepath.Join(dir, ext)
 			if matches, _ := filepath.Glob(pattern); len(matches) > 0 {
 				if tmpl, err = tmpl.ParseGlob(pattern); err != nil {

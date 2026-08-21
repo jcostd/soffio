@@ -14,7 +14,7 @@
     <meta name="author" content="{{ .Meta.author }}">
     {{- end }}
 
-    <!-- canonical e hreflang automatici via SiteContext -->
+    <!-- canonical e hreflang -->
     {{- if .Permalink }}
     <link rel="canonical" href="{{ .Permalink }}">
     {{- end }}
@@ -34,6 +34,9 @@
     {{- if .Permalink }}
     <meta property="og:url" content="{{ .Permalink }}">
     {{- end }}
+
+    <meta name="theme-color" content="#222222">
+    <link rel="manifest" href="{{ .BaseURL }}/manifest.json">
 
     <!-- json-ld -->
     <script type="application/ld+json">
@@ -55,7 +58,7 @@
   </head>
   <body>
     <header>
-      <nav><a href="{{ .BaseURL }}/index.html">index</a></nav>
+      <nav><a href="{{ .BaseURL }}/">index</a></nav>
     </header>
 
     <main>

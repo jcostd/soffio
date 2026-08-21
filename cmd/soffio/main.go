@@ -33,6 +33,9 @@ func main() {
 	genHTML := flag.Bool("html", true, "generate HTML pages and index")
 	genRSS := flag.Bool("rss", true, "generate RSS feed")
 	genSitemap := flag.Bool("sitemap", true, "generate XML sitemap")
+	genRobots := flag.Bool("robots", true, "generate robots.txt")
+	genErrorPage := flag.Bool("errpage", true, "generate error 404 page")
+	genManifest := flag.Bool("manifest", true, "generate manifest.json")
 	showVersion := flag.Bool("version", false, "print version and exit")
 	showV := flag.Bool("v", false, "print version and exit (shorthand)")
 
@@ -140,6 +143,27 @@ func main() {
 	if *genSitemap && tmpl.Lookup("sitemap.xml") != nil {
 		if err := ctx.writeSitemap(); err != nil {
 			log.Printf("soffio: error sitemap: %v", err)
+		}
+	}
+
+	// robots generation
+	if *genRobots && tmpl.Lookup("robots.txt") != nil {
+		if err := ctx.writeRobots(); err != nil {
+			log.Printf("soffio: error robots: %v", err)
+		}
+	}
+
+	// 404 generation
+	if *genErrorPage && tmpl.Lookup("404.html") != nil {
+		if err := ctx.write404(); err != nil {
+			log.Printf("soffio: error 404: %v", err)
+		}
+	}
+
+	// manifest generation
+	if *genManifest && tmpl.Lookup("manifest.json") != nil {
+		if err := ctx.writeManifest(); err != nil {
+			log.Printf("soffio: error manifest: %v", err)
 		}
 	}
 }

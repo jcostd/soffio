@@ -95,6 +95,7 @@ func (ctx *SiteContext) writeFeed() error {
 	defer f.Close()
 
 	return ctx.Template.ExecuteTemplate(f, "rss.xml", map[string]any{
+		"BaseURL":   ctx.BaseURL,
 		"Docs":      ctx.AllDocs,
 		"XMLHeader": template.HTML("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"),
 	})
@@ -113,8 +114,48 @@ func (ctx *SiteContext) writeSitemap() error {
 	defer f.Close()
 
 	return ctx.Template.ExecuteTemplate(f, "sitemap.xml", map[string]any{
+		"BaseURL":   ctx.BaseURL,
 		"Docs":      ctx.AllDocs,
 		"XMLHeader": template.HTML("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"),
+	})
+}
+
+func (ctx *SiteContext) writeRobots() error {
+	outPath := filepath.Join(ctx.OutDir, "robots.txt")
+	f, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return ctx.Template.ExecuteTemplate(f, "robots.txt", map[string]any{
+		"BaseURL": ctx.BaseURL,
+	})
+}
+
+func (ctx *SiteContext) write404() error {
+	outPath := filepath.Join(ctx.OutDir, "404.html")
+	f, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return ctx.Template.ExecuteTemplate(f, "404.html", map[string]any{
+		"BaseURL": ctx.BaseURL,
+	})
+}
+
+func (ctx *SiteContext) writeManifest() error {
+	outPath := filepath.Join(ctx.OutDir, "manifest.json")
+	f, err := os.Create(outPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return ctx.Template.ExecuteTemplate(f, "manifest.json", map[string]any{
+		"BaseURL": ctx.BaseURL,
 	})
 }
 

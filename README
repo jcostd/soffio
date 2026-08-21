@@ -17,7 +17,8 @@ FEATURES
     Privacy Guards: Public documents cannot link to private ones.
     UNIX Pathing: Standard POSIX rules for relative cross-folder links.
     Dual Mode: Directory generator or stdin/stdout UNIX filter.
-    Syndication: Generates RSS feeds and XML Sitemaps.
+    Web Standards & Syndication: Generates RSS feeds, XML sitemaps,
+    robots.txt, web app manifests (manifest.json), and 404 error pages.
     Agnostic Templates: Sort and format data entirely at the presentation layer.
 
 BUILD
@@ -61,7 +62,6 @@ TEMPLATES
           <a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>
         {{ end }}
 
-
 ROUTING & LINKS
     The filesystem scopes the output directory. <input>/it/about.soffio
     with 'id: my-id' becomes <output>/it/my-id.html.
@@ -70,6 +70,9 @@ ROUTING & LINKS
     Targets without a leading slash are resolved relative to the
     current document's directory (zero-config i18n).
     Targets with a leading slash are resolved from the site root.
+    A target may include a #section suffix to point at a specific
+    heading id within a document (e.g. document-id#section-id).
+    Omitting the path before # targets a heading in the current document.
 
 ASSETS
     Static assets are kept in the 'static' directory (or via -s).
