@@ -100,6 +100,11 @@ func TestRender_Links(t *testing.T) {
 								Target: "/static/docs/manual.pdf",
 								Label:  []ast.Inline{ast.PlainText{Content: "Manual"}},
 							},
+							// an ID with a dot is still a page
+							ast.Link{
+								Target: "v1.2",
+								Label:  []ast.Inline{ast.PlainText{Content: "V"}},
+							},
 							// link: section only (same page)
 							ast.Link{
 								Target: "#history",
@@ -124,6 +129,7 @@ func TestRender_Links(t *testing.T) {
 		`<a href="contact.html">Contact</a>`,
 		`<a href="../static/docs/manual.pdf">Manual</a>`, // Notice the missing .html extension!
 		`<a href="#history">History</a>`,
+		`<a href="v1.2.html">V</a>`,
 	}
 
 	for _, link := range expectedLinks {

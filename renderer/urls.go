@@ -24,15 +24,15 @@ func resolveURL(sourceID, target string) string {
 		return ""
 	}
 
-	ext := path.Ext(targetPath)
-	if ext == "" {
-		targetPath += ".html"
-	}
-
 	if !strings.HasPrefix(targetPath, "/") {
 		targetPath = path.Join(path.Dir(sourceID), targetPath)
 	} else {
 		targetPath = strings.TrimPrefix(targetPath, "/")
+	}
+	// a file under static/ is an asset; anything else is a page,
+	// even an ID with a dot in it
+	if !strings.HasPrefix(targetPath, "static/") {
+		targetPath += ".html"
 	}
 
 	sourceDir := path.Dir(sourceID)
