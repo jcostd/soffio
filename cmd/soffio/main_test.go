@@ -151,3 +151,17 @@ func TestWriteDocAlternatesChildren(t *testing.T) {
 		}
 	}
 }
+
+func TestCheckBaseURL(t *testing.T) {
+	for u, ok := range map[string]bool{
+		"https://example.org":     true,
+		"https://example.org/sub": true,
+		"":                        true,
+		"https://example.org/":    false,
+		"/":                       false,
+	} {
+		if err := checkBaseURL(u); (err == nil) != ok {
+			t.Errorf("checkBaseURL(%q) = %v", u, err)
+		}
+	}
+}

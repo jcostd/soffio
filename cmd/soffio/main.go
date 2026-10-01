@@ -74,6 +74,9 @@ func main() {
 	}
 
 	// site generator mode: arg is src directory
+	if err := checkBaseURL(*baseURL); err != nil {
+		log.Fatalf("soffio: %v", err)
+	}
 	inDir := flag.Arg(0)
 	c := corpus.New()
 
@@ -180,4 +183,13 @@ func main() {
 	if failed {
 		os.Exit(1)
 	}
+}
+
+// checkBaseURL refuses a base URL ending in '/': every address is
+// BaseURL + "/" + path, and x.org//a.html is not x.org/a.html.
+func checkBaseURL(u string) error {
+	if strings.HasSuffix(u, "/") {
+		return fmt.Errorf("-baseurl %q: drop the trailing '/'", u)
+	}
+	return nil
 }
