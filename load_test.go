@@ -13,7 +13,6 @@ import (
 func TestLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Funzione helper per creare file finti nella cartella temporanea
 	writeFile := func(name, content string) {
 		dir := filepath.Dir(name)
 		if dir != "." {
@@ -25,22 +24,22 @@ func TestLoad(t *testing.T) {
 		}
 	}
 
-	// 1. File valido con ID esplicito nel frontmatter
+	// an explicit id
 	writeFile("doc1.soffio", "ID: explicit-id\nTitle: Doc 1\n\n== s1 | S1\nText")
 
-	// 2. File valido senza ID (dovrebbe usare il nome del file 'doc2')
+	// no id: the file name, doc2
 	writeFile("doc2.soffio", "Title: Doc 2\n\n== s1 | S1\nText")
 
-	// 3. File in una sottocartella senza ID (dovrebbe diventare 'sub/doc3')
+	// no id, in a directory: sub/doc3
 	writeFile("sub/doc3.soffio", "Title: Doc 3\n\n== s1 | S1\nText")
 
-	// 4. File duplicato (usa l'ID esplicito già preso da doc1.txt)
+	// the id of doc1 again
 	writeFile("dup.soffio", "ID: explicit-id\nTitle: Dup\n\n== s1 | S1\nText")
 
-	// 5. File con sintassi non valida per scatenare un errore del parser
+	// text outside any section
 	writeFile("bad.soffio", "Title: Bad\n\nTesto senza sezione dichiarata")
 
-	// 6. File dentro una cartella 'static' (dovrebbe essere ignorato da WalkDir)
+	// under static/: skipped
 	writeFile("static/ignored.soffio", "Title: Ignored\n\n== s1 | S1\nText")
 
 	docs, err := Load(os.DirFS(tmpDir), "static")
@@ -49,7 +48,8 @@ func TestLoad(t *testing.T) {
 		t.Fatal("expected Load to return errors for duplicates and bad syntax, got nil")
 	}
 
-	if !strings.Contains(err.Error(), "duplicate document ID") {
+	// files are read in lexical order: doc1 first, dup is the duplicate
+	if !strings.Contains(err.Error(), "duplicate document ID: explicit-id in dup.soffio") {
 		t.Errorf("expected duplicate ID error, got: %v", err)
 	}
 	if !strings.Contains(err.Error(), "found block content outside any section") {
@@ -84,4 +84,3 @@ func TestLoadCaseDuplicate(t *testing.T) {
 		t.Errorf("expected a case-only duplicate ID error, got: %v", err)
 	}
 }
-

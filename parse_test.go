@@ -105,8 +105,7 @@ list continuation
 }
 
 func TestParse_ImplicitFlush(t *testing.T) {
-	// Questo test verifica che la mancanza di una riga vuota
-	// prima di un nuovo comando o sezione attivi correttamente il flush.
+	// a section or command line ends the block before it, blank line or not
 	input := `
 == main | Main
 Questo è un paragrafo attaccato
@@ -234,7 +233,7 @@ Questo testo non ha una sezione dichiarata!`,
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := strings.NewReader(tt.input)
-			_, err := Parse(r) // I/O errors ignoring here
+			_, err := Parse(r)
 
 			if err == nil {
 				t.Fatalf("Expected an error containing %q, but got no errors", tt.expectedError)

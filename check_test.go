@@ -25,7 +25,7 @@ func TestCheckLink(t *testing.T) {
 		},
 	}
 
-	// activeDocs simula la "vista" pubblica, omettendo il file privato
+	// the public view: private/secret is left out
 	activeDocs := map[string]*Document{
 		"it/home":  allDocs["it/home"],
 		"it/about": allDocs["it/about"],
@@ -135,7 +135,7 @@ func TestPrivacyLeak(t *testing.T) {
 		Sections: []Section{{ID: "sec1"}},
 	}
 
-	// Simuliamo una build pubblica dove private/secret viene escluso
+	// a public build: private/secret is left out
 	activeDocs := map[string]*Document{
 		"public/post": docs["public/post"],
 	}

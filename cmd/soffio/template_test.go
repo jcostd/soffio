@@ -18,7 +18,7 @@ func TestSortBy(t *testing.T) {
 
 	sorted := sortBy(docs, "event_date")
 
-	// Ordine: "b" (2020), "a" (1964, A-Z), "c" (1964, A-Z), "d" (empty)
+	// highest first, then by ID; no date last
 	expected := []string{"b", "a", "c", "d"}
 	for i, id := range expected {
 		if sorted[i].ID != id {
@@ -26,7 +26,7 @@ func TestSortBy(t *testing.T) {
 		}
 	}
 
-	// assert non-mutability
+	// docs itself is not sorted
 	if docs[0].ID != "a" {
 		t.Error("sortBy mutated original slice")
 	}
