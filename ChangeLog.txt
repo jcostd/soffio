@@ -1,6 +1,44 @@
 Thu Oct  1 23:00:00 UTC 2026
-Not released yet: since v2.1.0. The same sites, byte for byte, but for
-the fixes below; a quarter less code; three times faster.
+Not released yet: since v2.1.0, to be 3.0.0. Fewer flags, no
+warnings, a quarter less code, three times faster.
+soffio: The command line is smaller.  (* Changes the interface. *)
+  soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]
+  [-t dir] dir. -a takes the private texts too, for -vis all; without
+  it they are left out, as -vis public did. -n checks everything,
+  templates included, and writes nothing, for the six -html=false
+  -rss=false ... flags. Gone: -vis, -html, -rss, -sitemap, -robots,
+  -errpage, -manifest, -version (-v stays). -s and -t have no default:
+  no static dir, the built-in templates. Extra arguments are refused.
+soffio: Templates come from -t or are the built-in ones, never a mix.
+  A site has what is in its directory: one without 404.html gets no
+  404 page. rss.xml, sitemap.xml, robots.txt, 404.html and manifest.json
+  are made when their template is there.
+soffio: No warnings: what was one is an error.
+  A missing image, a note never referenced, a link to a missing file
+  under /static/ (now checked, not refused as a missing page), a layout
+  that is not there (it fell back to layout.html in silence).
+soffio: Messages are file:line: message, with no timestamps.
+  They named the document ID, and log put a date in front of each.
+soffio: More is refused, with a reason.
+  A visibility other than public or private; a duplicate header key,
+  section ID or note ID; an empty ID, list item or image path; an
+  image not under /static/ (it was checked in one place and served
+  from another); an ID from a file or directory name that breaks the
+  ID rules; a text under static/; a -langs language that can't be a
+  directory; an -s or -t that is not a directory.
+soffio: Pipe mode checks what a text can check alone.
+  Its notes, and its links to its own sections: a ref to a missing
+  note gave a dangling link and exit 0.
+soffio: A note referenced only from another note is an endnote too.
+  Its ref pointed nowhere.
+soffio: Images are addressed relative to the page, as links are.
+  /static/a.png from it/x is ../static/a.png: the site works under any
+  base, even opened from the disk.
+soffio: rfc822 for templates; the built-in rss.xml uses it.
+  RSS wants Wed, 19 Aug 2026 00:00:00 +0000, not 2026-08-19.
+soffio: A link to a directory in -s is refused, as it may loop.
+  It came out as an empty directory.
+release.sh: Refuses a tree that is not clean, or not tagged v$VERSION.
 soffio: Fixed links to a page whose ID has a dot in it.
   (see -> v1.2) linked to v1.2 instead of v1.2.html, and the check
   passed it. Only a target under static/ is a file; anything else is a
@@ -36,6 +74,7 @@ source: ast, parser, corpus and renderer are one package, soffio.
   resolved twice. Now one function says where a link points, for the
   check and for the HTML alike. The parser cuts the body into blocks,
   then each block's first line says what it is: no state machine.
-  Inline markup is scanned by byte. Code: 1397 lines down to 1074.
+  Inline markup is scanned by byte. Code: 1397 lines down to 1074,
+  then 1148 with all the checks and flags above.
   Still the standard library only.
 +--------------------------+

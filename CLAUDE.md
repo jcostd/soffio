@@ -31,17 +31,18 @@ Run one package's tests, or one test by name:
 
 ```
 go test .
-go test . -run TestCheckLink
+go test . -run TestCheckTarget
 go test ./... -v
 ```
 
 Requires Go 1.26+ (see `go.mod`).
 
-Generator mode: `soffio [flags] <src_dir>` — reads `.soffio` files from `<src_dir>`, writes
-a static site to `-o` (default `public`). Pipe mode: `soffio < input.soffio > output.html`
-(triggered whenever no positional directory argument is given). See `soffio -help` for the
-full flag list (`-baseurl`, `-langs`, `-o`, `-t`, `-s`, `-vis`, and `-html`/`-rss`/`-sitemap`/
-`-robots`/`-errpage`/`-manifest` toggles).
+Generator mode: `soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir] [-t dir] dir`
+reads the `.soffio` texts under dir and writes a site to `-o` (default `public`): `-a`
+takes the private texts too, `-n` checks everything and writes nothing, `-s` is the
+static dir copied to `<o>/static`, `-t` the templates instead of the built-in ones,
+`-v` prints the version. Pipe mode, with no dir: `soffio < text.soffio > text.html`.
+The README is the man page.
 
 ## Release
 
@@ -73,8 +74,9 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 
 - **`load.go`**: `Load` walks the source dir in lexical order, sequentially (parsing is
   microseconds; order makes errors reproducible), and returns documents by ID: the
-  `id` header or the file name, under the file's directory (`it/about`). IDs
-  differing only in case are duplicates.
+  `id` header or the file name, under the file's directory (`it/about`). Every part
+  of an ID passes `CheckID`; IDs differing only in case are duplicates; `static/` is
+  no ID, it is where the static files go. `Document.File` is the path for messages.
 
 - **`url.go`**: `resolve` is the one place a link target is interpreted: the ID or
   static file it points to, and its `#fragment`. `Check` and `href` both go through
@@ -83,39 +85,44 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   target under `static/` is a file, anything else a page and gets `.html`.
 
 - **`check.go`**: `Check(all, active, staticDir)` walks only the visibility-filtered
-  active documents, in ID order, and verifies links, note refs and images. A link to
-  a document in all but not active is a **privacy leak**, a hard error, not just a
-  missing target. This active-vs-all model is how `-vis` works; keep it.
+  active documents, in ID order: every link and image points at an active page, one of
+  its sections, or a regular file in `staticDir`; every note is defined and
+  referenced. A link to a document in all but not active is a **privacy leak**, an
+  error of its own. This active-vs-all model is how `-a` works; keep it. `CheckDoc`
+  is what pipe mode can check alone: notes and `#section` links.
 
 - **`html.go`**: `Render` returns one document as an HTML fragment, knowing nothing of
   the corpus. Note refs are numbered as met and the endnotes come last, in order of
   first reference.
 
-- **`cmd/soffio`**: flags, pipe mode, then load -> visibility filter -> check ->
-  templates -> pages and site files. `write.go`: each page goes through its layout
-  (`layout` header, else `layout.html`) with `Children` (docs under `<id>/`, by ID:
+- **`cmd/soffio`**: flags and templates (configuration first), then load ->
+  visibility filter -> check -> static copy -> pages and site files. `write.go`: each page goes through its layout
+  (`layout` header, else `layout.html`; a missing one is an error) with `Children` (docs under `<id>/`, by ID:
   the IDs are sorted once and the children are one run, found by binary search) and
   `Alternates` (the same path in each `-langs` language, only when the first part
   of the ID is one). Every file is executed into a buffer and written in one call;
-  html/template alone writes in small pieces. `template.go` embeds
-  `cmd/soffio/templates/*` and lets `-t` replace any of them by name; it also gives
-  templates `sortBy`. rss.xml, sitemap.xml, robots.txt, 404.html and manifest.json
-  are a table in `main.go`: each is made if its flag is on and its template exists.
+  html/template alone writes in small pieces; with `-n` it is executed and dropped.
+  `template.go` parses either `-t` or the embedded `cmd/soffio/templates/*`, never a
+  mix, and gives templates `sortBy` and `rfc822`. `siteFiles` in `main.go` (rss.xml,
+  sitemap.xml, robots.txt, 404.html, manifest.json) are each made if the template is
+  there.
 
 - **`cmd/preview`**: a static file server (`http.FileServer`) over the output dir
   that opens the default browser (`open_darwin.go`/`open_linux.go`/`open_windows.go`).
   Every response carries a `Soffio-Preview: <abs dir>` header, so a second `preview`
   of the same dir finds the first one when the port is taken, opens the browser on
   it, and exits 0.
-- **Exit status**: every page, feed and extra file is attempted, but if any of them fails
-  to render, `soffio` exits 1. A missing page is a broken site.
+- **Messages and exit status**: errors are `file:line: message`, all of them, in a
+  fixed order, with no timestamps (`log.SetFlags(0)`). Every page and site file is
+  attempted, but if any fails `soffio` exits 1; bad usage exits 2. A missing page is
+  a broken site.
 
 ## Markup format (`.soffio`)
 
 Frontmatter (`key: value` lines) + blank line + body. Known frontmatter keys: `id`,
 `title`, `layout`, `visibility`, `notes_title`; any other key lands in `Meta` and is
-available to templates/`sortBy`. Body syntax: `== id | Title` (section header, level
-2–6 `=`), `*bold*`, `_italic_`, `(Label -> target)` links, `:: img: /path | caption`,
+available to templates/`sortBy`; `visibility` is `public` or `private`. Body syntax: `== id | Title` (section header, level
+2–6 `=`), `*bold*`, `_italic_`, `(Label -> target)` links, `:: img: /static/path | caption`,
 `- item` lists, `:: note: id | text` footnote defs, `(*note-id)` footnote refs. Link
 targets without a leading `/` resolve relative to the current document's directory
 (zero-config i18n); a `#section-id` suffix targets a heading within a document (own
@@ -126,8 +133,10 @@ style) — treat it as the source of truth over any example content in `content/
 
 - No third-party dependencies (stdlib only) — keep it that way; this is a stated design
   goal, not an oversight.
-- Validation is strict by design: broken links, missing footnotes, and privacy leaks fail
-  the build rather than degrading gracefully. Don't soften these into warnings.
+- Validation is strict by design, and there are no warnings: as the Go FAQ says of
+  unused imports, what is worth complaining about is worth fixing. Broken links,
+  missing or unused notes, missing files, unknown layouts and privacy leaks fail the
+  build; bad input is refused with a reason, never guessed at.
 - Document IDs are output paths (`<id>.html`), link targets and the parent/child
   relation, always with `/`, on every system: turn one into a file path only where
   the file is opened, with `filepath.FromSlash`.

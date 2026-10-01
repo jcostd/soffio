@@ -1,104 +1,136 @@
 SOFFIO(1)                     System Reference                     SOFFIO(1)
 
 NAME
-    soffio - A minimalist, strict static site generator
+    soffio - a minimalist, strict static site generator
+
+SYNOPSIS
+    soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]
+           [-t dir] dir
+    soffio < text.soffio > text.html
+    preview [-d dir] [-p port] [dir]
 
 DESCRIPTION
-    Soffio takes text in and outputs HTML. It reads .soffio files,
-    validates the integrity of the entire corpus (internal links,
-    footnotes, and assets), and writes a static site preserving the
-    input directory structure.
+    Soffio turns the .soffio texts under dir into a static site in -o,
+    one page per text, keeping the directory tree. Before it writes
+    anything it checks the whole site: every link points at a page, a
+    section or a file that is there; every note is defined and
+    referenced; no public page points at a private one. If a text is
+    wrong it says where, file:line, writes nothing and exits 1; a page
+    whose template fails is reported too, and soffio exits 1. It has no
+    warnings: what is worth saying is worth fixing.
 
-    It has zero external dependencies. It does not guess. If a link
-    is broken, the build fails.
+    With no dir, soffio is a filter: one text on standard input, an
+    HTML fragment on standard output. Alone, a text can only check its
+    notes and its links to its own sections.
 
-FEATURES
-    Strict Validation: Fails on broken links, missing notes, or assets.
-    Privacy Guards: Public documents cannot link to private ones.
-    UNIX Pathing: Standard POSIX rules for relative cross-folder links.
-    Dual Mode: Directory generator or stdin/stdout UNIX filter.
-    Web Standards & Syndication: Generates RSS feeds, XML sitemaps,
-    robots.txt, web app manifests (manifest.json), and 404 error pages.
-    Agnostic Templates: Sort and format data entirely at the presentation layer.
+    preview serves a directory on 127.0.0.1 and opens the browser. If
+    the port is taken by a preview of the same directory, it opens the
+    browser on that one and exits.
 
-BUILD
-    Requires Go 1.26 or higher.
+    It uses the Go standard library and nothing else.
 
-    make                       build soffio and preview: static, for the
-                               baseline CPU, stripped
-    make GOOS=os GOARCH=arch OUT=dir   the same for another system
-    make test                  go vet and the tests
-    ./release.sh               the release archives, one per system
+OPTIONS
+    -a          all texts: the private ones too, as for a preview with
+                drafts. Without it, a text with 'visibility: private'
+                is left out, and a link to it is an error.
+    -n          check everything, templates included, and write
+                nothing, as sh -n.
+    -baseurl url
+                the site's address, for canonical links, hreflang,
+                feeds and sitemaps; without a final '/'.
+                Default http://localhost:8080.
+    -langs l,...
+                the languages: it/about and en/about are each other's
+                alternates if it and en are listed. Default en.
+    -o dir      the output directory. Default public.
+    -s dir      the static files, copied to <o>/static. Without it a
+                link or image under /static/ is an error.
+    -t dir      the templates; without it, the built-in ones. The two
+                are never mixed.
+    -v          print the version and exit.
 
-USAGE
-    Generator mode:
-        soffio [flags] <src_dir>
+MARKUP
+    A text is a header, a blank line, and the body. The header is
+    'key: value' lines; 'id', 'title', 'layout', 'visibility' (public
+    or private) and 'notes_title' mean something to soffio, and every
+    key reaches the templates. 'date', 'updated' and any '*_date' hold
+    a real date as YYYY-MM-DD, or nothing.
 
-    Pipe mode:
-        soffio < input.soffio > output.html
+    == id | Title                     section (== to ======: h2 to h6)
+    *text*                            bold
+    _text_                            italic
+    (label -> target)                 link
+    - text                            list item
+    :: img: /static/path | caption    image
+    :: note: id | text                note
+    (*id)                             note reference
 
-    Preview server:
-        preview [flags] [dir]
-        If the port is already taken by a preview of the same dir, the
-        browser is opened on it and the new preview exits.
+    A blank line ends a block; a section or :: line starts one. A * or
+    _ opens only at the start of a word and closes only at its end:
+    snake_case and 2*3*4 stay as they are. (*x) is a note only if x is
+    a valid ID, so (*bold*) is bold in parentheses. A backslash makes
+    the next character plain.
 
-    Run 'soffio -help' or 'preview -help' for flag details.
-    -baseurl is refused if it ends in '/': every address is the base,
-    a '/', and the page.
+    IDs, of texts, their directories, sections, notes and languages,
+    are printable ASCII: no spaces, no accents, none of
+    / \ : * ? " < > | # % ( ), no leading dot. Text IDs that differ
+    only in case clash: they would be one file on Windows and macOS.
 
-    ChangeLog.txt says what changed, newest first.
+LINKS AND FILES
+    dir/it/about.soffio with 'id: chi-siamo' is the page it/chi-siamo,
+    written as <o>/it/chi-siamo.html; without an id it is it/about.
 
-MARKUP SYNTAX
-    A document requires a frontmatter, a blank line, and the body.
-    Frontmatter keys include 'id', 'title', 'layout', 'visibility',
-    and 'notes_title'.
+    A target without a leading '/' is relative to the text's directory,
+    so it/ and en/ link within themselves with the same words; with one,
+    it starts from the site root. #section points at a section, of
+    another page or, alone, of this one. A target under /static/ is a
+    file in -s; anything else is a page. Addresses are written relative,
+    so the site works under any base, even from the disk.
 
-    == id | Title                     Section header
-    *text*                            Bold
-    _text_                            Italic
-    (Label -> target)                 Hyperlink
-    :: img: /static/path | caption    Image block
-    - text                            List item
-    :: note: id | text                Footnote definition
-    (*note-id)                        Footnote reference
-
-    A * or _ opens only at the start of a word and closes only at its
-    end: snake_case and 2*3*4 stay as they are. (*x) is a note only if
-    x is a valid note ID, so (*bold*) is bold in parentheses. A backslash
-    makes the next character plain.
-
-    Document, section and note IDs are printable ASCII: no spaces, no
-    accents, none of / \ : * ? " < > | # % ( ), and no leading dot.
-    Document IDs that differ only in case clash, since they would be one
-    file on Windows and macOS. The keys 'date', 'updated' and any
-    '*_date' hold a real date as YYYY-MM-DD, or nothing.
+    An image is a file under /static/, or an address out of the site.
 
 TEMPLATES
-    Soffio exposes the document tree to standard Go HTML templates.
-    Presentation logic is handled entirely by the theme. Use the built-in
-    sortBy function to order a document's children by any frontmatter key:
+    Go html/template files. A page goes through its 'layout' (post means
+    post.html), or layout.html; a layout that is not there is an error.
+    A page gets .Title, .Meta, .Content, .BaseURL, .Permalink,
+    .Alternates (.Lang, .URL) and .Children: the pages under its ID,
+    sorted by ID.
+
+    rss.xml, sitemap.xml, robots.txt, 404.html and manifest.json are
+    made at the site root, each if its template is there. They get
+    .BaseURL, .Docs (the pages by ID) and .XMLHeader.
+
+    sortBy orders pages by a header key, highest first; rfc822 turns a
+    date into the form RSS wants:
 
         {{ range sortBy .Children "event_date" }}
           <a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>
         {{ end }}
+        <pubDate>{{ rfc822 .Meta.date }}</pubDate>
 
-ROUTING & LINKS
-    The filesystem scopes the output directory. <input>/it/about.soffio
-    with 'id: my-id' becomes <output>/it/my-id.html.
+DIAGNOSTICS
+    Errors are file:line: message, one per line, all of them, in the
+    same order every time. Exit status 0 if the site was written (or,
+    with -n, would be), 1 if anything was wrong, 2 for bad usage.
 
-    Links use (Label -> target).
-    Targets without a leading slash are resolved relative to the
-    current document's directory (zero-config i18n).
-    Targets with a leading slash are resolved from the site root.
-    A target may include a #section suffix to point at a specific
-    heading id within a document (e.g. document-id#section-id).
-    Omitting the path before # targets a heading in the current document.
+LIMITS
+    No code blocks, tables, ordered or nested lists, raw HTML or h1 in
+    the body: the title is the h1. A line of a block is reported as the
+    line where the block starts. Soffio never deletes: a page that is
+    gone or became private stays in -o from an earlier build, so build
+    into an empty directory.
 
-ASSETS
-    Static assets are kept in the 'static' directory (or via -s).
-    During build, they are mirrored to the output folder.
-    Asset paths in documents must be explicitly prefixed from the site root
-    (e.g. :: img: /static/img/file.jpg | caption).
+BUILD
+    Requires Go 1.26 or higher.
+
+    make                       soffio and preview: static, for the
+                               baseline CPU, stripped
+    make GOOS=os GOARCH=arch OUT=dir   the same for another system
+    make test                  go vet and the tests
+    ./release.sh               the release archives, one per system,
+                               from a clean tag
+
+    ChangeLog.txt says what changed, newest first.
 
 AUTHOR
     Written and designed by Jacopo Costantini.
