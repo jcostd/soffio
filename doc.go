@@ -4,23 +4,54 @@
 // Package soffio parses, checks and renders Soffio markup.
 package soffio
 
-type BlockType int
+// A Document is one .soffio file.
+type Document struct {
+	ID       string
+	Title    string
+	Meta     map[string]string
+	Sections []Section
+}
 
-const (
-	BlockTypeText BlockType = iota
-	BlockTypeImage
-	BlockTypeNote
-	BlockTypeList
+// A Section is a heading and the blocks under it.
+type Section struct {
+	Level  int // 2 for ==, up to 6
+	ID     string
+	Title  string
+	Blocks []Block
+}
+
+// A Block is a TextBlock, ImageBlock, NoteBlock or ListBlock.
+type Block interface{ isBlock() }
+
+// Line is where a block starts in its file.
+type (
+	TextBlock struct {
+		Line     int
+		Elements []Inline
+	}
+	ImageBlock struct {
+		Line    int
+		Path    string
+		Caption []Inline
+	}
+	NoteBlock struct {
+		Line     int
+		ID       string
+		Elements []Inline
+	}
+	ListBlock struct {
+		Line  int
+		Items [][]Inline
+	}
 )
 
-type Block interface {
-	Type() BlockType
-	isBlock()
-}
+func (TextBlock) isBlock()  {}
+func (ImageBlock) isBlock() {}
+func (NoteBlock) isBlock()  {}
+func (ListBlock) isBlock()  {}
 
-type Inline interface {
-	isInline()
-}
+// An Inline is PlainText, Bold, Italic, Link or FootnoteRef.
+type Inline interface{ isInline() }
 
 type (
 	PlainText   struct{ Content string }
@@ -38,51 +69,3 @@ func (Bold) isInline()        {}
 func (Italic) isInline()      {}
 func (Link) isInline()        {}
 func (FootnoteRef) isInline() {}
-
-type TextBlock struct {
-	Line     int
-	Elements []Inline
-}
-
-func (TextBlock) Type() BlockType { return BlockTypeText }
-func (TextBlock) isBlock()        {}
-
-type ImageBlock struct {
-	Line    int
-	Path    string
-	Caption []Inline
-}
-
-func (ImageBlock) Type() BlockType { return BlockTypeImage }
-func (ImageBlock) isBlock()        {}
-
-type NoteBlock struct {
-	Line     int
-	ID       string
-	Elements []Inline
-}
-
-func (NoteBlock) Type() BlockType { return BlockTypeNote }
-func (NoteBlock) isBlock()        {}
-
-type ListBlock struct {
-	Line  int
-	Items [][]Inline
-}
-
-func (ListBlock) Type() BlockType { return BlockTypeList }
-func (ListBlock) isBlock()        {}
-
-type Section struct {
-	Level  int // Heading depth (e.g., 2 for ==).
-	ID     string
-	Title  string
-	Blocks []Block
-}
-
-type Document struct {
-	ID       string
-	Title    string
-	Meta     map[string]string
-	Sections []Section
-}

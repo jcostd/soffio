@@ -6,81 +6,54 @@ package soffio
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
+// parseInline decodes *bold*, _italic_, (label -> target), (*note) and
+// \ escapes. Every marker is ASCII, so s is scanned by byte: a byte of
+// a multibyte rune is never one.
 func parseInline(s string) []Inline {
-	var elements []Inline
-	var buf strings.Builder
-	runes := []rune(s)
-
+	var out []Inline
+	var text strings.Builder
 	flush := func() {
-		if buf.Len() > 0 {
-			elements = append(elements, PlainText{Content: buf.String()})
-			buf.Reset()
+		if text.Len() > 0 {
+			out = append(out, PlainText{Content: text.String()})
+			text.Reset()
 		}
 	}
 
-	for i := 0; i < len(runes); i++ {
-		r := runes[i]
-
-		if r == '\\' {
-			if i+1 < len(runes) {
-				buf.WriteRune(runes[i+1])
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch c {
+		case '\\':
+			if i+1 < len(s) {
 				i++
-			} else {
-				buf.WriteRune('\\')
+				c = s[i]
 			}
-			continue
-		}
-
-		if r == '*' {
-			if endIndex, ok := findClosingMarker(runes, i, '*'); ok {
+		case '*', '_':
+			if end, ok := closing(s, i); ok {
 				flush()
-
-				innerRunes := runes[i+1 : endIndex]
-				innerNodes := parseInline(string(innerRunes))
-				elements = append(elements, Bold{Elements: innerNodes})
-
-				i = endIndex
+				in := parseInline(s[i+1 : end])
+				if c == '*' {
+					out = append(out, Bold{Elements: in})
+				} else {
+					out = append(out, Italic{Elements: in})
+				}
+				i = end
 				continue
 			}
-			buf.WriteRune('*')
-			continue
-		}
-
-		if r == '_' {
-			if endIndex, ok := findClosingMarker(runes, i, '_'); ok {
+		case '(':
+			if in, end, ok := linkOrNote(s, i); ok {
 				flush()
-
-				innerRunes := runes[i+1 : endIndex]
-				innerNodes := parseInline(string(innerRunes))
-				elements = append(elements, Italic{Elements: innerNodes})
-
-				i = endIndex
+				out = append(out, in)
+				i = end
 				continue
 			}
-			buf.WriteRune('_')
-			continue
 		}
-
-		if r == '(' {
-			if node, endIndex, ok := scanLinkOrNote(runes, i); ok {
-				flush()
-				elements = append(elements, node)
-				i = endIndex
-				continue
-			}
-
-			buf.WriteRune('(')
-			continue
-		}
-
-		buf.WriteRune(r)
+		text.WriteByte(c)
 	}
-
 	flush()
-
-	return elements
+	return out
 }
 
 // isWord reports whether r is part of a word: a marker inside one,
@@ -89,113 +62,91 @@ func isWord(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
-// findClosingMarker finds the marker closing the one at start. A marker
-// opens only at the start of a word and closes only at its end.
-func findClosingMarker(runes []rune, start int, marker rune) (int, bool) {
-	if start+1 >= len(runes) {
+// closing finds the marker closing the one at start. A marker opens
+// only at the start of a word and closes only at its end.
+func closing(s string, start int) (int, bool) {
+	m := s[start]
+	if start+1 >= len(s) || s[start+1] == m {
 		return 0, false
 	}
-
-	if start > 0 && isWord(runes[start-1]) {
+	before, _ := utf8.DecodeLastRuneInString(s[:start])
+	after, _ := utf8.DecodeRuneInString(s[start+1:])
+	if isWord(before) || unicode.IsSpace(after) {
 		return 0, false
 	}
-
-	if unicode.IsSpace(runes[start+1]) {
-		return 0, false
-	}
-
-	if runes[start+1] == marker {
-		return 0, false
-	}
-
-	for i := start + 1; i < len(runes); i++ {
-		if runes[i] == '\\' {
+	for i := start + 1; i < len(s); i++ {
+		if s[i] == '\\' {
 			i++
 			continue
 		}
-
-		if runes[i] == marker {
-			if unicode.IsSpace(runes[i-1]) {
-				continue
-			}
-			if i+1 < len(runes) && isWord(runes[i+1]) {
-				continue
-			}
-
+		if s[i] != m {
+			continue
+		}
+		before, _ := utf8.DecodeLastRuneInString(s[:i])
+		after, _ := utf8.DecodeRuneInString(s[i+1:])
+		if !unicode.IsSpace(before) && !isWord(after) {
 			return i, true
 		}
 	}
-
 	return 0, false
 }
 
-func unescape(s string) string {
-	var buf strings.Builder
-	runes := []rune(s)
-	for i := 0; i < len(runes); i++ {
-		if runes[i] == '\\' && i+1 < len(runes) {
-			i++
-		}
-		buf.WriteRune(runes[i])
-	}
-	return buf.String()
-}
-
-func scanLinkOrNote(runes []rune, start int) (Inline, int, bool) {
-	closeIndex := -1
-	depth := 0
-
-	for i := start + 1; i < len(runes); i++ {
-		if runes[i] == '\\' {
-			i++
-			continue
-		}
-		if runes[i] == '(' {
-			depth++
-			continue
-		}
-		if runes[i] == ')' {
-			if depth == 0 {
-				closeIndex = i
-				break
-			}
-			depth--
-		}
-
-	}
-
-	if closeIndex == -1 {
+// linkOrNote decodes (label -> target) or (*note) at start, and says
+// where it ends.
+func linkOrNote(s string, start int) (Inline, int, bool) {
+	end := closeParen(s, start)
+	if end < 0 {
 		return nil, 0, false
 	}
-
-	innerStr := string(runes[start+1 : closeIndex])
-	innerStr = strings.TrimSpace(innerStr)
+	inner := strings.TrimSpace(s[start+1 : end])
 
 	// (*id) is a note only with a valid ID: (*bold*) is prose
-	if id, ok := strings.CutPrefix(innerStr, "*"); ok {
-		id = strings.TrimSpace(id)
-		if id != "" && checkID(id) == "" {
-			return FootnoteRef{Target: id}, closeIndex, true
+	if id, ok := strings.CutPrefix(inner, "*"); ok {
+		if id = strings.TrimSpace(id); id != "" && checkID(id) == "" {
+			return FootnoteRef{Target: id}, end, true
 		}
 	}
 
-	sepIdx := strings.LastIndex(innerStr, " -> ")
-	if sepIdx == -1 {
+	i := strings.LastIndex(inner, " -> ")
+	if i < 0 {
 		return nil, 0, false
 	}
-
-	labelStr := innerStr[:sepIdx]
-	targetStr := innerStr[sepIdx+4:] // len(" -> ") == 4
-
-	target := unescape(strings.TrimSpace(targetStr))
+	target := unescape(strings.TrimSpace(inner[i+len(" -> "):]))
 	if target == "" {
 		return nil, 0, false
 	}
+	return Link{Target: target, Label: parseInline(strings.TrimSpace(inner[:i]))}, end, true
+}
 
-	labelNodes := parseInline(strings.TrimSpace(labelStr))
+// closeParen returns where the ')' matching the '(' at start is, or -1.
+func closeParen(s string, start int) int {
+	depth := 0
+	for i := start + 1; i < len(s); i++ {
+		switch s[i] {
+		case '\\':
+			i++
+		case '(':
+			depth++
+		case ')':
+			if depth == 0 {
+				return i
+			}
+			depth--
+		}
+	}
+	return -1
+}
 
-	return Link{
-		Target: target,
-		Label:  labelNodes,
-	}, closeIndex, true
+func unescape(s string) string {
+	if !strings.Contains(s, `\`) {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			i++
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
 }

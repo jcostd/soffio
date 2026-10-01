@@ -4,7 +4,6 @@
 package soffio
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -12,13 +11,7 @@ import (
 	"time"
 )
 
-type state int
-
-const (
-	stateHeader state = iota
-	stateBody
-)
-
+// A ParseError is a line Parse refused.
 type ParseError struct {
 	Line    int
 	Message string
@@ -29,102 +22,91 @@ func (e ParseError) Error() string {
 }
 
 type parser struct {
-	scan         *bufio.Scanner
-	doc          Document
-	buf          strings.Builder
-	currentBlock string
-	blockMeta    string
-	state        state
-	lineCount    int
-	blockStart   int
-	errors       []error
+	doc  Document
+	errs []error
 }
 
-// Parse decodes r strictly.
+func (p *parser) errorf(line int, format string, args ...any) {
+	p.errs = append(p.errs, ParseError{line, fmt.Sprintf(format, args...)})
+}
+
+// Parse decodes r strictly: header lines of key: value, a blank line,
+// then the body, cut into blocks. A blank line ends a block; a section
+// or a command line starts one.
 func Parse(r io.Reader) (Document, error) {
-	p := &parser{
-		scan:  bufio.NewScanner(r),
-		state: stateHeader,
-		doc: Document{
-			Meta: make(map[string]string),
-		},
+	src, err := io.ReadAll(r)
+	if err != nil {
+		return Document{}, err
+	}
+	lines := strings.Split(string(src), "\n")
+	p := parser{doc: Document{Meta: map[string]string{}}}
+
+	n := 0
+	for n < len(lines) {
+		line := strings.TrimSpace(lines[n])
+		n++
+		if line == "" {
+			break
+		}
+		p.header(n, line)
 	}
 
-	for p.scan.Scan() {
-		p.lineCount++
-		line := strings.TrimSpace(p.scan.Text())
-		p.step(line)
+	var block []string
+	start := 0
+	for i := n; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		if line == "" || strings.HasPrefix(line, "==") || strings.HasPrefix(line, ":: ") {
+			p.block(start, block)
+			block = nil
+		}
+		switch {
+		case line == "":
+		case strings.HasPrefix(line, "=="):
+			p.section(i+1, line)
+		default:
+			if block == nil {
+				start = i + 1
+			}
+			block = append(block, line)
+		}
 	}
+	p.block(start, block)
 
-	p.flush()
-
-	if err := p.scan.Err(); err != nil {
-		p.errors = append(p.errors, err)
-	}
-	if len(p.errors) > 0 {
-		return p.doc, errors.Join(p.errors...)
-	}
-	return p.doc, nil
+	return p.doc, errors.Join(p.errs...)
 }
 
-func (p *parser) addError(msg string) {
-	p.errors = append(p.errors, ParseError{
-		Line:    p.lineCount,
-		Message: msg,
-	})
-}
-
-func (p *parser) step(line string) {
-	if p.state == stateHeader {
-		p.stepHeader(line)
-	} else {
-		p.stepBody(line)
-	}
-}
-
-func (p *parser) stepHeader(line string) {
-	// RFC 822 Mail style: an empty line terminates the header.
-	if line == "" {
-		p.state = stateBody
-		return
-	}
-
+func (p *parser) header(n int, line string) {
 	key, val, ok := strings.Cut(line, ":")
 	if !ok {
-		// invalid metadata!
-		p.addError(fmt.Sprintf("invalid syntax (expected 'key: value'), found: %q", line))
+		p.errorf(n, "invalid syntax (expected 'key: value'), found: %q", line)
 		return
 	}
-
 	key = strings.ToLower(strings.TrimSpace(key))
 	val = strings.TrimSpace(val)
 
-	if key == "" {
-		p.addError("empty header key found")
-		return
-	}
-
-	switch key {
-	case "id":
+	switch {
+	case key == "":
+		p.errorf(n, "empty header key found")
+	case key == "id":
 		if why := checkID(val); why != "" {
-			p.addError(fmt.Sprintf("invalid id %q: %s", val, why))
+			p.errorf(n, "invalid id %q: %s", val, why)
 			return
 		}
 		p.doc.ID = val
-	case "title":
+	case key == "title":
 		p.doc.Title = val
-	default:
-		if isDateKey(key) && val != "" {
-			if _, err := time.Parse("2006-01-02", val); err != nil {
-				p.addError(fmt.Sprintf("invalid %s %q: expected a real date as YYYY-MM-DD", key, val))
-				return
-			}
+	case isDateKey(key) && val != "":
+		if _, err := time.Parse(time.DateOnly, val); err != nil {
+			p.errorf(n, "invalid %s %q: expected a real date as YYYY-MM-DD", key, val)
+			return
 		}
+		fallthrough
+	default:
 		p.doc.Meta[key] = val
 	}
 }
 
-// isDateKey reports whether a frontmatter key holds a date: "date",
+// isDateKey reports whether a header key holds a date: "date",
 // "updated" and any "*_date". They sort pages, so a date that is not
 // YYYY-MM-DD would silently misplace one.
 func isDateKey(key string) bool {
@@ -156,190 +138,106 @@ func checkID(id string) string {
 	return ""
 }
 
-func (p *parser) stepBody(line string) {
-	if line == "" {
-		p.flush()
+// section decodes "== id | Title": as many '=' as the level, 2 to 6.
+func (p *parser) section(n int, line string) {
+	level := len(line) - len(strings.TrimLeft(line, "="))
+	if level < 2 || level > 6 {
+		p.errorf(n, "invalid section level (%d), must be between 2 and 6.", level)
 		return
 	}
-
-	if strings.HasPrefix(line, "==") || strings.HasPrefix(line, ":: ") {
-		p.flush()
-	}
-
-	if p.buf.Len() == 0 {
-		p.blockStart = p.lineCount
-		if p.tryParseSection(line) {
-			return
-		}
-		if p.tryParseCommand(line) {
-			return
-		}
-		if strings.HasPrefix(line, "-") {
-			p.currentBlock = "list"
-		}
-	}
-
-	if p.buf.Len() > 0 {
-		p.buf.WriteByte('\n')
-	}
-	p.buf.WriteString(line)
-}
-
-func (p *parser) tryParseSection(line string) bool {
-	if !strings.HasPrefix(line, "==") {
-		return false
-	}
-
-	level := 0
-	for _, ch := range line {
-		if ch == '=' {
-			level++
-		} else {
-			break
-		}
-	}
-
-	if level < 2 || level > 6 {
-		p.addError(fmt.Sprintf("invalid section level (%d), must be between 2 and 6.", level))
-		return true
-	}
-
-	payload := line[level:]
-	rawID, rawTitle, ok := strings.Cut(payload, "|")
+	id, title, ok := strings.Cut(line[level:], "|")
 	if !ok {
-		p.addError(fmt.Sprintf("malformed section (expected '== id | Title'), found: %q", line))
-		return true
+		p.errorf(n, "malformed section (expected '== id | Title'), found: %q", line)
+		return
 	}
-
-	id := strings.TrimSpace(rawID)
-	title := strings.TrimSpace(rawTitle)
-
+	id, title = strings.TrimSpace(id), strings.TrimSpace(title)
 	if id == "" || title == "" {
-		p.addError(fmt.Sprintf("malformed section (both ID and Title must be non-empty), found: %q", line))
-		return true
+		p.errorf(n, "malformed section (both ID and Title must be non-empty), found: %q", line)
+		return
 	}
 	if why := checkID(id); why != "" {
-		p.addError(fmt.Sprintf("invalid section id %q: %s", id, why))
-		return true
+		p.errorf(n, "invalid section id %q: %s", id, why)
+		return
 	}
-
-	p.doc.Sections = append(p.doc.Sections, Section{
-		Level: level,
-		ID:    id,
-		Title: title,
-	})
-	return true
+	p.doc.Sections = append(p.doc.Sections, Section{Level: level, ID: id, Title: title})
 }
 
-func (p *parser) tryParseCommand(line string) bool {
-	if !strings.HasPrefix(line, ":: ") {
-		return false
+// block adds the block made of lines, which starts at line n, to the
+// last section. Its first line says what it is.
+func (p *parser) block(n int, lines []string) {
+	if lines == nil {
+		return
 	}
+	var b Block
+	switch first := lines[0]; {
+	case strings.HasPrefix(first, ":: "):
+		if b = p.command(n, first, lines[1:]); b == nil {
+			return
+		}
+	case strings.HasPrefix(first, "-"):
+		b = ListBlock{Line: n, Items: listItems(lines)}
+	default:
+		b = TextBlock{Line: n, Elements: parseInline(strings.Join(lines, "\n"))}
+	}
+	if len(p.doc.Sections) == 0 {
+		p.errorf(n, "found block content outside any section (no '== id | Title' declared)")
+		return
+	}
+	sec := &p.doc.Sections[len(p.doc.Sections)-1]
+	sec.Blocks = append(sec.Blocks, b)
+}
 
-	// syntax: :: cmd: meta | content
-	raw := line[3:]
-	cmd, payload, ok := strings.Cut(raw, ": ")
+// command decodes ":: img: path | caption" or ":: note: id | text";
+// the lines after it go on with the caption or text.
+func (p *parser) command(n int, line string, more []string) Block {
+	cmd, payload, ok := strings.Cut(line[len(":: "):], ": ")
 	if !ok {
-		p.addError(fmt.Sprintf("malformed command (expected ':: cmd: ...'), found: %q", line))
-		return true
+		p.errorf(n, "malformed command (expected ':: cmd: ...'), found: %q", line)
+		return nil
 	}
-
 	cmd = strings.TrimSpace(cmd)
 	if cmd != "img" && cmd != "note" {
-		p.addError(fmt.Sprintf("unknown command %q (expected 'img' or 'note')", cmd))
-		return true
+		p.errorf(n, "unknown command %q (expected 'img' or 'note')", cmd)
+		return nil
 	}
-
-	meta, content, ok := strings.Cut(payload, " | ")
+	meta, text, ok := strings.Cut(payload, " | ")
 	if !ok {
-		p.addError(fmt.Sprintf("malformed command (expected ':: cmd: meta | content'), found: %q", line))
-		return true
+		p.errorf(n, "malformed command (expected ':: cmd: meta | content'), found: %q", line)
+		return nil
 	}
-
 	meta = strings.TrimSpace(meta)
-	if cmd == "note" {
-		if why := checkID(meta); why != "" {
-			p.addError(fmt.Sprintf("invalid note id %q: %s", meta, why))
-			return true
-		}
-	}
+	text = strings.Join(append([]string{strings.TrimSpace(text)}, more...), "\n")
 
-	p.currentBlock = cmd
-	p.blockMeta = meta
-	p.buf.WriteString(strings.TrimSpace(content))
-	return true
+	if cmd == "img" {
+		return ImageBlock{Line: n, Path: meta, Caption: parseInline(text)}
+	}
+	if why := checkID(meta); why != "" {
+		p.errorf(n, "invalid note id %q: %s", meta, why)
+		return nil
+	}
+	return NoteBlock{Line: n, ID: meta, Elements: parseInline(text)}
 }
 
-func (p *parser) flush() {
-	if p.buf.Len() == 0 {
-		return
-	}
-
-	// found text but no section created, error
-	if len(p.doc.Sections) == 0 {
-		p.addError("found block content outside any section (no '== id | Title' declared)")
-		p.buf.Reset()
-		p.currentBlock = ""
-		p.blockMeta = ""
-		return
-	}
-
-	content := p.buf.String()
-	var block Block
-
-	switch p.currentBlock {
-	case "img":
-		block = ImageBlock{
-			Line:    p.blockStart,
-			Path:    p.blockMeta,
-			Caption: parseInline(content),
-		}
-	case "note":
-		block = NoteBlock{
-			Line:     p.blockStart,
-			ID:       p.blockMeta,
-			Elements: parseInline(content),
-		}
-	case "list":
-		var items [][]Inline
-		var currentItem strings.Builder
-
-		for itemLine := range strings.SplitSeq(content, "\n") {
-			trimmedLine := strings.TrimSpace(itemLine)
-
-			if strings.HasPrefix(trimmedLine, "-") {
-				if currentItem.Len() > 0 {
-					items = append(items, parseInline(currentItem.String()))
-					currentItem.Reset()
-				}
-				after := strings.TrimSpace(trimmedLine[1:])
-				currentItem.WriteString(after)
-			} else if currentItem.Len() > 0 && trimmedLine != "" {
-				currentItem.WriteByte('\n')
-				currentItem.WriteString(trimmedLine)
+// listItems decodes "- item" lines; a line without '-' goes on with
+// the item before it.
+func listItems(lines []string) [][]Inline {
+	var items [][]Inline
+	var item []string
+	for _, line := range lines {
+		if rest, ok := strings.CutPrefix(line, "-"); ok {
+			if item != nil {
+				items = append(items, parseInline(strings.Join(item, "\n")))
+				item = nil
 			}
-		}
-
-		// Flush the final accumulated item
-		if currentItem.Len() > 0 {
-			items = append(items, parseInline(currentItem.String()))
-		}
-		block = ListBlock{
-			Line:  p.blockStart,
-			Items: items,
-		}
-
-	default:
-		block = TextBlock{
-			Line:     p.blockStart,
-			Elements: parseInline(content),
+			if rest = strings.TrimSpace(rest); rest != "" {
+				item = []string{rest}
+			}
+		} else if item != nil {
+			item = append(item, line)
 		}
 	}
-
-	last := len(p.doc.Sections) - 1
-	p.doc.Sections[last].Blocks = append(p.doc.Sections[last].Blocks, block)
-
-	p.buf.Reset()
-	p.currentBlock = ""
-	p.blockMeta = ""
+	if item != nil {
+		items = append(items, parseInline(strings.Join(item, "\n")))
+	}
+	return items
 }
