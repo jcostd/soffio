@@ -1,4 +1,4 @@
-.PHONY: all test serve clean
+.PHONY: all soffio preview test serve clean
 
 all: soffio preview
 
