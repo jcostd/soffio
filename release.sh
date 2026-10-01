@@ -15,6 +15,16 @@ TARGETS=${TARGETS:-"linux/386 linux/amd64 linux/arm linux/arm64 darwin/amd64 dar
 
 set -eu
 
+# the binaries carry the git revision: build only the clean tag
+if [ -n "$(git status --porcelain)" ]; then
+  echo "release.sh: the tree is not clean" >&2
+  exit 1
+fi
+if [ "$(git describe --tags --exact-match 2>/dev/null)" != "v$VERSION" ]; then
+  echo "release.sh: HEAD is not tagged v$VERSION" >&2
+  exit 1
+fi
+
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
