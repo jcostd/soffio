@@ -4,177 +4,145 @@
 package soffio
 
 import (
+	"bufio"
+	"cmp"
 	"fmt"
 	"html"
 	"io"
 	"log"
+	"maps"
 	"net/url"
+	"slices"
 	"strings"
 )
 
-// renderer tracks state during document emission.
 type renderer struct {
-	w        io.Writer
-	err      error
-	docID    string
-	notes    map[string]NoteBlock
-	refs     []string
-	refsIdx  map[string]int
-	refCount map[string]int
+	w     *bufio.Writer // keeps the first error for Flush
+	id    string
+	notes map[string]NoteBlock
+	refs  []string       // note IDs, in order of first reference
+	num   map[string]int // note ID to its number
+	count map[string]int // note ID to its references so far
 }
 
-func (r *renderer) write(s string) {
-	if r.err != nil {
-		return
-	}
-	_, r.err = io.WriteString(r.w, s)
-}
-
-func (r *renderer) writef(format string, args ...any) {
-	if r.err != nil {
-		return
-	}
-	_, r.err = fmt.Fprintf(r.w, format, args...)
-}
-
-// Render emits doc to w.
+// Render writes doc to w as HTML: its sections, then the notes in the
+// order they are first referenced.
 func Render(w io.Writer, doc *Document) error {
 	r := renderer{
-		w:        w,
-		docID:    doc.ID,
-		notes:    make(map[string]NoteBlock),
-		refs:     make([]string, 0, 8),
-		refsIdx:  make(map[string]int),
-		refCount: make(map[string]int),
+		w:     bufio.NewWriter(w),
+		id:    doc.ID,
+		notes: map[string]NoteBlock{},
+		num:   map[string]int{},
+		count: map[string]int{},
 	}
-
 	for _, s := range doc.Sections {
-		r.renderSection(s)
+		r.section(s)
 	}
 
 	if len(r.refs) > 0 {
-		notesTitle := "Notes"
-		if customTitle, ok := doc.Meta["notes_title"]; ok && customTitle != "" {
-			notesTitle = customTitle
-		}
-
-		r.writef("\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">%s</h2>\n\t<ol>\n", doc.ID, html.EscapeString(notesTitle))
+		title := cmp.Or(doc.Meta["notes_title"], "Notes")
+		fmt.Fprintf(r.w, "\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">%s</h2>\n\t<ol>\n", doc.ID, html.EscapeString(title))
 		for _, ref := range r.refs {
 			if note, ok := r.notes[ref]; ok {
-				r.writef("\t\t<li id=\"fn-%s\" role=\"doc-endnote\">", ref)
-				r.renderInlines(note.Elements)
-				r.writef(" <a href=\"#fnref-%s-1\" aria-label=\"back to reference\">↩</a></li>\n", ref)
+				fmt.Fprintf(r.w, "\t\t<li id=\"fn-%s\" role=\"doc-endnote\">", ref)
+				r.inlines(note.Elements)
+				fmt.Fprintf(r.w, " <a href=\"#fnref-%s-1\" aria-label=\"back to reference\">↩</a></li>\n", ref)
 			}
 		}
-		r.write("\t</ol>\n</section>\n")
+		r.w.WriteString("\t</ol>\n</section>\n")
 	}
 
-	for noteID := range r.notes {
-		if _, used := r.refsIdx[noteID]; !used {
-			log.Printf("soffio: warning: unused footnote ':: note: %s' in document '%s'", noteID, doc.ID)
+	for _, id := range slices.Sorted(maps.Keys(r.notes)) {
+		if r.num[id] == 0 {
+			log.Printf("soffio: warning: unused footnote ':: note: %s' in document '%s'", id, doc.ID)
 		}
 	}
-
-	return r.err
+	return r.w.Flush()
 }
 
-func (r *renderer) renderSection(sec Section) {
-	r.writef("<section id=\"%s\">\n", sec.ID)
-	r.writef("<h%d>%s</h%d>\n", sec.Level, html.EscapeString(sec.Title), sec.Level)
+func (r *renderer) section(sec Section) {
+	fmt.Fprintf(r.w, "<section id=\"%s\">\n<h%d>%s</h%[2]d>\n", sec.ID, sec.Level, html.EscapeString(sec.Title))
 	for _, b := range sec.Blocks {
-		r.renderBlock(b)
+		r.block(b)
 	}
-	r.write("</section>\n")
+	r.w.WriteString("</section>\n")
 }
 
-func (r *renderer) renderBlock(b Block) {
+func (r *renderer) block(b Block) {
 	switch v := b.(type) {
 	case TextBlock:
-		r.write("<p>")
-		r.renderInlines(v.Elements)
-		r.write("</p>\n")
-
+		r.w.WriteString("<p>")
+		r.inlines(v.Elements)
+		r.w.WriteString("</p>\n")
 	case ListBlock:
-		r.write("<ul>\n")
-		for _, el := range v.Items {
-			r.write("<li>")
-			r.renderInlines(el)
-			r.write("</li>\n")
+		r.w.WriteString("<ul>\n")
+		for _, item := range v.Items {
+			r.w.WriteString("<li>")
+			r.inlines(item)
+			r.w.WriteString("</li>\n")
 		}
-		r.write("</ul>\n")
-
+		r.w.WriteString("</ul>\n")
 	case ImageBlock:
-		src := v.Path
-		altText := extractPlainText(v.Caption)
-		r.write("<figure>\n")
-		r.writef("\t<img src=\"%s\" alt=\"%s\" loading=\"lazy\">\n",
-			html.EscapeString(src),
-			html.EscapeString(altText),
-		)
-		r.write("\t<figcaption>")
-		r.renderInlines(v.Caption)
-		r.write("</figcaption>\n</figure>\n")
-
+		fmt.Fprintf(r.w, "<figure>\n\t<img src=\"%s\" alt=\"%s\" loading=\"lazy\">\n\t<figcaption>",
+			html.EscapeString(v.Path), html.EscapeString(plainText(v.Caption)))
+		r.inlines(v.Caption)
+		r.w.WriteString("</figcaption>\n</figure>\n")
 	case NoteBlock:
 		r.notes[v.ID] = v
 	}
 }
 
-func (r *renderer) renderInlines(elements []Inline) {
-	for _, el := range elements {
-		r.renderInline(el)
+func (r *renderer) inlines(in []Inline) {
+	for _, el := range in {
+		r.inline(el)
 	}
 }
 
-func (r *renderer) renderInline(in Inline) {
+func (r *renderer) inline(in Inline) {
 	switch v := in.(type) {
 	case PlainText:
-		r.write(html.EscapeString(v.Content))
-
+		r.w.WriteString(html.EscapeString(v.Content))
 	case Bold:
-		r.write("<strong>")
-		r.renderInlines(v.Elements)
-		r.write("</strong>")
-
+		r.w.WriteString("<strong>")
+		r.inlines(v.Elements)
+		r.w.WriteString("</strong>")
 	case Italic:
-		r.write("<em>")
-		r.renderInlines(v.Elements)
-		r.write("</em>")
-
+		r.w.WriteString("<em>")
+		r.inlines(v.Elements)
+		r.w.WriteString("</em>")
 	case Link:
-		href := resolveURL(r.docID, v.Target)
-		u, _ := url.Parse(href)
-		if u != nil && (u.Scheme == "http" || u.Scheme == "https") {
-			r.writef("<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">", html.EscapeString(href))
+		h := href(r.id, v.Target)
+		if u, err := url.Parse(h); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
+			fmt.Fprintf(r.w, "<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">", html.EscapeString(h))
 		} else {
-			r.writef("<a href=\"%s\">", html.EscapeString(href))
+			fmt.Fprintf(r.w, "<a href=\"%s\">", html.EscapeString(h))
 		}
-		r.renderInlines(v.Label)
-		r.write("</a>")
-
+		r.inlines(v.Label)
+		r.w.WriteString("</a>")
 	case FootnoteRef:
-		if _, seen := r.refsIdx[v.Target]; !seen {
+		if r.num[v.Target] == 0 {
 			r.refs = append(r.refs, v.Target)
-			r.refsIdx[v.Target] = len(r.refs)
+			r.num[v.Target] = len(r.refs)
 		}
-		r.refCount[v.Target]++
-		r.writef("<sup id=\"fnref-%[1]s-%[2]d\"><a href=\"#fn-%[1]s\" role=\"doc-noteref\">%[3]d</a></sup>",
-			html.EscapeString(v.Target), r.refCount[v.Target], r.refsIdx[v.Target])
+		r.count[v.Target]++
+		fmt.Fprintf(r.w, "<sup id=\"fnref-%[1]s-%[2]d\"><a href=\"#fn-%[1]s\" role=\"doc-noteref\">%[3]d</a></sup>",
+			html.EscapeString(v.Target), r.count[v.Target], r.num[v.Target])
 	}
 }
 
-func extractPlainText(elements []Inline) string {
+// plainText is in without its markup, for an image's alt.
+func plainText(in []Inline) string {
 	var b strings.Builder
-	for _, el := range elements {
+	for _, el := range in {
 		switch v := el.(type) {
 		case PlainText:
 			b.WriteString(v.Content)
 		case Bold:
-			b.WriteString(extractPlainText(v.Elements))
+			b.WriteString(plainText(v.Elements))
 		case Italic:
-			b.WriteString(extractPlainText(v.Elements))
+			b.WriteString(plainText(v.Elements))
 		case Link:
-			b.WriteString(extractPlainText(v.Label))
+			b.WriteString(plainText(v.Label))
 		}
 	}
 	return b.String()
