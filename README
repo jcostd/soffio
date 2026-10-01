@@ -24,8 +24,9 @@ FEATURES
 BUILD
     Requires Go 1.26 or higher.
 
-    make         build soffio and preview binaries
-    make clean   remove binaries and generated output
+    go build ./cmd/soffio ./cmd/preview   build the two programs
+    go test ./...                         run the tests
+    ./release.sh                          make the release archives
 
 USAGE
     Generator mode:

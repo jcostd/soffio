@@ -13,14 +13,15 @@ mode.
 
 ## Commands
 
+The go command is the build tool; there is no Makefile.
+
 ```
-make            # build ./cmd/soffio and ./cmd/preview binaries into repo root
-make serve      # build, then run ./preview (serves ./public on :8080 and opens browser)
-make clean      # remove binaries and the generated ./public directory
-make test       # go test ./...
+go build ./cmd/soffio ./cmd/preview   # the two programs, in the repo root
+go test ./...                         # every test
+./release.sh                          # the release archives, see Release
 ```
 
-Run a single package's tests or a single test by name directly with `go test`:
+Run a single package's tests or a single test by name:
 
 ```
 go test ./parser/...
