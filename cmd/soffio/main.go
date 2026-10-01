@@ -10,8 +10,10 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"soffio/ast"
@@ -114,6 +116,7 @@ func main() {
 		OutDir:         *outDir,
 		Template:       tmpl,
 		AllDocs:        visibleDocs,
+		IDs:            slices.Sorted(maps.Keys(visibleDocs)),
 	}
 
 	// every page and feed is attempted, but any that fails fails the

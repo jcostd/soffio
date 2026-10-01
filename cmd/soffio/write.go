@@ -7,7 +7,6 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
-	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -24,6 +23,7 @@ type SiteContext struct {
 	OutDir         string
 	Template       *template.Template
 	AllDocs        map[string]*ast.Document
+	IDs            []string // AllDocs' keys, sorted
 }
 
 func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
@@ -69,12 +69,15 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 	}
 	defer f.Close()
 
-	// by ID, or a map would shuffle them on every build
+	// by ID, or a map would shuffle them on every build; sorted, the
+	// IDs under id/ are one run
 	var children []*ast.Document
-	for _, cid := range slices.Sorted(maps.Keys(ctx.AllDocs)) {
-		if strings.HasPrefix(cid, id+"/") {
-			children = append(children, ctx.AllDocs[cid])
+	i, _ := slices.BinarySearch(ctx.IDs, id+"/")
+	for _, cid := range ctx.IDs[i:] {
+		if !strings.HasPrefix(cid, id+"/") {
+			break
 		}
+		children = append(children, ctx.AllDocs[cid])
 	}
 
 	return ctx.Template.ExecuteTemplate(f, layout+".html", map[string]any{

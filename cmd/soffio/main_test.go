@@ -2,8 +2,10 @@ package main
 
 import (
 	"html/template"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -131,6 +133,7 @@ func TestWriteDocAlternatesChildren(t *testing.T) {
 		OutDir:         t.TempDir(),
 		Template:       tmpl,
 		AllDocs:        docs,
+		IDs:            slices.Sorted(maps.Keys(docs)),
 	}
 
 	tests := []struct{ id, want string }{
