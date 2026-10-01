@@ -1,28 +1,26 @@
-package parser
+package soffio
 
 import (
 	"reflect"
 	"strings"
 	"testing"
-
-	"soffio/ast"
 )
 
 // stripLines resets the Line field in all blocks to 0 for robust AST comparison.
-func stripLines(doc *ast.Document) {
+func stripLines(doc *Document) {
 	for i := range doc.Sections {
 		for j, block := range doc.Sections[i].Blocks {
 			switch b := block.(type) {
-			case ast.TextBlock:
+			case TextBlock:
 				b.Line = 0
 				doc.Sections[i].Blocks[j] = b
-			case ast.ImageBlock:
+			case ImageBlock:
 				b.Line = 0
 				doc.Sections[i].Blocks[j] = b
-			case ast.NoteBlock:
+			case NoteBlock:
 				b.Line = 0
 				doc.Sections[i].Blocks[j] = b
-			case ast.ListBlock:
+			case ListBlock:
 				b.Line = 0
 				doc.Sections[i].Blocks[j] = b
 			}
@@ -50,32 +48,32 @@ list continuation
 
 :: note: n1 | This is a footnote`
 
-	want := ast.Document{
+	want := Document{
 		ID:    "test-doc",
 		Title: "The Title",
 		Meta: map[string]string{
 			"layout": "custom",
 		},
-		Sections: []ast.Section{
+		Sections: []Section{
 			{
 				Level: 2,
 				ID:    "intro",
 				Title: "Introduction",
-				Blocks: []ast.Block{
-					ast.TextBlock{
-						Elements: []ast.Inline{
-							ast.PlainText{Content: "This is the first paragraph.\nIt continues here naturally."},
+				Blocks: []Block{
+					TextBlock{
+						Elements: []Inline{
+							PlainText{Content: "This is the first paragraph.\nIt continues here naturally."},
 						},
 					},
-					ast.ListBlock{
-						Items: [][]ast.Inline{
-							{ast.PlainText{Content: "List item 1\nlist continuation"}},
-							{ast.PlainText{Content: "List item 2"}},
+					ListBlock{
+						Items: [][]Inline{
+							{PlainText{Content: "List item 1\nlist continuation"}},
+							{PlainText{Content: "List item 2"}},
 						},
 					},
-					ast.ImageBlock{
+					ImageBlock{
 						Path:    "photo.jpg",
-						Caption: []ast.Inline{ast.PlainText{Content: "Photo caption"}},
+						Caption: []Inline{PlainText{Content: "Photo caption"}},
 					},
 				},
 			},
@@ -83,10 +81,10 @@ list continuation
 				Level: 2,
 				ID:    "extra",
 				Title: "Extra Notes",
-				Blocks: []ast.Block{
-					ast.NoteBlock{
+				Blocks: []Block{
+					NoteBlock{
 						ID:       "n1",
-						Elements: []ast.Inline{ast.PlainText{Content: "This is a footnote"}},
+						Elements: []Inline{PlainText{Content: "This is a footnote"}},
 					},
 				},
 			},
@@ -128,16 +126,16 @@ E questo è testo attaccato a un comando
 
 	stripLines(&got)
 
-	wantBlocksMain := []ast.Block{
-		ast.TextBlock{Elements: []ast.Inline{ast.PlainText{Content: "Questo è un paragrafo attaccato"}}},
+	wantBlocksMain := []Block{
+		TextBlock{Elements: []Inline{PlainText{Content: "Questo è un paragrafo attaccato"}}},
 	}
 	if !reflect.DeepEqual(got.Sections[0].Blocks, wantBlocksMain) {
 		t.Errorf("Implicit flush section mismatch in Main")
 	}
 
-	wantBlocksNext := []ast.Block{
-		ast.TextBlock{Elements: []ast.Inline{ast.PlainText{Content: "E questo è testo attaccato a un comando"}}},
-		ast.ImageBlock{Path: "p.jpg", Caption: []ast.Inline{ast.PlainText{Content: "cap"}}},
+	wantBlocksNext := []Block{
+		TextBlock{Elements: []Inline{PlainText{Content: "E questo è testo attaccato a un comando"}}},
+		ImageBlock{Path: "p.jpg", Caption: []Inline{PlainText{Content: "cap"}}},
 	}
 	if !reflect.DeepEqual(got.Sections[1].Blocks, wantBlocksNext) {
 		t.Errorf("Implicit flush command mismatch in Next")

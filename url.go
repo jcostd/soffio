@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package renderer
+package soffio
 
 import (
 	"net/url"

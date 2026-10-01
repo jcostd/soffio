@@ -1,8 +1,8 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package ast defines the Soffio abstract syntax tree.
-package ast
+// Package soffio parses, checks and renders Soffio markup.
+package soffio
 
 type BlockType int
 

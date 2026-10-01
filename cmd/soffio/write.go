@@ -12,8 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"soffio/ast"
-	"soffio/renderer"
+	"soffio"
 )
 
 // SiteContext holds the global state required to generate the site.
@@ -22,18 +21,18 @@ type SiteContext struct {
 	SupportedLangs []string
 	OutDir         string
 	Template       *template.Template
-	AllDocs        map[string]*ast.Document
+	AllDocs        map[string]*soffio.Document
 	IDs            []string // AllDocs' keys, sorted
 }
 
-func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
+func (ctx *SiteContext) writeDoc(id string, doc *soffio.Document) error {
 	layout := doc.Meta["layout"]
 	if layout == "" || ctx.Template.Lookup(layout+".html") == nil {
 		layout = "layout"
 	}
 
 	var buf strings.Builder
-	if err := renderer.Render(&buf, doc); err != nil {
+	if err := soffio.Render(&buf, doc); err != nil {
 		return err
 	}
 
@@ -71,7 +70,7 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 
 	// by ID, or a map would shuffle them on every build; sorted, the
 	// IDs under id/ are one run
-	var children []*ast.Document
+	var children []*soffio.Document
 	i, _ := slices.BinarySearch(ctx.IDs, id+"/")
 	for _, cid := range ctx.IDs[i:] {
 		if !strings.HasPrefix(cid, id+"/") {

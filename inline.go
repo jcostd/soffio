@@ -1,23 +1,21 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package parser
+package soffio
 
 import (
 	"strings"
 	"unicode"
-
-	"soffio/ast"
 )
 
-func parseInline(s string) []ast.Inline {
-	var elements []ast.Inline
+func parseInline(s string) []Inline {
+	var elements []Inline
 	var buf strings.Builder
 	runes := []rune(s)
 
 	flush := func() {
 		if buf.Len() > 0 {
-			elements = append(elements, ast.PlainText{Content: buf.String()})
+			elements = append(elements, PlainText{Content: buf.String()})
 			buf.Reset()
 		}
 	}
@@ -41,7 +39,7 @@ func parseInline(s string) []ast.Inline {
 
 				innerRunes := runes[i+1 : endIndex]
 				innerNodes := parseInline(string(innerRunes))
-				elements = append(elements, ast.Bold{Elements: innerNodes})
+				elements = append(elements, Bold{Elements: innerNodes})
 
 				i = endIndex
 				continue
@@ -56,7 +54,7 @@ func parseInline(s string) []ast.Inline {
 
 				innerRunes := runes[i+1 : endIndex]
 				innerNodes := parseInline(string(innerRunes))
-				elements = append(elements, ast.Italic{Elements: innerNodes})
+				elements = append(elements, Italic{Elements: innerNodes})
 
 				i = endIndex
 				continue
@@ -143,7 +141,7 @@ func unescape(s string) string {
 	return buf.String()
 }
 
-func scanLinkOrNote(runes []rune, start int) (ast.Inline, int, bool) {
+func scanLinkOrNote(runes []rune, start int) (Inline, int, bool) {
 	closeIndex := -1
 	depth := 0
 
@@ -177,7 +175,7 @@ func scanLinkOrNote(runes []rune, start int) (ast.Inline, int, bool) {
 	if id, ok := strings.CutPrefix(innerStr, "*"); ok {
 		id = strings.TrimSpace(id)
 		if id != "" && checkID(id) == "" {
-			return ast.FootnoteRef{Target: id}, closeIndex, true
+			return FootnoteRef{Target: id}, closeIndex, true
 		}
 	}
 
@@ -196,7 +194,7 @@ func scanLinkOrNote(runes []rune, start int) (ast.Inline, int, bool) {
 
 	labelNodes := parseInline(strings.TrimSpace(labelStr))
 
-	return ast.Link{
+	return Link{
 		Target: target,
 		Label:  labelNodes,
 	}, closeIndex, true

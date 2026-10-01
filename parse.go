@@ -1,8 +1,7 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package parser decodes Soffio markup.
-package parser
+package soffio
 
 import (
 	"bufio"
@@ -11,8 +10,6 @@ import (
 	"io"
 	"strings"
 	"time"
-
-	"soffio/ast"
 )
 
 type state int
@@ -33,7 +30,7 @@ func (e ParseError) Error() string {
 
 type parser struct {
 	scan         *bufio.Scanner
-	doc          ast.Document
+	doc          Document
 	buf          strings.Builder
 	currentBlock string
 	blockMeta    string
@@ -44,11 +41,11 @@ type parser struct {
 }
 
 // Parse decodes r strictly.
-func Parse(r io.Reader) (ast.Document, error) {
+func Parse(r io.Reader) (Document, error) {
 	p := &parser{
 		scan:  bufio.NewScanner(r),
 		state: stateHeader,
-		doc: ast.Document{
+		doc: Document{
 			Meta: make(map[string]string),
 		},
 	}
@@ -226,7 +223,7 @@ func (p *parser) tryParseSection(line string) bool {
 		return true
 	}
 
-	p.doc.Sections = append(p.doc.Sections, ast.Section{
+	p.doc.Sections = append(p.doc.Sections, Section{
 		Level: level,
 		ID:    id,
 		Title: title,
@@ -288,23 +285,23 @@ func (p *parser) flush() {
 	}
 
 	content := p.buf.String()
-	var block ast.Block
+	var block Block
 
 	switch p.currentBlock {
 	case "img":
-		block = ast.ImageBlock{
+		block = ImageBlock{
 			Line:    p.blockStart,
 			Path:    p.blockMeta,
 			Caption: parseInline(content),
 		}
 	case "note":
-		block = ast.NoteBlock{
+		block = NoteBlock{
 			Line:     p.blockStart,
 			ID:       p.blockMeta,
 			Elements: parseInline(content),
 		}
 	case "list":
-		var items [][]ast.Inline
+		var items [][]Inline
 		var currentItem strings.Builder
 
 		for itemLine := range strings.SplitSeq(content, "\n") {
@@ -327,13 +324,13 @@ func (p *parser) flush() {
 		if currentItem.Len() > 0 {
 			items = append(items, parseInline(currentItem.String()))
 		}
-		block = ast.ListBlock{
+		block = ListBlock{
 			Line:  p.blockStart,
 			Items: items,
 		}
 
 	default:
-		block = ast.TextBlock{
+		block = TextBlock{
 			Line:     p.blockStart,
 			Elements: parseInline(content),
 		}

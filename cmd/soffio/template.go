@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"slices"
 
-	"soffio/ast"
+	"soffio"
 )
 
 //go:embed templates/*.html templates/*.xml templates/*.txt templates/*.json
@@ -20,9 +20,9 @@ var embeddedAssets embed.FS
 
 // sortby returns a cloned slice sorted descending by meta key.
 // falls back to id (ascending A-Z) for tie-breaking.
-func sortBy(docs []*ast.Document, key string) []*ast.Document {
+func sortBy(docs []*soffio.Document, key string) []*soffio.Document {
 	sorted := slices.Clone(docs)
-	slices.SortFunc(sorted, func(a, b *ast.Document) int {
+	slices.SortFunc(sorted, func(a, b *soffio.Document) int {
 		if r := cmp.Compare(b.Meta[key], a.Meta[key]); r != 0 {
 			return r
 		}

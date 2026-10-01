@@ -1,40 +1,38 @@
-package renderer
+package soffio
 
 import (
 	"strings"
 	"testing"
-
-	"soffio/ast"
 )
 
 func TestRender_BlocksAndInlines(t *testing.T) {
-	doc := &ast.Document{
+	doc := &Document{
 		ID:    "doc-id",
 		Title: "Document Title",
-		Sections: []ast.Section{
+		Sections: []Section{
 			{
 				ID:    "sec1",
 				Level: 2,
 				Title: "The Section",
-				Blocks: []ast.Block{
-					ast.TextBlock{
-						Elements: []ast.Inline{
-							ast.PlainText{Content: "Some "},
-							ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "bold"}}},
-							ast.PlainText{Content: " and "},
-							ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "italic"}}},
-							ast.PlainText{Content: " text."},
+				Blocks: []Block{
+					TextBlock{
+						Elements: []Inline{
+							PlainText{Content: "Some "},
+							Bold{Elements: []Inline{PlainText{Content: "bold"}}},
+							PlainText{Content: " and "},
+							Italic{Elements: []Inline{PlainText{Content: "italic"}}},
+							PlainText{Content: " text."},
 						},
 					},
-					ast.ListBlock{
-						Items: [][]ast.Inline{
-							{ast.PlainText{Content: "First item"}},
-							{ast.PlainText{Content: "Second item"}},
+					ListBlock{
+						Items: [][]Inline{
+							{PlainText{Content: "First item"}},
+							{PlainText{Content: "Second item"}},
 						},
 					},
-					ast.ImageBlock{
+					ImageBlock{
 						Path:    "img/test.jpg",
-						Caption: []ast.Inline{ast.PlainText{Content: "Caption"}},
+						Caption: []Inline{PlainText{Content: "Caption"}},
 					},
 				},
 			},
@@ -72,43 +70,43 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 
 func TestRender_Links(t *testing.T) {
 	// We set the ID to a subfolder path to properly test relative URL resolution
-	doc := &ast.Document{
+	doc := &Document{
 		ID: "it/about",
-		Sections: []ast.Section{
+		Sections: []Section{
 			{
 				Level: 2,
 				Title: "Links",
-				Blocks: []ast.Block{
-					ast.TextBlock{
-						Elements: []ast.Inline{
-							ast.Link{
+				Blocks: []Block{
+					TextBlock{
+						Elements: []Inline{
+							Link{
 								Target: "https://plan9.io",
-								Label:  []ast.Inline{ast.PlainText{Content: "Plan 9"}},
+								Label:  []Inline{PlainText{Content: "Plan 9"}},
 							},
 							// logical link: cross-folder (should resolve to ../en/home.html#intro)
-							ast.Link{
+							Link{
 								Target: "/en/home#intro",
-								Label:  []ast.Inline{ast.PlainText{Content: "Home"}},
+								Label:  []Inline{PlainText{Content: "Home"}},
 							},
 							// logical link: same-folder (should resolve to contact.html)
-							ast.Link{
+							Link{
 								Target: "/it/contact",
-								Label:  []ast.Inline{ast.PlainText{Content: "Contact"}},
+								Label:  []Inline{PlainText{Content: "Contact"}},
 							},
 							// physical asset: cross-folder (should NOT append .html)
-							ast.Link{
+							Link{
 								Target: "/static/docs/manual.pdf",
-								Label:  []ast.Inline{ast.PlainText{Content: "Manual"}},
+								Label:  []Inline{PlainText{Content: "Manual"}},
 							},
 							// an ID with a dot is still a page
-							ast.Link{
+							Link{
 								Target: "v1.2",
-								Label:  []ast.Inline{ast.PlainText{Content: "V"}},
+								Label:  []Inline{PlainText{Content: "V"}},
 							},
 							// link: section only (same page)
-							ast.Link{
+							Link{
 								Target: "#history",
-								Label:  []ast.Inline{ast.PlainText{Content: "History"}},
+								Label:  []Inline{PlainText{Content: "History"}},
 							},
 						},
 					},
@@ -140,30 +138,30 @@ func TestRender_Links(t *testing.T) {
 }
 
 func TestRender_Footnotes(t *testing.T) {
-	doc := &ast.Document{
+	doc := &Document{
 		ID: "doc-note",
-		Sections: []ast.Section{
+		Sections: []Section{
 			{
 				Level: 2,
 				Title: "Text",
-				Blocks: []ast.Block{
-					ast.TextBlock{
-						Elements: []ast.Inline{
-							ast.PlainText{Content: "A statement"},
-							ast.FootnoteRef{Target: "n1"},
-							ast.PlainText{Content: " and another"},
-							ast.FootnoteRef{Target: "n2"},
-							ast.PlainText{Content: " and back to n1"},
-							ast.FootnoteRef{Target: "n1"},
+				Blocks: []Block{
+					TextBlock{
+						Elements: []Inline{
+							PlainText{Content: "A statement"},
+							FootnoteRef{Target: "n1"},
+							PlainText{Content: " and another"},
+							FootnoteRef{Target: "n2"},
+							PlainText{Content: " and back to n1"},
+							FootnoteRef{Target: "n1"},
 						},
 					},
-					ast.NoteBlock{
+					NoteBlock{
 						ID:       "n1",
-						Elements: []ast.Inline{ast.PlainText{Content: "Note one."}},
+						Elements: []Inline{PlainText{Content: "Note one."}},
 					},
-					ast.NoteBlock{
+					NoteBlock{
 						ID:       "n2",
-						Elements: []ast.Inline{ast.PlainText{Content: "Note two."}},
+						Elements: []Inline{PlainText{Content: "Note two."}},
 					},
 				},
 			},
@@ -194,19 +192,19 @@ func TestRender_Footnotes(t *testing.T) {
 }
 
 func BenchmarkRender(b *testing.B) {
-	doc := &ast.Document{
+	doc := &Document{
 		ID:    "bench",
 		Title: "Bench",
-		Sections: []ast.Section{
+		Sections: []Section{
 			{
 				Level: 2,
 				Title: "Section",
-				Blocks: []ast.Block{
-					ast.TextBlock{
-						Elements: []ast.Inline{
-							ast.PlainText{Content: "Some "},
-							ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "bold"}}},
-							ast.Link{Target: "other-doc", Label: []ast.Inline{ast.PlainText{Content: "link"}}},
+				Blocks: []Block{
+					TextBlock{
+						Elements: []Inline{
+							PlainText{Content: "Some "},
+							Bold{Elements: []Inline{PlainText{Content: "bold"}}},
+							Link{Target: "other-doc", Label: []Inline{PlainText{Content: "link"}}},
 						},
 					},
 				},

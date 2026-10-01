@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"soffio/ast"
+	"soffio"
 )
 
 func TestSortBy(t *testing.T) {
-	docs := []*ast.Document{
+	docs := []*soffio.Document{
 		{ID: "a", Meta: map[string]string{"event_date": "1964-01-01"}},
 		{ID: "b", Meta: map[string]string{"event_date": "2020-05-10"}},
 		{ID: "c", Meta: map[string]string{"event_date": "1964-01-01"}},

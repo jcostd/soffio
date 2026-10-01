@@ -1,8 +1,7 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package corpus indexes and validates Soffio documents.
-package corpus
+package soffio
 
 import (
 	"errors"
@@ -11,9 +10,6 @@ import (
 	"path"
 	"strings"
 	"sync"
-
-	"soffio/ast"
-	"soffio/parser"
 )
 
 var (
@@ -25,19 +21,19 @@ var (
 
 // Collection holds the parsed documents mapped by their logical ID.
 type Collection struct {
-	Docs map[string]*ast.Document
+	Docs map[string]*Document
 }
 
 // New initializes an empty document collection.
 func New() *Collection {
 	return &Collection{
-		Docs: make(map[string]*ast.Document),
+		Docs: make(map[string]*Document),
 	}
 }
 
 type parseResult struct {
 	filename string
-	doc      *ast.Document
+	doc      *Document
 	err      error
 }
 
@@ -84,7 +80,7 @@ func (c *Collection) Load(fsys fs.FS, pattern, skipDir string) error {
 			}
 			defer f.Close()
 
-			doc, err := parser.Parse(f)
+			doc, err := Parse(f)
 			if err != nil {
 				results <- parseResult{err: fmt.Errorf("parse %s: %w", filename, err)}
 				return
@@ -138,7 +134,7 @@ func (c *Collection) Load(fsys fs.FS, pattern, skipDir string) error {
 }
 
 // Get retrieves a document by its logical ID.
-func (c *Collection) Get(id string) (*ast.Document, error) {
+func (c *Collection) Get(id string) (*Document, error) {
 	if doc, ok := c.Docs[id]; ok {
 		return doc, nil
 	}

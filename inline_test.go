@@ -1,162 +1,160 @@
-package parser
+package soffio
 
 import (
 	"reflect"
 	"testing"
-
-	"soffio/ast"
 )
 
 func TestParseInline(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
-		want  []ast.Inline
+		want  []Inline
 	}{
 		{
 			name:  "plain text",
 			input: "plain text",
-			want:  []ast.Inline{ast.PlainText{Content: "plain text"}},
+			want:  []Inline{PlainText{Content: "plain text"}},
 		},
 		{
 			name:  "bold",
 			input: "some *bold* text",
-			want: []ast.Inline{
-				ast.PlainText{Content: "some "},
-				ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "bold"}}},
-				ast.PlainText{Content: " text"},
+			want: []Inline{
+				PlainText{Content: "some "},
+				Bold{Elements: []Inline{PlainText{Content: "bold"}}},
+				PlainText{Content: " text"},
 			},
 		},
 		{
 			name:  "italic",
 			input: "some _italic_ text",
-			want: []ast.Inline{
-				ast.PlainText{Content: "some "},
-				ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "italic"}}},
-				ast.PlainText{Content: " text"},
+			want: []Inline{
+				PlainText{Content: "some "},
+				Italic{Elements: []Inline{PlainText{Content: "italic"}}},
+				PlainText{Content: " text"},
 			},
 		},
 		{
 			name:  "internal link",
 			input: "(link -> doc-id)",
-			want: []ast.Inline{
-				ast.Link{
+			want: []Inline{
+				Link{
 					Target: "doc-id",
-					Label:  []ast.Inline{ast.PlainText{Content: "link"}},
+					Label:  []Inline{PlainText{Content: "link"}},
 				},
 			},
 		},
 		{
 			name:  "external link",
 			input: "(Website -> https://example.com)",
-			want: []ast.Inline{
-				ast.Link{
+			want: []Inline{
+				Link{
 					Target: "https://example.com",
-					Label:  []ast.Inline{ast.PlainText{Content: "Website"}},
+					Label:  []Inline{PlainText{Content: "Website"}},
 				},
 			},
 		},
 		{
 			name:  "footnote",
 			input: "text (*note1)",
-			want: []ast.Inline{
-				ast.PlainText{Content: "text "},
-				ast.FootnoteRef{Target: "note1"},
+			want: []Inline{
+				PlainText{Content: "text "},
+				FootnoteRef{Target: "note1"},
 			},
 		},
 		{
 			name:  "escaping",
 			input: `this \*is not\* bold and a backslash \\ end`,
-			want: []ast.Inline{
-				ast.PlainText{Content: `this *is not* bold and a backslash \ end`},
+			want: []Inline{
+				PlainText{Content: `this *is not* bold and a backslash \ end`},
 			},
 		},
 		{
 			name:  "nested formatting",
 			input: "*_italic in bold_*",
-			want: []ast.Inline{
-				ast.Bold{Elements: []ast.Inline{
-					ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "italic in bold"}}},
+			want: []Inline{
+				Bold{Elements: []Inline{
+					Italic{Elements: []Inline{PlainText{Content: "italic in bold"}}},
 				}},
 			},
 		},
 		{
 			name:  "escaping inside link target",
 			input: `(Wiki -> https://en.wikipedia.org/wiki/Test_\(disambiguation\))`,
-			want: []ast.Inline{
-				ast.Link{
+			want: []Inline{
+				Link{
 					Target: "https://en.wikipedia.org/wiki/Test_(disambiguation)",
-					Label:  []ast.Inline{ast.PlainText{Content: "Wiki"}},
+					Label:  []Inline{PlainText{Content: "Wiki"}},
 				},
 			},
 		},
 		{
 			name:  "balanced parentheses in link label",
 			input: `(Download the (PDF) attached -> doc-id)`,
-			want: []ast.Inline{
-				ast.Link{
+			want: []Inline{
+				Link{
 					Target: "doc-id",
-					Label:  []ast.Inline{ast.PlainText{Content: "Download the (PDF) attached"}},
+					Label:  []Inline{PlainText{Content: "Download the (PDF) attached"}},
 				},
 			},
 		},
 		{
 			name:  "balanced parentheses in link target without escaping",
 			input: "(Wiki -> https://en.wikipedia.org/wiki/Test_(disambiguation))",
-			want: []ast.Inline{
-				ast.Link{
+			want: []Inline{
+				Link{
 					Target: "https://en.wikipedia.org/wiki/Test_(disambiguation)",
-					Label:  []ast.Inline{ast.PlainText{Content: "Wiki"}},
+					Label:  []Inline{PlainText{Content: "Wiki"}},
 				},
 			},
 		},
 		{
 			name:  "mailto link should be external",
 			input: "(Contact -> mailto:hello@soffio.org)",
-			want: []ast.Inline{
-				ast.Link{
+			want: []Inline{
+				Link{
 					Target: "mailto:hello@soffio.org",
-					Label:  []ast.Inline{ast.PlainText{Content: "Contact"}},
+					Label:  []Inline{PlainText{Content: "Contact"}},
 				},
 			},
 		},
 		{
 			name:  "closing marker preceded by tab is ignored",
 			input: "text *not bold\t*",
-			want: []ast.Inline{
-				ast.PlainText{Content: "text *not bold\t*"},
+			want: []Inline{
+				PlainText{Content: "text *not bold\t*"},
 			},
 		},
 		{
 			name:  "marker inside a word is a character",
 			input: "snake_case_name and 2*3*4",
-			want:  []ast.Inline{ast.PlainText{Content: "snake_case_name and 2*3*4"}},
+			want:  []Inline{PlainText{Content: "snake_case_name and 2*3*4"}},
 		},
 		{
 			name:  "closing marker must end a word",
 			input: "_a_b and c_",
-			want: []ast.Inline{
-				ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "a_b and c"}}},
+			want: []Inline{
+				Italic{Elements: []Inline{PlainText{Content: "a_b and c"}}},
 			},
 		},
 		{
 			name:  "bold in parentheses is no note",
 			input: "(*bold*), _it_.",
-			want: []ast.Inline{
-				ast.PlainText{Content: "("},
-				ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "bold"}}},
-				ast.PlainText{Content: "), "},
-				ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "it"}}},
-				ast.PlainText{Content: "."},
+			want: []Inline{
+				PlainText{Content: "("},
+				Bold{Elements: []Inline{PlainText{Content: "bold"}}},
+				PlainText{Content: "), "},
+				Italic{Elements: []Inline{PlainText{Content: "it"}}},
+				PlainText{Content: "."},
 			},
 		},
 		{
 			name:  "bold label is no note",
 			input: "(*Bold* -> doc-id)",
-			want: []ast.Inline{
-				ast.Link{
+			want: []Inline{
+				Link{
 					Target: "doc-id",
-					Label:  []ast.Inline{ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "Bold"}}}},
+					Label:  []Inline{Bold{Elements: []Inline{PlainText{Content: "Bold"}}}},
 				},
 			},
 		},

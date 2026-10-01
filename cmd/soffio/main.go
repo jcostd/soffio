@@ -16,10 +16,7 @@ import (
 	"slices"
 	"strings"
 
-	"soffio/ast"
-	"soffio/corpus"
-	"soffio/parser"
-	"soffio/renderer"
+	"soffio"
 )
 
 // Version is injected at build time via -ldflags "-X main.Version=..."
@@ -64,12 +61,12 @@ func main() {
 		if err != nil {
 			log.Fatalf("soffio: read stdin: %v", err)
 		}
-		doc, err := parser.Parse(bytes.NewReader(src))
+		doc, err := soffio.Parse(bytes.NewReader(src))
 		if err != nil {
 			log.Fatalf("soffio: parse: %v", err)
 		}
 
-		if err := renderer.Render(os.Stdout, &doc); err != nil {
+		if err := soffio.Render(os.Stdout, &doc); err != nil {
 			log.Fatalf("soffio: render: %v", err)
 		}
 		return
@@ -80,7 +77,7 @@ func main() {
 		log.Fatalf("soffio: %v", err)
 	}
 	inDir := flag.Arg(0)
-	c := corpus.New()
+	c := soffio.New()
 
 	skipDir := filepath.Base(*staticDir)
 	if err := c.Load(os.DirFS(inDir), "*.soffio", skipDir); err != nil {
@@ -88,7 +85,7 @@ func main() {
 	}
 
 	// filter docs for visibility meta
-	visibleDocs := make(map[string]*ast.Document)
+	visibleDocs := make(map[string]*soffio.Document)
 	for id, doc := range c.Docs {
 		vis := doc.Meta["visibility"]
 		if vis == "" {

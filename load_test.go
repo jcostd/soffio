@@ -1,4 +1,4 @@
-package corpus
+package soffio
 
 import (
 	"errors"
@@ -6,13 +6,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"soffio/ast"
 )
 
 func TestGet(t *testing.T) {
 	c := New()
-	c.Docs["test-doc"] = &ast.Document{ID: "test-doc", Title: "Test"}
+	c.Docs["test-doc"] = &Document{ID: "test-doc", Title: "Test"}
 
 	// Caso di successo
 	doc, err := c.Get("test-doc")
@@ -109,27 +107,27 @@ func TestLoadCaseDuplicate(t *testing.T) {
 }
 
 func TestCheckTarget(t *testing.T) {
-	allDocs := map[string]*ast.Document{
+	allDocs := map[string]*Document{
 		"it/home": {
 			ID:       "it/home",
-			Sections: []ast.Section{{ID: "intro"}},
+			Sections: []Section{{ID: "intro"}},
 		},
 		"it/about": {
 			ID:       "it/about",
-			Sections: []ast.Section{{ID: "team"}},
+			Sections: []Section{{ID: "team"}},
 		},
 		"en/home": {
 			ID:       "en/home",
-			Sections: []ast.Section{{ID: "intro"}},
+			Sections: []Section{{ID: "intro"}},
 		},
 		"private/secret": {
 			ID:       "private/secret",
-			Sections: []ast.Section{{ID: "data"}},
+			Sections: []Section{{ID: "data"}},
 		},
 	}
 
 	// activeDocs simula la "vista" pubblica, omettendo il file privato
-	activeDocs := map[string]*ast.Document{
+	activeDocs := map[string]*Document{
 		"it/home":  allDocs["it/home"],
 		"it/about": allDocs["it/about"],
 		"en/home":  allDocs["en/home"],
@@ -164,34 +162,34 @@ func TestCheckTarget(t *testing.T) {
 func TestValidateLinks(t *testing.T) {
 	c := New()
 
-	c.Docs["it/doc1"] = &ast.Document{
+	c.Docs["it/doc1"] = &Document{
 		ID: "it/doc1",
-		Sections: []ast.Section{
+		Sections: []Section{
 			{
 				ID: "sec1",
-				Blocks: []ast.Block{
-					ast.TextBlock{
-						Elements: []ast.Inline{
-							ast.Link{
+				Blocks: []Block{
+					TextBlock{
+						Elements: []Inline{
+							Link{
 								Target: "doc2",
-								Label:  []ast.Inline{ast.PlainText{Content: "Vai a doc2"}},
+								Label:  []Inline{PlainText{Content: "Vai a doc2"}},
 							},
-							ast.Link{
+							Link{
 								Target: "broken",
-								Label:  []ast.Inline{ast.PlainText{Content: "Link rotto"}},
+								Label:  []Inline{PlainText{Content: "Link rotto"}},
 							},
-							ast.FootnoteRef{Target: "n1"},
+							FootnoteRef{Target: "n1"},
 						},
 					},
-					ast.NoteBlock{ID: "n1"},
+					NoteBlock{ID: "n1"},
 				},
 			},
 		},
 	}
 
-	c.Docs["it/doc2"] = &ast.Document{
+	c.Docs["it/doc2"] = &Document{
 		ID:       "it/doc2",
-		Sections: []ast.Section{{ID: "intro"}},
+		Sections: []Section{{ID: "intro"}},
 	}
 
 	// Passiamo c.Docs come activeDocs per testare la validazione standard
@@ -209,17 +207,17 @@ func TestValidateLinks(t *testing.T) {
 func TestPrivacyLeak(t *testing.T) {
 	c := New()
 
-	c.Docs["public/post"] = &ast.Document{
+	c.Docs["public/post"] = &Document{
 		ID: "public/post",
-		Sections: []ast.Section{
+		Sections: []Section{
 			{
 				ID: "sec1",
-				Blocks: []ast.Block{
-					ast.TextBlock{
-						Elements: []ast.Inline{
-							ast.Link{
+				Blocks: []Block{
+					TextBlock{
+						Elements: []Inline{
+							Link{
 								Target: "/private/secret",
-								Label:  []ast.Inline{ast.PlainText{Content: "Nota Segreta"}},
+								Label:  []Inline{PlainText{Content: "Nota Segreta"}},
 							},
 						},
 					},
@@ -228,13 +226,13 @@ func TestPrivacyLeak(t *testing.T) {
 		},
 	}
 
-	c.Docs["private/secret"] = &ast.Document{
+	c.Docs["private/secret"] = &Document{
 		ID:       "private/secret",
-		Sections: []ast.Section{{ID: "sec1"}},
+		Sections: []Section{{ID: "sec1"}},
 	}
 
 	// Simuliamo una build pubblica dove private/secret viene escluso
-	activeDocs := map[string]*ast.Document{
+	activeDocs := map[string]*Document{
 		"public/post": c.Docs["public/post"],
 	}
 
@@ -251,17 +249,17 @@ func TestPrivacyLeak(t *testing.T) {
 
 func BenchmarkValidateLinks(b *testing.B) {
 	c := New()
-	doc := &ast.Document{
+	doc := &Document{
 		ID: "bench",
-		Sections: []ast.Section{
+		Sections: []Section{
 			{
 				ID: "s1",
-				Blocks: []ast.Block{
-					ast.TextBlock{
-						Elements: []ast.Inline{
-							ast.Link{
+				Blocks: []Block{
+					TextBlock{
+						Elements: []Inline{
+							Link{
 								Target: "bench#s1",
-								Label:  []ast.Inline{ast.PlainText{Content: "Self ref"}},
+								Label:  []Inline{PlainText{Content: "Self ref"}},
 							},
 						},
 					},

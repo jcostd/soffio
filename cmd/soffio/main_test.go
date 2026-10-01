@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"soffio/ast"
+	"soffio"
 )
 
 func TestWriteDoc(t *testing.T) {
@@ -21,20 +21,20 @@ func TestWriteDoc(t *testing.T) {
 		t.Fatalf("failed to parse template: %v", err)
 	}
 
-	doc := &ast.Document{
+	doc := &soffio.Document{
 		ID:    "test-doc",
 		Title: "Test Title",
 		Meta:  map[string]string{"layout": "layout.html"},
-		Sections: []ast.Section{
+		Sections: []soffio.Section{
 			{
 				Level: 2,
 				ID:    "sec-1",
 				Title: "Section Title",
-				Blocks: []ast.Block{
-					ast.TextBlock{
+				Blocks: []soffio.Block{
+					soffio.TextBlock{
 						Line: 1,
-						Elements: []ast.Inline{
-							ast.PlainText{Content: "Hello World"},
+						Elements: []soffio.Inline{
+							soffio.PlainText{Content: "Hello World"},
 						},
 					},
 				},
@@ -47,7 +47,7 @@ func TestWriteDoc(t *testing.T) {
 		SupportedLangs: []string{"en"},
 		OutDir:         outDir,
 		Template:       tmpl,
-		AllDocs:        map[string]*ast.Document{"test-doc": doc},
+		AllDocs:        map[string]*soffio.Document{"test-doc": doc},
 	}
 
 	err = ctx.writeDoc("test-doc", doc)
@@ -122,8 +122,8 @@ func TestCopyDir(t *testing.T) {
 func TestWriteDocAlternatesChildren(t *testing.T) {
 	tmpl := template.Must(template.New("layout.html").Parse(
 		`{{range .Alternates}}{{.Lang}}={{.URL}};{{end}}|{{range .Children}}{{.ID}};{{end}}`))
-	page := func(id string) *ast.Document { return &ast.Document{ID: id, Meta: map[string]string{}} }
-	docs := map[string]*ast.Document{}
+	page := func(id string) *soffio.Document { return &soffio.Document{ID: id, Meta: map[string]string{}} }
+	docs := map[string]*soffio.Document{}
 	for _, id := range []string{"en/x", "it/x", "it/x/c", "it/x/a", "it/x/b", "blog/x"} {
 		docs[id] = page(id)
 	}

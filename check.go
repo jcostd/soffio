@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package corpus
+package soffio
 
 import (
 	"errors"
@@ -12,8 +12,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-
-	"soffio/ast"
 )
 
 // BrokenLinkError indicates a reference to a non-existent document.
@@ -58,7 +56,7 @@ const (
 )
 
 // ValidateLinks asserts reference integrity and guards against privacy leaks.
-func (c *Collection) ValidateLinks(activeDocs map[string]*ast.Document, staticDir string) error {
+func (c *Collection) ValidateLinks(activeDocs map[string]*Document, staticDir string) error {
 	var errs []error
 
 	// We iterate ONLY over activeDocs to ensure internal soundness.
@@ -67,9 +65,9 @@ func (c *Collection) ValidateLinks(activeDocs map[string]*ast.Document, staticDi
 		for _, sec := range doc.Sections {
 			for _, block := range sec.Blocks {
 				switch b := block.(type) {
-				case ast.TextBlock:
+				case TextBlock:
 					walk(b.Elements, id, b.Line, notes, c.Docs, activeDocs, &errs)
-				case ast.ImageBlock:
+				case ImageBlock:
 					u, err := url.Parse(b.Path)
 					if err == nil && u.Scheme == "" && !strings.HasPrefix(b.Path, "//") {
 						relPath := strings.TrimPrefix(b.Path, "/static/")
@@ -81,9 +79,9 @@ func (c *Collection) ValidateLinks(activeDocs map[string]*ast.Document, staticDi
 						}
 					}
 					walk(b.Caption, id, b.Line, notes, c.Docs, activeDocs, &errs)
-				case ast.NoteBlock:
+				case NoteBlock:
 					walk(b.Elements, id, b.Line, notes, c.Docs, activeDocs, &errs)
-				case ast.ListBlock:
+				case ListBlock:
 					for _, item := range b.Items {
 						walk(item, id, b.Line, notes, c.Docs, activeDocs, &errs)
 					}
@@ -98,10 +96,10 @@ func (c *Collection) ValidateLinks(activeDocs map[string]*ast.Document, staticDi
 	return errors.Join(errs...)
 }
 
-func walk(inlines []ast.Inline, sourceID string, line int, notes map[string]struct{}, allDocs, activeDocs map[string]*ast.Document, errs *[]error) {
+func walk(inlines []Inline, sourceID string, line int, notes map[string]struct{}, allDocs, activeDocs map[string]*Document, errs *[]error) {
 	for _, el := range inlines {
 		switch v := el.(type) {
-		case ast.Link:
+		case Link:
 			u, err := url.Parse(v.Target)
 			if err == nil && u.Scheme == "" && !strings.HasPrefix(v.Target, "//") {
 				res := checkTarget(allDocs, activeDocs, sourceID, v.Target)
@@ -112,11 +110,11 @@ func walk(inlines []ast.Inline, sourceID string, line int, notes map[string]stru
 					*errs = append(*errs, &PrivacyLeakError{Source: sourceID, Line: line, Target: v.Target})
 				}
 			}
-		case ast.Bold:
+		case Bold:
 			walk(v.Elements, sourceID, line, notes, allDocs, activeDocs, errs)
-		case ast.Italic:
+		case Italic:
 			walk(v.Elements, sourceID, line, notes, allDocs, activeDocs, errs)
-		case ast.FootnoteRef:
+		case FootnoteRef:
 			if _, ok := notes[v.Target]; !ok {
 				*errs = append(*errs, &BrokenNoteError{Source: sourceID, Line: line, Target: v.Target})
 			}
@@ -125,7 +123,7 @@ func walk(inlines []ast.Inline, sourceID string, line int, notes map[string]stru
 }
 
 // checkTarget resolves absolute and relative references within the corpus.
-func checkTarget(allDocs, activeDocs map[string]*ast.Document, sourceID, target string) targetResult {
+func checkTarget(allDocs, activeDocs map[string]*Document, sourceID, target string) targetResult {
 	docID, secID, hasHash := strings.Cut(target, "#")
 
 	if docID == "" {
@@ -159,11 +157,11 @@ func checkTarget(allDocs, activeDocs map[string]*ast.Document, sourceID, target 
 	return targetNotFound
 }
 
-func collectNotes(doc *ast.Document) map[string]struct{} {
+func collectNotes(doc *Document) map[string]struct{} {
 	notes := make(map[string]struct{})
 	for _, sec := range doc.Sections {
 		for _, block := range sec.Blocks {
-			if n, ok := block.(ast.NoteBlock); ok {
+			if n, ok := block.(NoteBlock); ok {
 				notes[n.ID] = struct{}{}
 			}
 		}

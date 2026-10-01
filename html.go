@@ -1,8 +1,7 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package renderer emits semantic HTML from a Soffio AST.
-package renderer
+package soffio
 
 import (
 	"fmt"
@@ -11,8 +10,6 @@ import (
 	"log"
 	"net/url"
 	"strings"
-
-	"soffio/ast"
 )
 
 // renderer tracks state during document emission.
@@ -20,7 +17,7 @@ type renderer struct {
 	w        io.Writer
 	err      error
 	docID    string
-	notes    map[string]ast.NoteBlock
+	notes    map[string]NoteBlock
 	refs     []string
 	refsIdx  map[string]int
 	refCount map[string]int
@@ -41,11 +38,11 @@ func (r *renderer) writef(format string, args ...any) {
 }
 
 // Render emits doc to w.
-func Render(w io.Writer, doc *ast.Document) error {
+func Render(w io.Writer, doc *Document) error {
 	r := renderer{
 		w:        w,
 		docID:    doc.ID,
-		notes:    make(map[string]ast.NoteBlock),
+		notes:    make(map[string]NoteBlock),
 		refs:     make([]string, 0, 8),
 		refsIdx:  make(map[string]int),
 		refCount: make(map[string]int),
@@ -81,7 +78,7 @@ func Render(w io.Writer, doc *ast.Document) error {
 	return r.err
 }
 
-func (r *renderer) renderSection(sec ast.Section) {
+func (r *renderer) renderSection(sec Section) {
 	r.writef("<section id=\"%s\">\n", sec.ID)
 	r.writef("<h%d>%s</h%d>\n", sec.Level, html.EscapeString(sec.Title), sec.Level)
 	for _, b := range sec.Blocks {
@@ -90,14 +87,14 @@ func (r *renderer) renderSection(sec ast.Section) {
 	r.write("</section>\n")
 }
 
-func (r *renderer) renderBlock(b ast.Block) {
+func (r *renderer) renderBlock(b Block) {
 	switch v := b.(type) {
-	case ast.TextBlock:
+	case TextBlock:
 		r.write("<p>")
 		r.renderInlines(v.Elements)
 		r.write("</p>\n")
 
-	case ast.ListBlock:
+	case ListBlock:
 		r.write("<ul>\n")
 		for _, el := range v.Items {
 			r.write("<li>")
@@ -106,7 +103,7 @@ func (r *renderer) renderBlock(b ast.Block) {
 		}
 		r.write("</ul>\n")
 
-	case ast.ImageBlock:
+	case ImageBlock:
 		src := v.Path
 		altText := extractPlainText(v.Caption)
 		r.write("<figure>\n")
@@ -118,33 +115,33 @@ func (r *renderer) renderBlock(b ast.Block) {
 		r.renderInlines(v.Caption)
 		r.write("</figcaption>\n</figure>\n")
 
-	case ast.NoteBlock:
+	case NoteBlock:
 		r.notes[v.ID] = v
 	}
 }
 
-func (r *renderer) renderInlines(elements []ast.Inline) {
+func (r *renderer) renderInlines(elements []Inline) {
 	for _, el := range elements {
 		r.renderInline(el)
 	}
 }
 
-func (r *renderer) renderInline(in ast.Inline) {
+func (r *renderer) renderInline(in Inline) {
 	switch v := in.(type) {
-	case ast.PlainText:
+	case PlainText:
 		r.write(html.EscapeString(v.Content))
 
-	case ast.Bold:
+	case Bold:
 		r.write("<strong>")
 		r.renderInlines(v.Elements)
 		r.write("</strong>")
 
-	case ast.Italic:
+	case Italic:
 		r.write("<em>")
 		r.renderInlines(v.Elements)
 		r.write("</em>")
 
-	case ast.Link:
+	case Link:
 		href := resolveURL(r.docID, v.Target)
 		u, _ := url.Parse(href)
 		if u != nil && (u.Scheme == "http" || u.Scheme == "https") {
@@ -155,7 +152,7 @@ func (r *renderer) renderInline(in ast.Inline) {
 		r.renderInlines(v.Label)
 		r.write("</a>")
 
-	case ast.FootnoteRef:
+	case FootnoteRef:
 		if _, seen := r.refsIdx[v.Target]; !seen {
 			r.refs = append(r.refs, v.Target)
 			r.refsIdx[v.Target] = len(r.refs)
@@ -166,17 +163,17 @@ func (r *renderer) renderInline(in ast.Inline) {
 	}
 }
 
-func extractPlainText(elements []ast.Inline) string {
+func extractPlainText(elements []Inline) string {
 	var b strings.Builder
 	for _, el := range elements {
 		switch v := el.(type) {
-		case ast.PlainText:
+		case PlainText:
 			b.WriteString(v.Content)
-		case ast.Bold:
+		case Bold:
 			b.WriteString(extractPlainText(v.Elements))
-		case ast.Italic:
+		case Italic:
 			b.WriteString(extractPlainText(v.Elements))
-		case ast.Link:
+		case Link:
 			b.WriteString(extractPlainText(v.Label))
 		}
 	}
