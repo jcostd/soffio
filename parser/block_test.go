@@ -177,6 +177,54 @@ Questo testo non ha una sezione dichiarata!`,
 			expectedError: "unknown command \"galleria\"",
 		},
 		{
+			name:          "ID con spazio",
+			input:         "id: scultura bronzo\n",
+			expectedError: `invalid id "scultura bronzo": it contains a space`,
+		},
+		{
+			name:          "ID con accento",
+			input:         "id: città\n",
+			expectedError: `'à' is not a plain ASCII character`,
+		},
+		{
+			name:          "ID con carattere vietato",
+			input:         "id: opere/toro\n",
+			expectedError: `'/' is not allowed`,
+		},
+		{
+			name:          "ID che inizia con un punto",
+			input:         "id: .nascosto\n",
+			expectedError: "it can't start with '.'",
+		},
+		{
+			name:          "Data non ISO",
+			input:         "date: 12-03-1960\n",
+			expectedError: `invalid date "12-03-1960": expected a real date as YYYY-MM-DD`,
+		},
+		{
+			name:          "Data inesistente",
+			input:         "updated: 2026-02-30\n",
+			expectedError: `invalid updated "2026-02-30"`,
+		},
+		{
+			name:          "Data evento solo anno",
+			input:         "event_date: 1960\n",
+			expectedError: `invalid event_date "1960"`,
+		},
+		{
+			name: "Sezione con ID non valido",
+			input: `
+== la tecnica | La Tecnica`,
+			expectedError: `invalid section id "la tecnica": it contains a space`,
+		},
+		{
+			name: "Nota con ID non valido",
+			input: `
+== sec | Sec
+:: note: nota#1 | testo`,
+			expectedError: `invalid note id "nota#1": '#' is not allowed`,
+		},
+		{
 			name: "Comando senza pipe",
 			input: `
 == sec | Sec

@@ -108,6 +108,11 @@ func (c *Collection) Load(fsys fs.FS, pattern, skipDir string) error {
 		close(results)
 	}()
 
+	// IDs are output paths, and on case-insensitive filesystems (Windows,
+	// macOS) Toro.html and toro.html are one file: IDs differing only in
+	// case are duplicates too
+	folded := make(map[string]string, len(files))
+
 	var errs []error
 	for res := range results {
 		if res.err != nil {
@@ -119,7 +124,13 @@ func (c *Collection) Load(fsys fs.FS, pattern, skipDir string) error {
 			errs = append(errs, fmt.Errorf("%w: %s in %s", ErrDuplicateID, res.doc.ID, res.filename))
 			continue
 		}
+		key := strings.ToLower(res.doc.ID)
+		if other, exists := folded[key]; exists {
+			errs = append(errs, fmt.Errorf("%w: %s in %s differs from %s only in case", ErrDuplicateID, res.doc.ID, res.filename, other))
+			continue
+		}
 
+		folded[key] = res.doc.ID
 		c.Docs[res.doc.ID] = res.doc
 	}
 

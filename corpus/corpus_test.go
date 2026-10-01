@@ -93,6 +93,21 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+func TestLoadCaseDuplicate(t *testing.T) {
+	tmpDir := t.TempDir()
+	for name, id := range map[string]string{"a.txt": "Toro", "b.txt": "toro"} {
+		content := "id: " + id + "\ntitle: T\n\n== s1 | S1\nText"
+		if err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	err := New().Load(os.DirFS(tmpDir), "*.txt", "static")
+	if !errors.Is(err, ErrDuplicateID) || !strings.Contains(err.Error(), "only in case") {
+		t.Errorf("expected a case-only duplicate ID error, got: %v", err)
+	}
+}
+
 func TestCheckTarget(t *testing.T) {
 	allDocs := map[string]*ast.Document{
 		"it/home": {

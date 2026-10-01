@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"soffio/ast"
 )
@@ -108,12 +109,54 @@ func (p *parser) stepHeader(line string) {
 
 	switch key {
 	case "id":
+		if why := checkID(val); why != "" {
+			p.addError(fmt.Sprintf("invalid id %q: %s", val, why))
+			return
+		}
 		p.doc.ID = val
 	case "title":
 		p.doc.Title = val
 	default:
+		if isDateKey(key) && val != "" {
+			if _, err := time.Parse("2006-01-02", val); err != nil {
+				p.addError(fmt.Sprintf("invalid %s %q: expected a real date as YYYY-MM-DD", key, val))
+				return
+			}
+		}
 		p.doc.Meta[key] = val
 	}
+}
+
+// isDateKey reports whether a frontmatter key holds a date: "date",
+// "updated" and any "*_date". They sort pages, so a date that is not
+// YYYY-MM-DD would silently misplace one.
+func isDateKey(key string) bool {
+	return key == "date" || key == "updated" || strings.HasSuffix(key, "_date")
+}
+
+// idForbidden are the ASCII characters an ID can't hold: path separators
+// and what Windows forbids in a file name, then '#' (section anchor), '%'
+// (URL escape) and parentheses (they close a link).
+const idForbidden = `/\:*?"<>|#%()`
+
+// checkID says what makes id unusable as a file name, page address or
+// anchor, or "" if nothing does. An ID is printable ASCII: no spaces, no
+// accents. The same rule holds for documents, sections and notes.
+func checkID(id string) string {
+	if strings.HasPrefix(id, ".") {
+		return "it can't start with '.'"
+	}
+	for _, r := range id {
+		switch {
+		case r == ' ' || r == '\t':
+			return "it contains a space"
+		case r < 0x21 || r > 0x7e:
+			return fmt.Sprintf("%q is not a plain ASCII character", r)
+		case strings.ContainsRune(idForbidden, r):
+			return fmt.Sprintf("%q is not allowed", r)
+		}
+	}
+	return ""
 }
 
 func (p *parser) stepBody(line string) {
@@ -178,6 +221,10 @@ func (p *parser) tryParseSection(line string) bool {
 		p.addError(fmt.Sprintf("malformed section (both ID and Title must be non-empty), found: %q", line))
 		return true
 	}
+	if why := checkID(id); why != "" {
+		p.addError(fmt.Sprintf("invalid section id %q: %s", id, why))
+		return true
+	}
 
 	p.doc.Sections = append(p.doc.Sections, ast.Section{
 		Level: level,
@@ -212,8 +259,16 @@ func (p *parser) tryParseCommand(line string) bool {
 		return true
 	}
 
-	p.currentBlock = strings.TrimSpace(cmd)
-	p.blockMeta = strings.TrimSpace(meta)
+	meta = strings.TrimSpace(meta)
+	if cmd == "note" {
+		if why := checkID(meta); why != "" {
+			p.addError(fmt.Sprintf("invalid note id %q: %s", meta, why))
+			return true
+		}
+	}
+
+	p.currentBlock = cmd
+	p.blockMeta = meta
 	p.buf.WriteString(strings.TrimSpace(content))
 	return true
 }
