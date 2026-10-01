@@ -36,6 +36,8 @@ USAGE
 
     Preview server:
         preview [flags] [dir]
+        If the port is already taken by a preview of the same dir, the
+        browser is opened on it and the new preview exits.
 
     Run 'soffio -help' or 'preview -help' for flag details.
 
@@ -52,6 +54,12 @@ MARKUP SYNTAX
     - text                            List item
     :: note: id | text                Footnote definition
     (*note-id)                        Footnote reference
+
+    Document, section and note IDs are printable ASCII: no spaces, no
+    accents, none of / \ : * ? " < > | # % ( ), and no leading dot.
+    Document IDs that differ only in case clash, since they would be one
+    file on Windows and macOS. The keys 'date', 'updated' and any
+    '*_date' hold a real date as YYYY-MM-DD, or nothing.
 
 TEMPLATES
     Soffio exposes the document tree to standard Go HTML templates.

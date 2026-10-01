@@ -92,7 +92,11 @@ Pipeline: `parser` -> `ast` -> `corpus` -> `renderer` -> `cmd/soffio` (site asse
 
 - **`cmd/preview`**: A trivial static file server (`http.FileServer`) over the output dir
   that auto-opens the default browser; platform-specific browser-open logic lives in
-  `open_darwin.go`/`open_linux.go`/`open_windows.go` behind build tags.
+  `open_darwin.go`/`open_linux.go`/`open_windows.go` behind build tags. Every response
+  carries a `Soffio-Preview: <abs dir>` header, so a second `preview` of the same dir
+  finds the first one when the port is taken, opens the browser on it, and exits 0.
+- **Exit status**: every page, feed and extra file is attempted, but if any of them fails
+  to render, `soffio` exits 1. A missing page is a broken site.
 
 ## Markup format (`.soffio`)
 
