@@ -35,11 +35,6 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 		layout = l + ".html"
 	}
 
-	var content strings.Builder
-	if err := soffio.Render(&content, doc); err != nil {
-		return err
-	}
-
 	// IDs use '/' everywhere, so no filepath here: on Windows it
 	// would turn en/x into en\x and find nothing
 	var alternates []alternate
@@ -66,7 +61,7 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 	return s.write(doc.ID+".html", layout, map[string]any{
 		"Title":      doc.Title,
 		"Meta":       doc.Meta,
-		"Content":    template.HTML(content.String()),
+		"Content":    template.HTML(soffio.Render(doc)),
 		"BaseURL":    s.baseURL,
 		"Permalink":  s.baseURL + "/" + doc.ID + ".html",
 		"Alternates": alternates,

@@ -39,12 +39,7 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 		},
 	}
 
-	var buf strings.Builder
-	if err := Render(&buf, doc); err != nil {
-		t.Fatalf("Render failed: %v", err)
-	}
-
-	got := buf.String()
+	got := Render(doc)
 
 	expectedParts := []string{
 		`<section id="sec1">`,
@@ -115,11 +110,7 @@ func TestRender_Links(t *testing.T) {
 		},
 	}
 
-	var buf strings.Builder
-	if err := Render(&buf, doc); err != nil {
-		t.Fatalf("Render failed: %v", err)
-	}
-	got := buf.String()
+	got := Render(doc)
 
 	expectedLinks := []string{
 		`<a href="https://plan9.io" target="_blank" rel="noopener noreferrer">Plan 9</a>`,
@@ -168,9 +159,7 @@ func TestRender_Footnotes(t *testing.T) {
 		},
 	}
 
-	var buf strings.Builder
-	_ = Render(&buf, doc)
-	got := buf.String()
+	got := Render(doc)
 
 	expectedParts := []string{
 		// References in text
@@ -214,7 +203,6 @@ func BenchmarkRender(b *testing.B) {
 
 	b.ReportAllocs()
 	for b.Loop() {
-		var buf strings.Builder
-		_ = Render(&buf, doc)
+		_ = Render(doc)
 	}
 }

@@ -4,11 +4,9 @@
 package soffio
 
 import (
-	"bufio"
 	"cmp"
 	"fmt"
 	"html"
-	"io"
 	"log"
 	"maps"
 	"net/url"
@@ -17,7 +15,7 @@ import (
 )
 
 type renderer struct {
-	w     *bufio.Writer // keeps the first error for Flush
+	w     strings.Builder
 	id    string
 	notes map[string]NoteBlock
 	refs  []string       // note IDs, in order of first reference
@@ -25,11 +23,10 @@ type renderer struct {
 	count map[string]int // note ID to its references so far
 }
 
-// Render writes doc to w as HTML: its sections, then the notes in the
+// Render returns doc as HTML: its sections, then the notes in the
 // order they are first referenced.
-func Render(w io.Writer, doc *Document) error {
+func Render(doc *Document) string {
 	r := renderer{
-		w:     bufio.NewWriter(w),
 		id:    doc.ID,
 		notes: map[string]NoteBlock{},
 		num:   map[string]int{},
@@ -41,12 +38,12 @@ func Render(w io.Writer, doc *Document) error {
 
 	if len(r.refs) > 0 {
 		title := cmp.Or(doc.Meta["notes_title"], "Notes")
-		fmt.Fprintf(r.w, "\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">%s</h2>\n\t<ol>\n", doc.ID, html.EscapeString(title))
+		fmt.Fprintf(&r.w, "\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">%s</h2>\n\t<ol>\n", doc.ID, html.EscapeString(title))
 		for _, ref := range r.refs {
 			if note, ok := r.notes[ref]; ok {
-				fmt.Fprintf(r.w, "\t\t<li id=\"fn-%s\" role=\"doc-endnote\">", ref)
+				fmt.Fprintf(&r.w, "\t\t<li id=\"fn-%s\" role=\"doc-endnote\">", ref)
 				r.inlines(note.Elements)
-				fmt.Fprintf(r.w, " <a href=\"#fnref-%s-1\" aria-label=\"back to reference\">↩</a></li>\n", ref)
+				fmt.Fprintf(&r.w, " <a href=\"#fnref-%s-1\" aria-label=\"back to reference\">↩</a></li>\n", ref)
 			}
 		}
 		r.w.WriteString("\t</ol>\n</section>\n")
@@ -57,11 +54,11 @@ func Render(w io.Writer, doc *Document) error {
 			log.Printf("soffio: warning: unused footnote ':: note: %s' in document '%s'", id, doc.ID)
 		}
 	}
-	return r.w.Flush()
+	return r.w.String()
 }
 
 func (r *renderer) section(sec Section) {
-	fmt.Fprintf(r.w, "<section id=\"%s\">\n<h%d>%s</h%[2]d>\n", sec.ID, sec.Level, html.EscapeString(sec.Title))
+	fmt.Fprintf(&r.w, "<section id=\"%s\">\n<h%d>%s</h%[2]d>\n", sec.ID, sec.Level, html.EscapeString(sec.Title))
 	for _, b := range sec.Blocks {
 		r.block(b)
 	}
@@ -83,7 +80,7 @@ func (r *renderer) block(b Block) {
 		}
 		r.w.WriteString("</ul>\n")
 	case ImageBlock:
-		fmt.Fprintf(r.w, "<figure>\n\t<img src=\"%s\" alt=\"%s\" loading=\"lazy\">\n\t<figcaption>",
+		fmt.Fprintf(&r.w, "<figure>\n\t<img src=\"%s\" alt=\"%s\" loading=\"lazy\">\n\t<figcaption>",
 			html.EscapeString(v.Path), html.EscapeString(plainText(v.Caption)))
 		r.inlines(v.Caption)
 		r.w.WriteString("</figcaption>\n</figure>\n")
@@ -113,9 +110,9 @@ func (r *renderer) inline(in Inline) {
 	case Link:
 		h := href(r.id, v.Target)
 		if u, err := url.Parse(h); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
-			fmt.Fprintf(r.w, "<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">", html.EscapeString(h))
+			fmt.Fprintf(&r.w, "<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">", html.EscapeString(h))
 		} else {
-			fmt.Fprintf(r.w, "<a href=\"%s\">", html.EscapeString(h))
+			fmt.Fprintf(&r.w, "<a href=\"%s\">", html.EscapeString(h))
 		}
 		r.inlines(v.Label)
 		r.w.WriteString("</a>")
@@ -125,7 +122,7 @@ func (r *renderer) inline(in Inline) {
 			r.num[v.Target] = len(r.refs)
 		}
 		r.count[v.Target]++
-		fmt.Fprintf(r.w, "<sup id=\"fnref-%[1]s-%[2]d\"><a href=\"#fn-%[1]s\" role=\"doc-noteref\">%[3]d</a></sup>",
+		fmt.Fprintf(&r.w, "<sup id=\"fnref-%[1]s-%[2]d\"><a href=\"#fn-%[1]s\" role=\"doc-noteref\">%[3]d</a></sup>",
 			html.EscapeString(v.Target), r.count[v.Target], r.num[v.Target])
 	}
 }

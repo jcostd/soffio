@@ -62,8 +62,8 @@ Flags:
 		if err != nil {
 			log.Fatalf("soffio: parse: %v", err)
 		}
-		if err := soffio.Render(os.Stdout, &doc); err != nil {
-			log.Fatalf("soffio: render: %v", err)
+		if _, err := os.Stdout.WriteString(soffio.Render(&doc)); err != nil {
+			log.Fatalf("soffio: write: %v", err)
 		}
 		return
 	}
