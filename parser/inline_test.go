@@ -127,6 +127,39 @@ func TestParseInline(t *testing.T) {
 				ast.PlainText{Content: "text *not bold\t*"},
 			},
 		},
+		{
+			name:  "marker inside a word is a character",
+			input: "snake_case_name and 2*3*4",
+			want:  []ast.Inline{ast.PlainText{Content: "snake_case_name and 2*3*4"}},
+		},
+		{
+			name:  "closing marker must end a word",
+			input: "_a_b and c_",
+			want: []ast.Inline{
+				ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "a_b and c"}}},
+			},
+		},
+		{
+			name:  "bold in parentheses is no note",
+			input: "(*bold*), _it_.",
+			want: []ast.Inline{
+				ast.PlainText{Content: "("},
+				ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "bold"}}},
+				ast.PlainText{Content: "), "},
+				ast.Italic{Elements: []ast.Inline{ast.PlainText{Content: "it"}}},
+				ast.PlainText{Content: "."},
+			},
+		},
+		{
+			name:  "bold label is no note",
+			input: "(*Bold* -> doc-id)",
+			want: []ast.Inline{
+				ast.Link{
+					Target: "doc-id",
+					Label:  []ast.Inline{ast.Bold{Elements: []ast.Inline{ast.PlainText{Content: "Bold"}}}},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {

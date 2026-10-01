@@ -85,8 +85,20 @@ func parseInline(s string) []ast.Inline {
 	return elements
 }
 
+// isWord reports whether r is part of a word: a marker inside one,
+// as in snake_case, is just a character.
+func isWord(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+// findClosingMarker finds the marker closing the one at start. A marker
+// opens only at the start of a word and closes only at its end.
 func findClosingMarker(runes []rune, start int, marker rune) (int, bool) {
 	if start+1 >= len(runes) {
+		return 0, false
+	}
+
+	if start > 0 && isWord(runes[start-1]) {
 		return 0, false
 	}
 
@@ -106,6 +118,9 @@ func findClosingMarker(runes []rune, start int, marker rune) (int, bool) {
 
 		if runes[i] == marker {
 			if unicode.IsSpace(runes[i-1]) {
+				continue
+			}
+			if i+1 < len(runes) && isWord(runes[i+1]) {
 				continue
 			}
 
@@ -158,12 +173,12 @@ func scanLinkOrNote(runes []rune, start int) (ast.Inline, int, bool) {
 	innerStr := string(runes[start+1 : closeIndex])
 	innerStr = strings.TrimSpace(innerStr)
 
-	if strings.HasPrefix(innerStr, "*") {
-		id := strings.TrimSpace(innerStr[1:])
-		if id == "" {
-			return nil, 0, false
+	// (*id) is a note only with a valid ID: (*bold*) is prose
+	if id, ok := strings.CutPrefix(innerStr, "*"); ok {
+		id = strings.TrimSpace(id)
+		if id != "" && checkID(id) == "" {
+			return ast.FootnoteRef{Target: id}, closeIndex, true
 		}
-		return ast.FootnoteRef{Target: id}, closeIndex, true
 	}
 
 	sepIdx := strings.LastIndex(innerStr, " -> ")

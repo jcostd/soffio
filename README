@@ -58,6 +58,11 @@ MARKUP SYNTAX
     :: note: id | text                Footnote definition
     (*note-id)                        Footnote reference
 
+    A * or _ opens only at the start of a word and closes only at its
+    end: snake_case and 2*3*4 stay as they are. (*x) is a note only if
+    x is a valid note ID, so (*bold*) is bold in parentheses. A backslash
+    makes the next character plain.
+
     Document, section and note IDs are printable ASCII: no spaces, no
     accents, none of / \ : * ? " < > | # % ( ), and no leading dot.
     Document IDs that differ only in case clash, since they would be one
