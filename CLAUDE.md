@@ -13,12 +13,18 @@ mode.
 
 ## Commands
 
-The go command is the build tool; there is no Makefile.
+The Makefile is the one place that says how soffio and preview are compiled: static
+(`CGO_ENABLED=0`), for the baseline CPU of each family whatever the environment says
+(`GOAMD64=v1`, `GOARM64=v8.0`, `GOARM=6`, `GO386=sse2`), `-trimpath`, `-s -w`, the
+version from `VERSION`. release.sh calls it; don't compile release binaries any other
+way. Speed comes from the compiler's defaults and, if `cmd/soffio/default.pgo` exists,
+from profile-guided optimization; never `-gcflags=-B`.
 
 ```
-go build ./cmd/soffio ./cmd/preview   # the two programs, in the repo root
-go test ./...                         # every test
-./release.sh                          # the release archives, see Release
+make                                     # soffio and preview for here, in the repo root
+make GOOS=windows GOARCH=amd64 OUT=dir   # for another system, into dir
+make test                                # go vet, then every test
+./release.sh                             # the release archives, see Release
 ```
 
 Run a single package's tests or a single test by name:
@@ -41,7 +47,8 @@ full flag list (`-baseurl`, `-langs`, `-o`, `-t`, `-s`, `-vis`, and `-html`/`-rs
 
 Bump `VERSION`, commit "bump to vX.Y.Z", `git tag -a vX.Y.Z`, `./release.sh`, and upload
 what it made in `dist/` to the GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip`
-for windows), each holding the two programs, README and LICENSE, owned by root, 755/644.
+for windows), each holding the two programs as the Makefile builds them, README and
+LICENSE, owned by root, 755/644.
 fucina-factory takes those archives as they are, so build them from the clean tag:
 the binaries carry the git revision, and `vcs.modified=true` if the tree was dirty.
 

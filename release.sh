@@ -2,10 +2,11 @@
 # Copyright (C) 2026 Jacopo Costantini
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# release.sh: build soffio and preview for every system in TARGETS into
-# dist/soffio-<VERSION>-<os>-<arch>.tar.gz, .zip for windows, each
-# holding soffio-<VERSION>-<os>-<arch>/ with the two programs, README and
-# LICENSE. fucina-factory takes them as they are.
+# release.sh: build soffio and preview with make for every system in
+# TARGETS, into dist/soffio-<VERSION>-<os>-<arch>.tar.gz, .zip for
+# windows, each holding soffio-<VERSION>-<os>-<arch>/ with the two
+# programs, README and LICENSE. How they are compiled is the Makefile's
+# business. fucina-factory takes the archives as they are.
 
 cd "$(dirname "$0")" || exit 1
 CWD=$(pwd)
@@ -23,18 +24,13 @@ for t in $TARGETS; do
   OS=${t%/*}
   ARCH=${t#*/}
   NAME=soffio-$VERSION-$OS-$ARCH
-  EXE=
-  [ $OS != windows ] || EXE=.exe
 
   mkdir "$TMP/$NAME"
-  for c in soffio preview; do
-    CGO_ENABLED=0 GOOS=$OS GOARCH=$ARCH go build -trimpath \
-      -ldflags "-s -w -X main.Version=$VERSION" -o "$TMP/$NAME/$c$EXE" ./cmd/$c
-  done
+  make -s GOOS=$OS GOARCH=$ARCH OUT="$TMP/$NAME"
   cp README LICENSE "$TMP/$NAME"
 
   cd "$TMP"
-  chmod 755 $NAME $NAME/soffio$EXE $NAME/preview$EXE
+  chmod 755 $NAME $NAME/soffio* $NAME/preview*
   chmod 644 $NAME/README $NAME/LICENSE
   if [ $OS = windows ]; then
     zip -qrX "$CWD/dist/$NAME.zip" $NAME

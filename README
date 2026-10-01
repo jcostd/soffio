@@ -24,9 +24,11 @@ FEATURES
 BUILD
     Requires Go 1.26 or higher.
 
-    go build ./cmd/soffio ./cmd/preview   build the two programs
-    go test ./...                         run the tests
-    ./release.sh                          make the release archives
+    make                       build soffio and preview: static, for the
+                               baseline CPU, stripped
+    make GOOS=os GOARCH=arch OUT=dir   the same for another system
+    make test                  go vet and the tests
+    ./release.sh               the release archives, one per system
 
 USAGE
     Generator mode:
