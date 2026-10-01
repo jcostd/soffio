@@ -27,11 +27,11 @@ make test                                # go vet, then every test
 ./release.sh                             # the release archives, see Release
 ```
 
-Run a single package's tests or a single test by name:
+Run one package's tests, or one test by name:
 
 ```
-go test ./parser/...
-go test ./corpus/... -run TestValidateLinks
+go test .
+go test . -run TestCheckLink
 go test ./... -v
 ```
 
@@ -54,63 +54,57 @@ the binaries carry the git revision, and `vcs.modified=true` if the tree was dir
 
 ## Architecture
 
-Pipeline: `parser` -> `ast` -> `corpus` -> `renderer` -> `cmd/soffio` (site assembly).
+Pipeline: parse -> load -> check -> render -> site assembly. The language is one
+package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 
-- **`ast`**: Defines the document tree — `Document` (ID, Title, Meta, `[]Section`),
-  `Section` (heading level/ID/title + `[]Block`), block types (`TextBlock`, `ImageBlock`,
-  `NoteBlock`, `ListBlock`), and inline types (`PlainText`, `Bold`, `Italic`, `Link`,
-  `FootnoteRef`). Pure data, no logic.
+- **`doc.go`**: the document tree. `Document` (ID, Title, Meta, `[]Section`),
+  `Section` (level, ID, title, `[]Block`), blocks (`TextBlock`, `ImageBlock`,
+  `NoteBlock`, `ListBlock`, each with the line it starts at) and inlines (`PlainText`,
+  `Bold`, `Italic`, `Link`, `FootnoteRef`). Pure data.
 
-- **`parser`**: A hand-written line-oriented state machine (no regex/lexer generator).
-  `block.go` runs a header/body state machine (`stateHeader`/`stateBody`): the header is
-  RFC 822-style `key: value` lines terminated by a blank line; the body accumulates lines
-  into a buffer and flushes into a `Block` on blank lines, new `==` sections, or new `:: `
-  commands. `inline.go` recursively parses inline markup (`*bold*`, `_italic_`, `(Label ->
-  target)` links, `(*note-id)` footnote refs) inside block content. When editing parsing
-  logic, understand the buffer/flush lifecycle in `block.go`'s `stepBody`/`flush` before
-  changing state transitions.
+- **`parse.go`**: no state machine. The header is `key: value` lines up to the first
+  blank line. The body is cut into blocks at blank lines, and before every `==`
+  section line and `:: ` command line; then a block's first line says what it is
+  (command, `-` list, or text). `inline.go` scans inline markup by byte (every marker
+  is ASCII): a `*` or `_` opens only at the start of a word and closes only at its
+  end; `(*id)` is a note only when `id` is a valid ID; `(label -> target)` is a link.
 
-- **`corpus`**: Owns the whole-site view. `corpus.go` concurrently loads and parses every
-  `.soffio` file under a source dir (bounded worker pool via a semaphore channel) into a
-  `Collection` keyed by document ID (derived from frontmatter `id`, prefixed by the
-  relative directory path for i18n namespacing, e.g. `it/about`). `validate.go` performs
-  a second pass over only the *visibility-filtered* active document set, walking every
-  inline element to confirm link targets and footnote refs resolve, and to catch
-  **privacy leaks**: a link from a visible/public document into a document that exists in
-  the full corpus but was filtered out (private) is a hard error (`PrivacyLeakError`), not
-  just a missing-target error. This visibility-based validation model (active docs vs. all
-  docs) is central to how the `-vis` flag works and must be preserved when touching
-  link-checking.
+- **`load.go`**: `Load` walks the source dir in lexical order, sequentially (parsing is
+  microseconds; order makes errors reproducible), and returns documents by ID: the
+  `id` header or the file name, under the file's directory (`it/about`). IDs
+  differing only in case are duplicates.
 
-- **`renderer`**: Stateless-per-call HTML emission from a single `ast.Document`, with no
-  knowledge of the rest of the corpus (cross-doc validity is corpus's job, not renderer's).
-  `render.go` walks sections/blocks/inlines and streams HTML; footnote refs are collected
-  during the walk and the endnotes section is emitted at the end in first-referenced order.
-  `urls.go`'s `resolveURL` converts a Soffio link target into a relative on-disk `.html`
-  path using the *shared prefix* between source and target document IDs (POSIX-style `..`
-  relative pathing) — this is what makes the i18n directory layout (`content/en/...`,
-  `content/it/...`) work without absolute URLs baked into every layout.
+- **`url.go`**: `resolve` is the one place a link target is interpreted: the ID or
+  static file it points to, and its `#fragment`. `Check` and `href` both go through
+  it, so what is checked is what is linked. `href` makes the address relative to
+  the page (common prefix plus `../`), so the i18n layout needs no absolute URLs; a
+  target under `static/` is a file, anything else a page and gets `.html`.
 
-- **`cmd/soffio`**: The CLI entrypoint and site-assembly layer. `main.go` wires flag
-  parsing -> corpus load -> visibility filter -> link validation -> template load -> per-doc
-  + feed/sitemap/robots/404/manifest generation. `write.go` renders each `ast.Document`
-  through `renderer.Render` into an HTML fragment, then executes it through the site's
-  `html/template` layout (chosen via the document's `layout` frontmatter key, falling back
-  to `layout.html`), passing `Children` (docs whose ID is prefixed by the current doc's ID —
-  this is how directory index/listing pages get their child pages) and `Alternates`
-  (same-slug docs in other configured languages, used for i18n hreflang links). `template.go`
-  embeds the default template set (`cmd/soffio/templates/*.{html,xml,txt,json}`) via
-  `go:embed` and overlays any local templates found in `-t` dir of the same name; it also
-  registers the `sortBy` template func for sorting `.Children` by an arbitrary frontmatter
-  key. Generation of RSS/sitemap/robots/404/manifest is each individually skipped if the
-  corresponding named template isn't defined (`tmpl.Lookup(...) != nil`), so adding a
-  feature template automatically enables that output.
+- **`check.go`**: `Check(all, active, staticDir)` walks only the visibility-filtered
+  active documents, in ID order, and verifies links, note refs and images. A link to
+  a document in all but not active is a **privacy leak**, a hard error, not just a
+  missing target. This active-vs-all model is how `-vis` works; keep it.
 
-- **`cmd/preview`**: A trivial static file server (`http.FileServer`) over the output dir
-  that auto-opens the default browser; platform-specific browser-open logic lives in
-  `open_darwin.go`/`open_linux.go`/`open_windows.go` behind build tags. Every response
-  carries a `Soffio-Preview: <abs dir>` header, so a second `preview` of the same dir
-  finds the first one when the port is taken, opens the browser on it, and exits 0.
+- **`html.go`**: `Render` returns one document as an HTML fragment, knowing nothing of
+  the corpus. Note refs are numbered as met and the endnotes come last, in order of
+  first reference.
+
+- **`cmd/soffio`**: flags, pipe mode, then load -> visibility filter -> check ->
+  templates -> pages and site files. `write.go`: each page goes through its layout
+  (`layout` header, else `layout.html`) with `Children` (docs under `<id>/`, by ID:
+  the IDs are sorted once and the children are one run, found by binary search) and
+  `Alternates` (the same path in each `-langs` language, only when the first part
+  of the ID is one). Every file is executed into a buffer and written in one call;
+  html/template alone writes in small pieces. `template.go` embeds
+  `cmd/soffio/templates/*` and lets `-t` replace any of them by name; it also gives
+  templates `sortBy`. rss.xml, sitemap.xml, robots.txt, 404.html and manifest.json
+  are a table in `main.go`: each is made if its flag is on and its template exists.
+
+- **`cmd/preview`**: a static file server (`http.FileServer`) over the output dir
+  that opens the default browser (`open_darwin.go`/`open_linux.go`/`open_windows.go`).
+  Every response carries a `Soffio-Preview: <abs dir>` header, so a second `preview`
+  of the same dir finds the first one when the port is taken, opens the browser on
+  it, and exits 0.
 - **Exit status**: every page, feed and extra file is attempted, but if any of them fails
   to render, `soffio` exits 1. A missing page is a broken site.
 
@@ -132,7 +126,10 @@ style) — treat it as the source of truth over any example content in `content/
   goal, not an oversight.
 - Validation is strict by design: broken links, missing footnotes, and privacy leaks fail
   the build rather than degrading gracefully. Don't soften these into warnings.
-- Document IDs double as output paths (`<id>.html`) and as the mechanism for relative link
-  resolution and parent/child relationships — treat ID computation (`corpus.Load`) and URL
-  resolution (`renderer.resolveURL`) as tightly coupled; changes to one usually require the
-  other to stay consistent.
+- Document IDs are output paths (`<id>.html`), link targets and the parent/child
+  relation, always with `/`, on every system: turn one into a file path only where
+  the file is opened, with `filepath.FromSlash`.
+- Output is reproducible: anything ranged over a map (IDs, children, notes, errors) is
+  sorted first.
+- Measure before tuning: a big corpus (fucina-content copied 300 times) and
+  `runtime/pprof` found the unbuffered writes; guesses would not have.
