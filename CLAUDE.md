@@ -68,12 +68,19 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 - **`parse.go`**: no state machine. The header is `key: value` lines up to the first
   blank line. The body is cut into blocks at blank lines, and before every `==`
   section line and `:: ` command line; then a block's first line says what it is
-  (command, `-` list, or text). `inline.go` scans inline markup by byte (every marker
-  is ASCII): a `*` or `_` opens only at the start of a word and closes only at its
-  end; `(*id)` is a note only when `id` is a valid ID; `(label -> target)` is a link.
+  (command, `- ` list, or text). A leading BOM is dropped, invalid UTF-8 refused.
+  `inline.go` scans inline markup by byte (every marker is ASCII): a `*` or `_` opens
+  only at the start of a word and closes only at its end; `(*id)` is a note only when
+  `id` is a valid ID; `(label -> target)` is a link, and a link or note inside a
+  label is an error, said by `parseInline` itself. The scan is linear: parentheses
+  are paired once (`parens`), a failed search for a closing marker is remembered (a
+  closer is good whatever opener it is for), and a label is parsed one level deep
+  only. The fuzz test in `fuzz_test.go` keeps it from panicking, nesting `<a>` or
+  leaking markup: `go test -fuzz FuzzParse -fuzztime 60s .` after touching it.
 
 - **`load.go`**: `Load` walks the source dir in lexical order, sequentially (parsing is
-  microseconds; order makes errors reproducible), and returns documents by ID: the
+  microseconds; order makes errors reproducible), skipping hidden files and refusing
+  links to directories, and returns documents by ID: the
   `id` header or the file name, under the file's directory (`it/about`). Every part
   of an ID passes `CheckID`; IDs differing only in case are duplicates; `static/` is
   no ID, it is where the static files go. `Document.File` is the path for messages.
@@ -86,8 +93,10 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 
 - **`check.go`**: `Check(all, active, staticDir)` walks only the visibility-filtered
   active documents, in ID order: every link and image points at an active page, one of
-  its sections, or a regular file in `staticDir`; every note is defined and
-  referenced. A link to a document in all but not active is a **privacy leak**, an
+  its sections, or a regular file in `staticDir`, through a valid address; every
+  note is defined and reached from the body, maybe through other notes, as `Render`
+  reaches it: a note referred to only by itself, or by unreached notes, is "never
+  referenced". A link to a document in all but not active is a **privacy leak**, an
   error of its own. This active-vs-all model is how `-a` works; keep it. `CheckDoc`
   is what pipe mode can check alone: notes and `#section` links.
 
@@ -95,13 +104,16 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   the corpus. Note refs are numbered as met and the endnotes come last, in order of
   first reference.
 
-- **`cmd/soffio`**: flags and templates (configuration first), then load ->
+- **`cmd/soffio`**: flags (`checkFlags`: -baseurl is http(s)://host[/path] with
+  nothing html/template would escape) and templates, configuration first, then load ->
   visibility filter -> check -> static copy -> pages and site files. `write.go`: each page goes through its layout
   (`layout` header, else `layout.html`; a missing one is an error) with `Children` (docs under `<id>/`, by ID:
   the IDs are sorted once and the children are one run, found by binary search) and
   `Alternates` (the same path in each `-langs` language, only when the first part
   of the ID is one). Every file is executed into a buffer and written in one call;
   html/template alone writes in small pieces; with `-n` it is executed and dropped.
+  `copyDir` refuses, by `os.SameFile`, to copy a file onto itself (it would come out
+  empty) when -s and `<o>/static` overlap, however the paths are spelled.
   `template.go` parses either `-t` or the embedded `cmd/soffio/templates/*`, never a
   mix, and gives templates `sortBy` and `rfc822`. `siteFiles` in `main.go` (rss.xml,
   sitemap.xml, robots.txt, 404.html, manifest.json) are each made if the template is

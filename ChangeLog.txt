@@ -39,6 +39,39 @@ soffio: rfc822 for templates; the built-in rss.xml uses it.
 soffio: A link to a directory in -s is refused, as it may loop.
   It came out as an empty directory.
 release.sh: Refuses a tree that is not clean, or not tagged v$VERSION.
+soffio: -s and <o>/static can't overlap, however the paths are spelled.
+  -s public/static -o public copied every file onto itself, and that
+  emptied it: a.png came out 0 bytes.
+soffio: A note referred to only by itself, or by notes the text never
+  reaches, is "never referenced". Render left it out, and the check
+  passed it: text was lost with exit 0.
+soffio: A link inside a link, or a note ref in a link label, is refused.
+  It made an <a> inside an <a>.
+soffio: An invalid address, as nope%zz, is refused. It went unchecked.
+soffio: Absolute targets are cleaned, as relative ones were.
+  /it/x/../about is it/about, and /static/../../etc/passwd no file.
+soffio: A byte order mark at the start of a text is ignored, as Go does.
+  Notepad may write one: the id: line after it was not read, and the
+  page got the file's name.
+soffio: Invalid UTF-8 is refused, with its line.
+soffio: Header keys are letters, digits and _.
+  A section line in the header, == s | Title: sub, was a key.
+soffio: A list item starts with "- ". "-5 gradi" was a list.
+soffio: Hidden files and directories in the texts and in -s are skipped.
+  The ._ files macOS leaves on other disks were parsed as texts.
+soffio: A link to a directory among the texts is refused, as in -s.
+soffio: A text named like a site file, as 404.soffio, is refused.
+  The 404.html template overwrote it.
+soffio: static/ is refused as an ID in any case: Static/ is one with it
+  on Windows and macOS.
+soffio: -baseurl must be http(s)://host[/path], and -langs can't repeat
+  a language. https://x.org/c++ came out c&#43;&#43; in robots.txt and
+  manifest.json.
+soffio: Inline markup is parsed in linear time.
+  A 150 KB line of *a *a ... took 12 s, nested links 2 s; a few ms now.
+  Found by fuzzing, which is now part of the tests.
+soffio: IDs are escaped in HTML attributes, as everything else is.
+preview: A directory that is not there is refused, and no timestamps.
 soffio: Fixed links to a page whose ID has a dot in it.
   (see -> v1.2) linked to v1.2 instead of v1.2.html, and the check
   passed it. Only a target under static/ is a file; anything else is a
