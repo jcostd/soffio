@@ -88,9 +88,18 @@ func (s *site) write(file, name string, data any) error {
 	return os.WriteFile(path, b.Bytes(), 0o666)
 }
 
-// copyDir copies the tree src into dst. A link to a file is copied as
-// the file; a link to a directory is refused, as it may loop.
+// copyDir copies the tree src into dst, but hidden files. A link to a
+// file is copied as the file; a link to a directory is refused, as it
+// may loop. So are src and dst overlapping: a file copied onto itself
+// comes out empty. os.SameFile sees through links and letter case.
 func copyDir(src, dst string) error {
+	if err := os.MkdirAll(dst, 0o755); err != nil {
+		return err
+	}
+	top, err := os.Stat(dst)
+	if err != nil {
+		return err
+	}
 	fsys := os.DirFS(src)
 	return fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -101,7 +110,16 @@ func copyDir(src, dst string) error {
 			return err
 		}
 		path := filepath.Join(dst, filepath.FromSlash(name))
+		if out, err := os.Stat(path); err == nil && os.SameFile(fi, out) || fi.IsDir() && os.SameFile(fi, top) {
+			return fmt.Errorf("%s would be copied onto itself: -s and -o overlap", filepath.Join(src, name))
+		}
 		switch {
+		case name != "." && strings.HasPrefix(d.Name(), "."):
+			// hidden, as for ls: .DS_Store, .git
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
 		case fi.IsDir() && d.Type()&fs.ModeSymlink != 0:
 			return fmt.Errorf("%s: a link to a directory", filepath.Join(src, name))
 		case fi.IsDir():

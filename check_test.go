@@ -46,6 +46,9 @@ func TestCheckTarget(t *testing.T) {
 		{"it/home", "/private/secret", "link to private page"},
 		{"it/home", "/static/docs/b.pdf", "missing file"},
 		{"it/home", "/static/docs", "missing file"},
+		{"it/home", "/it/x/../about", ""},
+		{"it/home", "/static/../static/docs/a.pdf", ""},
+		{"it/home", "/static/../../etc/passwd", "link to missing page"},
 	}
 	for _, tt := range tests {
 		if got := checkTarget(all, active, static, tt.from, tt.target); got != tt.want {
@@ -98,6 +101,30 @@ a.soffio:13: note "n3" is never referenced`
 	}
 	if err := Check(all, all, t.TempDir()); err == nil || strings.Contains(err.Error(), "private") {
 		t.Errorf("with every text active, no link is private: %v", err)
+	}
+}
+
+func TestCheckNotesAndAddresses(t *testing.T) {
+	doc := parse(t, "a.soffio", "a", `
+== s | S
+(*a) (bad -> nope%zz)
+
+:: note: a | see (*b)
+
+:: note: b | B
+
+:: note: self | only (*self)
+
+:: note: c | (*d)
+
+:: note: d | only from c`)
+	// b is reached through a; self, c and d never from the text
+	want := `a.soffio:3: invalid address "nope%zz"
+a.soffio:9: note "self" is never referenced
+a.soffio:11: note "c" is never referenced
+a.soffio:13: note "d" is never referenced`
+	if err := CheckDoc(doc); err == nil || err.Error() != want {
+		t.Errorf("got:\n%v\nwant:\n%s", err, want)
 	}
 }
 

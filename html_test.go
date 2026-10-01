@@ -202,6 +202,19 @@ func TestRenderNoteInNote(t *testing.T) {
 	}
 }
 
+func TestRenderEscapesIDs(t *testing.T) {
+	doc := &Document{ID: "a&b", Sections: []Section{{Level: 2, ID: "s&t", Blocks: []Block{
+		TextBlock{Elements: []Inline{FootnoteRef{Target: "n&m"}}},
+		NoteBlock{ID: "n&m", Elements: []Inline{PlainText{Content: "N"}}},
+	}}}}
+	got := Render(doc)
+	for _, want := range []string{`<section id="s&amp;t">`, `id="footnotes-a&amp;b"`, `<li id="fn-n&amp;m"`, `href="#fnref-n&amp;m-1"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %s in:\n%s", want, got)
+		}
+	}
+}
+
 func BenchmarkRender(b *testing.B) {
 	doc := &Document{
 		ID:    "bench",

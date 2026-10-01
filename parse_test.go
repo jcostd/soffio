@@ -144,12 +144,37 @@ func TestParseErrors(t *testing.T) {
 		{"date: 12-03-1960\n", `t.soffio:1: invalid date "12-03-1960": want a real date, YYYY-MM-DD`},
 		{"updated: 2026-02-30\n", `invalid updated "2026-02-30"`},
 		{"event_date: 1960\n", `invalid event_date "1960"`},
+		{"title: T\n== s | Title: sub\n", `t.soffio:2: invalid header key "== s | title": letters, digits and _ only`},
+		{"my-key: x\n", `invalid header key "my-key"`},
+		{"title: x\xff\n", `t.soffio:1: invalid UTF-8: save the file as UTF-8`},
+		{"\n== s | S\n(a (b -> c) -> d)", `t.soffio:3: a link inside a link`},
+		{"\n== s | S\n(*a (b -> c)* -> d)", `t.soffio:3: a link inside a link`},
+		{"\n== s | S\n(_x (*n)_ -> d)\n\n:: note: n | n", `t.soffio:3: a note inside a link`},
+		{"\n== s | S\n\n- (x (*n) -> d)\n\n:: note: n | n", `t.soffio:4: a note inside a link`},
+		{"\n== s | S\n:: img: /static/a.png | (a (b -> c) -> d)", `t.soffio:3: a link inside a link`},
+		{"\n== s | S\n- a\n- ", `t.soffio:4: empty list item`},
 	}
 	for _, tt := range tests {
 		_, err := Parse("t.soffio", strings.NewReader(tt.input))
 		if err == nil || !strings.Contains(err.Error(), tt.want) {
 			t.Errorf("Parse(%q) = %v, want %q", tt.input, err, tt.want)
 		}
+	}
+}
+
+func TestParseBOMAndDashes(t *testing.T) {
+	// a byte order mark is ignored; "-5" is text, "- 5" an item
+	doc, err := Parse("t.soffio", strings.NewReader("\uFEFFid: x\n\n== s | S\n-5 gradi\n\n- a\n-b goes on"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stripLines(doc)
+	want := []Block{
+		TextBlock{Elements: []Inline{PlainText{Content: "-5 gradi"}}},
+		ListBlock{Items: [][]Inline{{PlainText{Content: "a\n-b goes on"}}}},
+	}
+	if doc.ID != "x" || !reflect.DeepEqual(doc.Sections[0].Blocks, want) {
+		t.Errorf("id %q, blocks %#v", doc.ID, doc.Sections[0].Blocks)
 	}
 }
 

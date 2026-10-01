@@ -162,7 +162,10 @@ func TestParseInline(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := parseInline(tt.input)
+			got, why := parseInline(tt.input)
+			if why != "" {
+				t.Errorf("refused: %s", why)
+			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("\ngot:  %#v\nwant: %#v", got, tt.want)
 			}
@@ -175,6 +178,6 @@ func BenchmarkParseInline(b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		_ = parseInline(input)
+		_, _ = parseInline(input)
 	}
 }

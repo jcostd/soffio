@@ -35,11 +35,11 @@ func Render(doc *Document) string {
 
 	if len(r.refs) > 0 {
 		title := cmp.Or(doc.Meta["notes_title"], "Notes")
-		fmt.Fprintf(&r.w, "\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">%s</h2>\n\t<ol>\n", doc.ID, html.EscapeString(title))
+		fmt.Fprintf(&r.w, "\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">%s</h2>\n\t<ol>\n", html.EscapeString(doc.ID), html.EscapeString(title))
 		// a note may refer to a later one: r.refs grows as it goes
 		for i := 0; i < len(r.refs); i++ {
-			ref := r.refs[i]
-			if note, ok := r.notes[ref]; ok {
+			ref := html.EscapeString(r.refs[i])
+			if note, ok := r.notes[r.refs[i]]; ok {
 				fmt.Fprintf(&r.w, "\t\t<li id=\"fn-%s\" role=\"doc-endnote\">", ref)
 				r.inlines(note.Elements)
 				fmt.Fprintf(&r.w, " <a href=\"#fnref-%s-1\" aria-label=\"back to reference\">↩</a></li>\n", ref)
@@ -51,7 +51,7 @@ func Render(doc *Document) string {
 }
 
 func (r *renderer) section(sec Section) {
-	fmt.Fprintf(&r.w, "<section id=\"%s\">\n<h%d>%s</h%[2]d>\n", sec.ID, sec.Level, html.EscapeString(sec.Title))
+	fmt.Fprintf(&r.w, "<section id=\"%s\">\n<h%d>%s</h%[2]d>\n", html.EscapeString(sec.ID), sec.Level, html.EscapeString(sec.Title))
 	for _, b := range sec.Blocks {
 		r.block(b)
 	}

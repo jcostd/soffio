@@ -11,7 +11,8 @@ import (
 
 // resolve splits the target of a link in the document from into the ID
 // or static file it points to and its #fragment, if any. A target
-// without a leading '/' is relative to from's directory. ok is false
+// without a leading '/' is relative to from's directory; either is
+// cleaned, so .. can't climb out of the site. ok is false
 // for a link out of the site. Check and href both resolve through here,
 // so what is checked is what is linked.
 func resolve(from, target string) (id, frag string, ok bool) {
@@ -26,7 +27,7 @@ func resolve(from, target string) (id, frag string, ok bool) {
 	case p == "":
 		id = from
 	case strings.HasPrefix(p, "/"):
-		id = p[1:]
+		id = path.Clean(p)[1:]
 	default:
 		id = path.Join(path.Dir(from), p)
 	}

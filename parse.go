@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 type parser struct {
@@ -33,12 +34,21 @@ func Parse(name string, r io.Reader) (*Document, error) {
 	if err != nil {
 		return nil, err
 	}
-	lines := strings.Split(string(src), "\n")
+	// a byte order mark, as Notepad may write, is ignored, as Go does
+	lines := strings.Split(strings.TrimPrefix(string(src), "\uFEFF"), "\n")
 	p := parser{
 		doc:      Document{File: name, Meta: map[string]string{}},
 		keys:     map[string]bool{},
 		sections: map[string]bool{},
 		notes:    map[string]bool{},
+	}
+	for i, line := range lines {
+		if !utf8.ValidString(line) {
+			p.errorf(i+1, "invalid UTF-8: save the file as UTF-8")
+		}
+	}
+	if p.errs != nil {
+		return &p.doc, errors.Join(p.errs...)
 	}
 
 	n := 0
@@ -88,6 +98,10 @@ func (p *parser) header(n int, line string) {
 	case key == "":
 		p.errorf(n, "empty header key")
 		return
+	case strings.ContainsFunc(key, func(r rune) bool { return !isKeyRune(r) }):
+		// a template reads it as .Meta.key
+		p.errorf(n, "invalid header key %q: letters, digits and _ only", key)
+		return
 	case p.keys[key]:
 		p.errorf(n, "duplicate header key %q", key)
 		return
@@ -114,6 +128,10 @@ func (p *parser) header(n int, line string) {
 	default:
 		p.doc.Meta[key] = val
 	}
+}
+
+func isKeyRune(r rune) bool {
+	return 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '_'
 }
 
 // isDateKey reports whether a header key holds a date: "date",
@@ -190,17 +208,19 @@ func (p *parser) block(n int, lines []string) {
 	var b Block
 	switch first := lines[0]; {
 	case strings.HasPrefix(first, ":: "):
-		if b = p.command(n, first, lines[1:]); b == nil {
-			return
-		}
-	case strings.HasPrefix(first, "-"):
-		if b = p.list(n, lines); b == nil {
-			return
-		}
+		b = p.command(n, first, lines[1:])
+	case isItem(first):
+		b = p.list(n, lines)
 	default:
-		b = TextBlock{Line: n, Elements: parseInline(strings.Join(lines, "\n"))}
+		if in, ok := p.inlines(n, strings.Join(lines, "\n")); ok {
+			b = TextBlock{Line: n, Elements: in}
+		}
 	}
-	if len(p.doc.Sections) == 0 {
+	switch {
+	case b == nil:
+		// refused, and said why
+		return
+	case len(p.doc.Sections) == 0:
 		p.errorf(n, "text before the first section")
 		return
 	}
@@ -229,6 +249,10 @@ func (p *parser) command(n int, line string, more []string) Block {
 	arg = strings.TrimSpace(arg)
 	text = strings.Join(append([]string{strings.TrimSpace(text)}, more...), "\n")
 
+	in, ok := p.inlines(n, text)
+	if !ok {
+		return nil
+	}
 	if cmd == "img" {
 		// an image of the site is a static file: the same path from
 		// every page
@@ -236,7 +260,7 @@ func (p *parser) command(n int, line string, more []string) Block {
 			p.errorf(n, "image %q is not under /static/", arg)
 			return nil
 		}
-		return ImageBlock{Line: n, Path: arg, Caption: parseInline(text)}
+		return ImageBlock{Line: n, Path: arg, Caption: in}
 	}
 	if why := CheckID(arg); why != "" {
 		p.errorf(n, "invalid note id %q: %s", arg, why)
@@ -247,7 +271,24 @@ func (p *parser) command(n int, line string, more []string) Block {
 		return nil
 	}
 	p.notes[arg] = true
-	return NoteBlock{Line: n, ID: arg, Elements: parseInline(text)}
+	return NoteBlock{Line: n, ID: arg, Elements: in}
+}
+
+// inlines decodes the inline markup of the block at line n; if it
+// refuses it, it says why and ok is false.
+func (p *parser) inlines(n int, s string) (in []Inline, ok bool) {
+	in, why := parseInline(s)
+	if why != "" {
+		p.errorf(n, "%s", why)
+		return nil, false
+	}
+	return in, true
+}
+
+// isItem reports whether line starts a list item: "- text", or a lone
+// "-". "-5 gradi" is text.
+func isItem(line string) bool {
+	return line == "-" || strings.HasPrefix(line, "- ")
 }
 
 // list decodes "- item" lines; a line without '-' goes on with the
@@ -255,13 +296,13 @@ func (p *parser) command(n int, line string, more []string) Block {
 func (p *parser) list(n int, lines []string) Block {
 	var items [][]string
 	for i, line := range lines {
-		rest, ok := strings.CutPrefix(line, "-")
-		if !ok {
+		if !isItem(line) {
 			last := len(items) - 1
 			items[last] = append(items[last], line)
 			continue
 		}
-		if rest = strings.TrimSpace(rest); rest == "" {
+		rest := strings.TrimSpace(line[1:])
+		if rest == "" {
 			p.errorf(n+i, "empty list item")
 			return nil
 		}
@@ -269,7 +310,11 @@ func (p *parser) list(n int, lines []string) Block {
 	}
 	b := ListBlock{Line: n}
 	for _, item := range items {
-		b.Items = append(b.Items, parseInline(strings.Join(item, "\n")))
+		in, ok := p.inlines(n, strings.Join(item, "\n"))
+		if !ok {
+			return nil
+		}
+		b.Items = append(b.Items, in)
 	}
 	return b
 }

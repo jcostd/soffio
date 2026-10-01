@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -40,21 +41,35 @@ func CheckDoc(doc *Document) error {
 }
 
 // check walks doc, asking target what is wrong with each link and
-// image, and matches note refs with notes.
+// image, and matches note refs with notes. A note counts as referenced
+// only if the body leads to it, maybe through other notes: that is
+// what Render puts at the end; a note only it refers to would be lost.
 func check(doc *Document, target func(string) string) []error {
 	var errs []error
 	errorf := func(n int, format string, args ...any) {
 		errs = append(errs, fmt.Errorf("%s:%d: %s", doc.File, n, fmt.Sprintf(format, args...)))
 	}
+	address := func(n int, t string) {
+		why := target(t)
+		if _, err := url.Parse(t); err != nil {
+			why = "invalid address"
+		}
+		if why != "" {
+			errorf(n, "%s %q", why, t)
+		}
+	}
 
-	var notes []NoteBlock
+	notes := map[string]NoteBlock{}
+	var order []NoteBlock
 	for _, sec := range doc.Sections {
 		for _, b := range sec.Blocks {
 			if n, ok := b.(NoteBlock); ok {
-				notes = append(notes, n)
+				notes[n.ID] = n
+				order = append(order, n)
 			}
 		}
 	}
+	var queue []NoteBlock // referenced, in order of first reference
 	used := map[string]bool{}
 
 	var line int
@@ -67,14 +82,16 @@ func check(doc *Document, target func(string) string) []error {
 			case Italic:
 				walk(v.Elements)
 			case Link:
-				if why := target(v.Target); why != "" {
-					errorf(line, "%s %q", why, v.Target)
-				}
+				address(line, v.Target)
 				walk(v.Label)
 			case FootnoteRef:
-				used[v.Target] = true
-				if !slices.ContainsFunc(notes, func(n NoteBlock) bool { return n.ID == v.Target }) {
+				n, ok := notes[v.Target]
+				switch {
+				case !ok:
 					errorf(line, "note %q is not defined", v.Target)
+				case !used[v.Target]:
+					used[v.Target] = true
+					queue = append(queue, n)
 				}
 			}
 		}
@@ -87,13 +104,8 @@ func check(doc *Document, target func(string) string) []error {
 				walk(b.Elements)
 			case ImageBlock:
 				line = b.Line
-				if why := target(b.Path); why != "" {
-					errorf(line, "%s %q", why, b.Path)
-				}
+				address(line, b.Path)
 				walk(b.Caption)
-			case NoteBlock:
-				line = b.Line
-				walk(b.Elements)
 			case ListBlock:
 				line = b.Line
 				for _, item := range b.Items {
@@ -102,8 +114,12 @@ func check(doc *Document, target func(string) string) []error {
 			}
 		}
 	}
+	for i := 0; i < len(queue); i++ {
+		line = queue[i].Line
+		walk(queue[i].Elements)
+	}
 
-	for _, n := range notes {
+	for _, n := range order {
 		if !used[n.ID] {
 			errorf(n.Line, "note %q is never referenced", n.ID)
 		}

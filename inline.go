@@ -10,9 +10,17 @@ import (
 )
 
 // parseInline decodes *bold*, _italic_, (label -> target), (*note) and
-// \ escapes. Every marker is ASCII, so s is scanned by byte: a byte of
-// a multibyte rune is never one.
-func parseInline(s string) []Inline {
+// \ escapes; why says what it refuses, or is "". Every marker is ASCII,
+// so s is scanned by byte: a byte of a multibyte rune is never one.
+func parseInline(s string) (in []Inline, why string) {
+	in = inline(s, false, &why)
+	return in, why
+}
+
+// inline is parseInline; inLabel is true in a link label, where a link
+// or a note ref is refused, as an <a> can't hold an <a>. There a link's
+// own label stays text, and parsing goes no deeper.
+func inline(s string, inLabel bool, why *string) []Inline {
 	var out []Inline
 	var text strings.Builder
 	flush := func() {
@@ -21,6 +29,12 @@ func parseInline(s string) []Inline {
 			text.Reset()
 		}
 	}
+
+	// a closer is good or not whatever opener it is for, so once none
+	// is found from i on, none will be from further on: each search
+	// for a marker scans the rest of s at most once
+	none := [2]int{len(s), len(s)} // for '*' and '_'
+	match := parens(s)
 
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -31,9 +45,15 @@ func parseInline(s string) []Inline {
 				c = s[i]
 			}
 		case '*', '_':
-			if end, ok := closing(s, i); ok {
+			k := strings.IndexByte("*_", c)
+			if !opens(s, i) || i >= none[k] {
+				break
+			}
+			if end := closer(s, i); end < 0 {
+				none[k] = i
+			} else {
 				flush()
-				in := parseInline(s[i+1 : end])
+				in := inline(s[i+1:end], inLabel, why)
 				if c == '*' {
 					out = append(out, Bold{Elements: in})
 				} else {
@@ -43,7 +63,11 @@ func parseInline(s string) []Inline {
 				continue
 			}
 		case '(':
-			if in, end, ok := linkOrNote(s, i); ok {
+			end, ok := match[i]
+			if !ok {
+				break
+			}
+			if in, ok := linkOrNote(s[i+1:end], inLabel, why); ok {
 				flush()
 				out = append(out, in)
 				i = end
@@ -62,18 +86,21 @@ func isWord(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
-// closing finds the marker closing the one at start. A marker opens
-// only at the start of a word and closes only at its end.
-func closing(s string, start int) (int, bool) {
+// opens reports whether the marker at i can open: at the start of a
+// word, followed by something else than a space or itself.
+func opens(s string, i int) bool {
+	if i+1 >= len(s) || s[i+1] == s[i] {
+		return false
+	}
+	before, _ := utf8.DecodeLastRuneInString(s[:i])
+	after, _ := utf8.DecodeRuneInString(s[i+1:])
+	return !isWord(before) && !unicode.IsSpace(after)
+}
+
+// closer finds the marker closing the one at start, at the end of a
+// word, or returns -1.
+func closer(s string, start int) int {
 	m := s[start]
-	if start+1 >= len(s) || s[start+1] == m {
-		return 0, false
-	}
-	before, _ := utf8.DecodeLastRuneInString(s[:start])
-	after, _ := utf8.DecodeRuneInString(s[start+1:])
-	if isWord(before) || unicode.IsSpace(after) {
-		return 0, false
-	}
 	for i := start + 1; i < len(s); i++ {
 		if s[i] == '\\' {
 			i++
@@ -85,56 +112,63 @@ func closing(s string, start int) (int, bool) {
 		before, _ := utf8.DecodeLastRuneInString(s[:i])
 		after, _ := utf8.DecodeRuneInString(s[i+1:])
 		if !unicode.IsSpace(before) && !isWord(after) {
-			return i, true
+			return i
 		}
 	}
-	return 0, false
+	return -1
 }
 
-// linkOrNote decodes (label -> target) or (*note) at start, and says
-// where it ends.
-func linkOrNote(s string, start int) (Inline, int, bool) {
-	end := closeParen(s, start)
-	if end < 0 {
-		return nil, 0, false
-	}
-	inner := strings.TrimSpace(s[start+1 : end])
+// linkOrNote decodes what is between the parentheses of
+// (label -> target) or (*note).
+func linkOrNote(inner string, inLabel bool, why *string) (Inline, bool) {
+	inner = strings.TrimSpace(inner)
 
 	// (*id) is a note only with a valid ID: (*bold*) is prose
 	if id, ok := strings.CutPrefix(inner, "*"); ok {
 		if id = strings.TrimSpace(id); id != "" && CheckID(id) == "" {
-			return FootnoteRef{Target: id}, end, true
+			if inLabel {
+				*why = "a note inside a link"
+			}
+			return FootnoteRef{Target: id}, true
 		}
 	}
 
 	i := strings.LastIndex(inner, " -> ")
 	if i < 0 {
-		return nil, 0, false
+		return nil, false
 	}
-	target := unescape(strings.TrimSpace(inner[i+len(" -> "):]))
-	if target == "" {
-		return nil, 0, false
+	label, target := strings.TrimSpace(inner[:i]), unescape(strings.TrimSpace(inner[i+len(" -> "):]))
+	switch {
+	case target == "":
+		return nil, false
+	case inLabel:
+		*why = "a link inside a link"
+		return Link{Target: target, Label: []Inline{PlainText{Content: label}}}, true
 	}
-	return Link{Target: target, Label: parseInline(strings.TrimSpace(inner[:i]))}, end, true
+	return Link{Target: target, Label: inline(label, true, why)}, true
 }
 
-// closeParen returns where the ')' matching the '(' at start is, or -1.
-func closeParen(s string, start int) int {
-	depth := 0
-	for i := start + 1; i < len(s); i++ {
+// parens maps each '(' of s to the ')' closing it, in one pass.
+func parens(s string) map[int]int {
+	if strings.IndexByte(s, '(') < 0 {
+		return nil
+	}
+	match := map[int]int{}
+	var open []int
+	for i := 0; i < len(s); i++ {
 		switch s[i] {
 		case '\\':
 			i++
 		case '(':
-			depth++
+			open = append(open, i)
 		case ')':
-			if depth == 0 {
-				return i
+			if n := len(open); n > 0 {
+				match[open[n-1]] = i
+				open = open[:n-1]
 			}
-			depth--
 		}
 	}
-	return -1
+	return match
 }
 
 func unescape(s string) string {

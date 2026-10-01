@@ -12,6 +12,7 @@ import (
 	"html/template"
 	"log"
 	"maps"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -109,6 +110,11 @@ func main() {
 		if tmpl.Lookup(name) == nil {
 			continue
 		}
+		// 404.soffio would be written, then overwritten
+		if id, ok := strings.CutSuffix(name, ".html"); ok && active[id] != nil {
+			errs = append(errs, fmt.Errorf("%s: page %s is the site file %s too", active[id].File, id, name))
+			continue
+		}
 		if err := s.write(name, name, data); err != nil {
 			errs = append(errs, fmt.Errorf("soffio: %s: %w", name, err))
 		}
@@ -133,17 +139,31 @@ func pipe() {
 	}
 }
 
-// checkFlags refuses what would make a broken site: a base URL ending
-// in '/', as every address is BaseURL + "/" + path; a language that
-// can't be a directory; a static directory that is not there.
+// checkFlags refuses what would make a broken site: a base URL that is
+// not http(s)://host[/path], or holds what html/template would escape
+// in robots.txt or manifest.json, or ends in '/', as every address is
+// BaseURL + "/" + path; a language that can't be a directory, or is
+// twice; a static directory that is not there.
 func checkFlags(baseURL, langs, staticDir string) error {
-	if strings.HasSuffix(baseURL, "/") {
-		return fmt.Errorf("-baseurl %q: drop the final '/'", baseURL)
+	if baseURL != "" {
+		u, err := url.Parse(baseURL)
+		switch {
+		case err != nil || u.Scheme != "http" && u.Scheme != "https" || u.Host == "" ||
+			u.RawQuery != "" || u.Fragment != "" || strings.ContainsAny(baseURL, `"'&<>+ `):
+			return fmt.Errorf("-baseurl %q: want http(s)://host[/path]", baseURL)
+		case strings.HasSuffix(baseURL, "/"):
+			return fmt.Errorf("-baseurl %q: drop the final '/'", baseURL)
+		}
 	}
+	seen := map[string]bool{}
 	for l := range strings.SplitSeq(langs, ",") {
 		if why := soffio.CheckID(l); why != "" {
 			return fmt.Errorf("-langs %q: language %q: %s", langs, l, why)
 		}
+		if seen[l] {
+			return fmt.Errorf("-langs %q: language %q twice", langs, l)
+		}
+		seen[l] = true
 	}
 	if staticDir == "" {
 		return nil

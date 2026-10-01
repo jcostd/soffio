@@ -34,6 +34,10 @@ func TestLoad(t *testing.T) {
 		"doc2.soffio":     "title: Doc 2" + body,
 		"sub/doc3.soffio": "title: Doc 3" + body,
 		"notes.txt":       "not a text",
+		// hidden: skipped
+		".draft.soffio": "broken",
+		"._doc2.soffio": "\x00\x05\x16\x07",
+		".git/x.soffio": "broken",
 	})
 	docs, err := Load(dir)
 	if err != nil {
@@ -69,6 +73,8 @@ func TestLoadErrors(t *testing.T) {
 			`invalid id "città/x": 'à' is not a plain ASCII character`},
 		{map[string]string{"static/x.soffio": "title: x" + body},
 			`id "static/x": static/ is for static files`},
+		{map[string]string{"Static/x.soffio": "title: x" + body},
+			`id "Static/x": static/ is for static files`},
 		{map[string]string{"bad.soffio": "title: x\n\ntext"},
 			`bad.soffio:3: text before the first section`},
 	}
@@ -77,6 +83,16 @@ func TestLoadErrors(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), tt.want) {
 			t.Errorf("Load(%v) = %v, want %q", tt.files, err, tt.want)
 		}
+	}
+}
+
+func TestLoadLinkToDir(t *testing.T) {
+	dir := writeFiles(t, map[string]string{"real/a.soffio": "title: A" + body})
+	if err := os.Symlink(filepath.Join(dir, "real"), filepath.Join(dir, "link")); err != nil {
+		t.Skip("no symlinks here:", err)
+	}
+	if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), "link: a link to a directory") {
+		t.Errorf("a link to a directory: %v", err)
 	}
 }
 

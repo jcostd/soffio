@@ -71,6 +71,7 @@ func TestSoffio(t *testing.T) {
 		"broken/x.soffio":   "title: X\n\n== s | S\n(gone -> nope)",
 		"leak/x.soffio":     "title: X\n\n== s | S\n(draft -> draft)",
 		"leak/draft.soffio": "title: D\nvisibility: private\n\n== s | S\nx",
+		"e404/404.soffio":   "title: Not found\n\n== s | S\nx",
 	})
 
 	if code, stderr := soffioRun(t, dir, "-s", "static", "src"); code != 0 {
@@ -104,6 +105,7 @@ func TestSoffio(t *testing.T) {
 		{[]string{"-n", "-baseurl", "https://x.org/", "src"}, 1, `drop the final '/'`},
 		{[]string{"-n", "-langs", "it, en", "src"}, 1, `language " en": it contains a space`},
 		{[]string{"src", "more"}, 2, "usage: soffio"},
+		{[]string{"-n", "-s", "static", "e404"}, 1, "page 404 is the site file 404.html too"},
 	} {
 		code, stderr := soffioRun(t, dir, tt.args...)
 		if code != tt.code || !strings.Contains(stderr, tt.want) {
@@ -209,7 +211,7 @@ func TestWriteDocAlternatesChildren(t *testing.T) {
 }
 
 func TestCopyDir(t *testing.T) {
-	src := writeFiles(t, map[string]string{"file.txt": "hello", "css/deep/style.css": "body {}"})
+	src := writeFiles(t, map[string]string{"file.txt": "hello", "css/deep/style.css": "body {}", ".DS_Store": "", ".git/x": ""})
 	dst := filepath.Join(t.TempDir(), "static")
 	if err := copyDir(src, dst); err != nil {
 		t.Fatal(err)
@@ -219,9 +221,22 @@ func TestCopyDir(t *testing.T) {
 			t.Errorf("%s: %q, %v", name, got, err)
 		}
 	}
+	if exists(dst, ".DS_Store") || exists(dst, ".git") {
+		t.Error("hidden files copied")
+	}
 	// a second build copies over the first
 	if err := copyDir(src, dst); err != nil {
 		t.Errorf("copy again: %v", err)
+	}
+
+	// the same tree, or dst inside src: a file would be copied onto itself
+	for _, d := range []string{src, filepath.Join(src, "css")} {
+		if err := copyDir(src, d); err == nil || !strings.Contains(err.Error(), "copied onto itself") {
+			t.Errorf("copyDir(%s, %s): %v", src, d, err)
+		}
+	}
+	if got, _ := os.ReadFile(filepath.Join(src, "file.txt")); string(got) != "hello" {
+		t.Errorf("file.txt is %q now", got)
 	}
 
 	if err := os.Symlink(filepath.Join(src, "css"), filepath.Join(src, "loop")); err != nil {
@@ -233,22 +248,25 @@ func TestCopyDir(t *testing.T) {
 }
 
 func TestCheckFlags(t *testing.T) {
-	static := t.TempDir()
+	static := writeFiles(t, map[string]string{"f": ""})
 	file := filepath.Join(static, "f")
-	if err := os.WriteFile(file, nil, 0o644); err != nil {
-		t.Fatal(err)
-	}
 	tests := []struct {
 		baseURL, langs, static string
 		ok                     bool
 	}{
 		{"https://example.org", "it,en", static, true},
 		{"https://example.org/sub", "en", "", true},
+		{"http://localhost:8080", "en", "", true},
 		{"", "en", "", true},
 		{"https://example.org/", "en", "", false},
 		{"/", "en", "", false},
+		{"example.org", "en", "", false},
+		{"ftp://example.org", "en", "", false},
+		{"https://example.org/?a=1", "en", "", false},
+		{"https://example.org/c++", "en", "", false},
 		{"https://example.org", "it,", "", false},
 		{"https://example.org", "it/x", "", false},
+		{"https://example.org", "it,en,it", "", false},
 		{"https://example.org", "en", filepath.Join(static, "nope"), false},
 		{"https://example.org", "en", file, false},
 	}
@@ -256,5 +274,17 @@ func TestCheckFlags(t *testing.T) {
 		if err := checkFlags(tt.baseURL, tt.langs, tt.static); (err == nil) != tt.ok {
 			t.Errorf("checkFlags(%q, %q, %q) = %v", tt.baseURL, tt.langs, tt.static, err)
 		}
+	}
+}
+
+func TestSoffioStaticOntoItself(t *testing.T) {
+	dir := writeFiles(t, map[string]string{
+		"src/a.soffio":        "title: A\n\n== s | S\n:: img: /static/a.png | a",
+		"public/static/a.png": "PNG",
+	})
+	code, stderr := soffioRun(t, dir, "-s", "public/static", "-o", "public", "src")
+	got, _ := os.ReadFile(filepath.Join(dir, "public", "static", "a.png"))
+	if code != 1 || !strings.Contains(stderr, "would be copied onto itself") || string(got) != "PNG" {
+		t.Errorf("exit %d, %q, a.png %q", code, stderr, got)
 	}
 }

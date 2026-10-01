@@ -20,6 +20,7 @@ import (
 const dirHeader = "Soffio-Preview"
 
 func main() {
+	log.SetFlags(0)
 	dir := flag.String("d", "public", "directory to serve")
 	port := flag.String("p", "8080", "port to listen on")
 
@@ -41,6 +42,12 @@ func main() {
 	absDir, err := filepath.Abs(*dir)
 	if err != nil {
 		log.Fatalf("preview: %v", err)
+	}
+	// serving nothing would look like a broken site
+	if fi, err := os.Stat(absDir); err != nil {
+		log.Fatalf("preview: %v", err)
+	} else if !fi.IsDir() {
+		log.Fatalf("preview: %s: not a directory", *dir)
 	}
 
 	addr := "127.0.0.1:" + *port
