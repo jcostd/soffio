@@ -45,8 +45,10 @@ full flag list (`-baseurl`, `-langs`, `-o`, `-t`, `-s`, `-vis`, and `-html`/`-rs
 
 ## Release
 
-Bump `VERSION`, commit "bump to vX.Y.Z", `git tag -a vX.Y.Z`, `./release.sh`, and upload
-what it made in `dist/` to the GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip`
+Every change worth knowing gets a line in `ChangeLog.txt`, newest first, Slackware
+style. Bump `VERSION`, date the ChangeLog entry, commit "bump to vX.Y.Z",
+`git tag -a vX.Y.Z`, `./release.sh`, and upload what it made in `dist/` to the
+GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip`
 for windows), each holding the two programs as the Makefile builds them, README and
 LICENSE, owned by root, 755/644.
 fucina-factory takes those archives as they are, so build them from the clean tag:

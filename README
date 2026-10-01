@@ -43,6 +43,10 @@ USAGE
         browser is opened on it and the new preview exits.
 
     Run 'soffio -help' or 'preview -help' for flag details.
+    -baseurl is refused if it ends in '/': every address is the base,
+    a '/', and the page.
+
+    ChangeLog.txt says what changed, newest first.
 
 MARKUP SYNTAX
     A document requires a frontmatter, a blank line, and the body.

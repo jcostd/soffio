@@ -1,0 +1,41 @@
+Thu Oct  1 23:00:00 UTC 2026
+Not released yet: since v2.1.0. The same sites, byte for byte, but for
+the fixes below; a quarter less code; three times faster.
+soffio: Fixed links to a page whose ID has a dot in it.
+  (see -> v1.2) linked to v1.2 instead of v1.2.html, and the check
+  passed it. Only a target under static/ is a file; anything else is a
+  page.
+soffio: Fixed hreflang alternates.
+  On Windows there were none: IDs were looked up with backslashes. And
+  blog/x got an alternate in en/x, though blog is no language: the
+  first part of an ID is a language only if -langs says so.
+soffio: .Children comes sorted by ID.
+  It came in map order, so a layout ranging over it, like Fucina's
+  galleria, shuffled on every build.
+soffio: A -baseurl ending in '/' is refused.
+  It gave https://x.org//page.html everywhere.
+soffio: Markers only at the edges of a word.
+  snake_case_name became snake<em>case</em>name; now a * or _ opens only
+  at the start of a word and closes only at its end. (*x) is a note
+  only if x is a valid note ID, so (*bold*) is bold in parentheses, no
+  longer a broken note that failed the build.
+soffio: Errors about a block name the line where it starts.
+  "content outside any section" named the line after the block.
+soffio: Files are read in lexical order, one after the other.
+  Errors and duplicate IDs come out in the same order on every run;
+  the file reported as duplicate is the later one.
+soffio: Every output file is written in one call.
+  html/template writes in small pieces, one syscall each: that was 59%
+  of the time. A 4816-text site builds in 1.2 s instead of 3.8. A page
+  that fails leaves no half-written file, and a failed close is an
+  error.
+soffio: rss.xml has the same XML declaration as sitemap.xml.
+  <?xml version="1.0" encoding="UTF-8"?>, without the space before ?>.
+source: ast, parser, corpus and renderer are one package, soffio.
+  Nothing outside imported them, and their borders only made links be
+  resolved twice. Now one function says where a link points, for the
+  check and for the HTML alike. The parser cuts the body into blocks,
+  then each block's first line says what it is: no state machine.
+  Inline markup is scanned by byte. Code: 1397 lines down to 1074.
+  Still the standard library only.
++--------------------------+
