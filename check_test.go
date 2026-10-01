@@ -1,174 +1,133 @@
 package soffio
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
-func TestCheckLink(t *testing.T) {
-	allDocs := map[string]*Document{
-		"it/home": {
-			ID:       "it/home",
-			Sections: []Section{{ID: "intro"}},
-		},
-		"it/about": {
-			ID:       "it/about",
-			Sections: []Section{{ID: "team"}},
-		},
-		"en/home": {
-			ID:       "en/home",
-			Sections: []Section{{ID: "intro"}},
-		},
-		"private/secret": {
-			ID:       "private/secret",
-			Sections: []Section{{ID: "data"}},
-		},
+func TestCheckTarget(t *testing.T) {
+	all := map[string]*Document{
+		"it/home":        {ID: "it/home", Sections: []Section{{ID: "intro"}}},
+		"it/about":       {ID: "it/about", Sections: []Section{{ID: "team"}}},
+		"en/home":        {ID: "en/home", Sections: []Section{{ID: "intro"}}},
+		"private/secret": {ID: "private/secret", Sections: []Section{{ID: "data"}}},
 	}
-
 	// the public view: private/secret is left out
-	activeDocs := map[string]*Document{
-		"it/home":  allDocs["it/home"],
-		"it/about": allDocs["it/about"],
-		"en/home":  allDocs["en/home"],
+	active := map[string]*Document{
+		"it/home":  all["it/home"],
+		"it/about": all["it/about"],
+		"en/home":  all["en/home"],
+	}
+	static := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(static, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(static, "docs", "a.pdf"), nil, 0o644); err != nil {
+		t.Fatal(err)
 	}
 
-	const (
-		ok      = ""
-		missing = "broken link points to missing target"
-		leak    = "PRIVACY LEAK: document references excluded/private target"
-	)
 	tests := []struct {
-		name     string
-		sourceID string
-		target   string
-		want     string
+		from, target, want string
 	}{
-		{"absolute existing", "it/home", "/it/about", ok},
-		{"relative same folder", "it/home", "about", ok},
-		{"relative with section", "it/home", "about#team", ok},
-		{"relative failed (different folder)", "en/home", "about", missing},
-		{"internal section absolute", "it/home", "/it/home#intro", ok},
-		{"internal section relative (hash only)", "it/home", "#intro", ok},
-		{"missing section", "it/home", "#nope", missing},
-		{"empty section", "it/home", "about#", missing},
-		{"missing target", "it/home", "privacy", missing},
-		{"privacy leak target", "it/home", "/private/secret", leak},
-		{"external", "it/home", "https://example.org/x", ok},
+		{"it/home", "/it/about", ""},
+		{"it/home", "about", ""},
+		{"it/home", "about#team", ""},
+		{"it/home", "/it/home#intro", ""},
+		{"it/home", "#intro", ""},
+		{"it/home", "https://example.org/x", ""},
+		{"it/home", "/static/docs/a.pdf", ""},
+		{"it/home", "../static/docs/a.pdf#page=2", ""},
+		{"en/home", "about", "link to missing page"},
+		{"it/home", "privacy", "link to missing page"},
+		{"it/home", "#nope", "link to missing section"},
+		{"it/home", "about#", "link to missing section"},
+		{"it/home", "/private/secret", "link to private page"},
+		{"it/home", "/static/docs/b.pdf", "missing file"},
+		{"it/home", "/static/docs", "missing file"},
 	}
-
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := checkLink(allDocs, activeDocs, tt.sourceID, tt.target)
-			if got != tt.want {
-				t.Errorf("checkLink(source=%q, target=%q) = %q; want %q", tt.sourceID, tt.target, got, tt.want)
-			}
-		})
+		if got := checkTarget(all, active, static, tt.from, tt.target); got != tt.want {
+			t.Errorf("checkTarget(%q, %q) = %q, want %q", tt.from, tt.target, got, tt.want)
+		}
 	}
+	if got := checkTarget(all, active, "", "it/home", "/static/docs/a.pdf"); got != "missing file" {
+		t.Errorf("a file with no static dir: %q, want missing file", got)
+	}
+}
+
+// parse parses src as file, failing the test on an error.
+func parse(t *testing.T, file, id, src string) *Document {
+	t.Helper()
+	doc, err := Parse(file, strings.NewReader(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc.ID = id
+	return doc
 }
 
 func TestCheck(t *testing.T) {
-	docs := map[string]*Document{}
-	docs["it/doc1"] = &Document{
-		ID: "it/doc1",
-		Sections: []Section{
-			{
-				ID: "sec1",
-				Blocks: []Block{
-					TextBlock{
-						Elements: []Inline{
-							Link{
-								Target: "doc2",
-								Label:  []Inline{PlainText{Content: "Vai a doc2"}},
-							},
-							Link{
-								Target: "broken",
-								Label:  []Inline{PlainText{Content: "Link rotto"}},
-							},
-							FootnoteRef{Target: "n1"},
-						},
-					},
-					NoteBlock{ID: "n1"},
-				},
-			},
-		},
+	a := parse(t, "a.soffio", "a", `
+== s | S
+(b -> b) (broken -> nope) (secret -> secret)(*n1)(*n9)
+
+- (*n2) in a list
+
+:: img: /static/missing.png | gone
+
+:: note: n1 | one, and (*n2)
+
+:: note: n2 | two
+
+:: note: n3 | never used`)
+	b := parse(t, "b.soffio", "b", "\n== s | S\nx")
+	secret := parse(t, "secret.soffio", "secret", "\n== s | S\nx")
+	all := map[string]*Document{"a": a, "b": b, "secret": secret}
+	active := map[string]*Document{"a": a, "b": b}
+
+	err := Check(all, active, t.TempDir())
+	want := `a.soffio:3: link to missing page "nope"
+a.soffio:3: link to private page "secret"
+a.soffio:3: note "n9" is not defined
+a.soffio:7: missing file "/static/missing.png"
+a.soffio:13: note "n3" is never referenced`
+	if err == nil || err.Error() != want {
+		t.Errorf("got:\n%v\nwant:\n%s", err, want)
 	}
-
-	docs["it/doc2"] = &Document{
-		ID:       "it/doc2",
-		Sections: []Section{{ID: "intro"}},
-	}
-
-	err := Check(docs, docs, "static")
-
-	if err == nil {
-		t.Fatalf("expected an error, got nil")
-	}
-
-	if !strings.Contains(err.Error(), "broken") {
-		t.Fatalf("expected error about 'broken' link, got: %v", err)
+	if err := Check(all, all, t.TempDir()); err == nil || strings.Contains(err.Error(), "private") {
+		t.Errorf("with every text active, no link is private: %v", err)
 	}
 }
 
-func TestPrivacyLeak(t *testing.T) {
-	docs := map[string]*Document{}
-	docs["public/post"] = &Document{
-		ID: "public/post",
-		Sections: []Section{
-			{
-				ID: "sec1",
-				Blocks: []Block{
-					TextBlock{
-						Elements: []Inline{
-							Link{
-								Target: "/private/secret",
-								Label:  []Inline{PlainText{Content: "Nota Segreta"}},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+func TestCheckDoc(t *testing.T) {
+	doc := parse(t, "<stdin>", "", `
+== s | S
+(up -> #s) (gone -> #nope) (other -> other-page) (*n)(*m)
 
-	docs["private/secret"] = &Document{
-		ID:       "private/secret",
-		Sections: []Section{{ID: "sec1"}},
-	}
+:: img: /static/x.png | not checked alone
 
-	// a public build: private/secret is left out
-	activeDocs := map[string]*Document{
-		"public/post": docs["public/post"],
-	}
+:: note: n | n
 
-	err := Check(docs, activeDocs, "static")
-	if err == nil || !strings.Contains(err.Error(), "PRIVACY LEAK") {
-		t.Fatalf("expected privacy leak error, got: %v", err)
+:: note: u | unused`)
+	want := `<stdin>:3: link to missing section "#nope"
+<stdin>:3: note "m" is not defined
+<stdin>:9: note "u" is never referenced`
+	if err := CheckDoc(doc); err == nil || err.Error() != want {
+		t.Errorf("got:\n%v\nwant:\n%s", err, want)
 	}
 }
 
 func BenchmarkCheck(b *testing.B) {
 	doc := &Document{
 		ID: "bench",
-		Sections: []Section{
-			{
-				ID: "s1",
-				Blocks: []Block{
-					TextBlock{
-						Elements: []Inline{
-							Link{
-								Target: "bench#s1",
-								Label:  []Inline{PlainText{Content: "Self ref"}},
-							},
-						},
-					},
-				},
-			},
-		},
+		Sections: []Section{{ID: "s1", Blocks: []Block{
+			TextBlock{Elements: []Inline{Link{Target: "bench#s1", Label: []Inline{PlainText{Content: "Self ref"}}}}},
+		}}},
 	}
 	docs := map[string]*Document{"bench": doc}
-
 	b.ReportAllocs()
-
 	for b.Loop() {
 		_ = Check(docs, docs, "static")
 	}

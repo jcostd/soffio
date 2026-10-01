@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// stripLines resets the Line field in all blocks to 0 for robust AST comparison.
+// stripLines zeroes the Line of every block, to compare trees alone.
 func stripLines(doc *Document) {
 	for i := range doc.Sections {
 		for j, block := range doc.Sections[i].Blocks {
@@ -42,39 +42,29 @@ It continues here naturally.
 list continuation
 - List item 2
 
-:: img: photo.jpg | Photo caption
+:: img: /static/photo.jpg | Photo caption
 
 == extra | Extra Notes
 
 :: note: n1 | This is a footnote`
 
-	want := Document{
+	want := &Document{
+		File:  "t.soffio",
 		ID:    "test-doc",
 		Title: "The Title",
-		Meta: map[string]string{
-			"layout": "custom",
-		},
+		Meta:  map[string]string{"layout": "custom"},
 		Sections: []Section{
 			{
 				Level: 2,
 				ID:    "intro",
 				Title: "Introduction",
 				Blocks: []Block{
-					TextBlock{
-						Elements: []Inline{
-							PlainText{Content: "This is the first paragraph.\nIt continues here naturally."},
-						},
-					},
-					ListBlock{
-						Items: [][]Inline{
-							{PlainText{Content: "List item 1\nlist continuation"}},
-							{PlainText{Content: "List item 2"}},
-						},
-					},
-					ImageBlock{
-						Path:    "photo.jpg",
-						Caption: []Inline{PlainText{Content: "Photo caption"}},
-					},
+					TextBlock{Elements: []Inline{PlainText{Content: "This is the first paragraph.\nIt continues here naturally."}}},
+					ListBlock{Items: [][]Inline{
+						{PlainText{Content: "List item 1\nlist continuation"}},
+						{PlainText{Content: "List item 2"}},
+					}},
+					ImageBlock{Path: "/static/photo.jpg", Caption: []Inline{PlainText{Content: "Photo caption"}}},
 				},
 			},
 			{
@@ -82,167 +72,94 @@ list continuation
 				ID:    "extra",
 				Title: "Extra Notes",
 				Blocks: []Block{
-					NoteBlock{
-						ID:       "n1",
-						Elements: []Inline{PlainText{Content: "This is a footnote"}},
-					},
+					NoteBlock{ID: "n1", Elements: []Inline{PlainText{Content: "This is a footnote"}}},
 				},
 			},
 		},
 	}
 
-	r := strings.NewReader(input)
-	got, err := Parse(r)
+	got, err := Parse("t.soffio", strings.NewReader(input))
 	if err != nil {
-		t.Fatalf("I/O error during parse: %v", err)
+		t.Fatal(err)
 	}
-
-	stripLines(&got)
-
+	stripLines(got)
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("AST mismatch.\ngot:  %#v\nwant: %#v", got, want)
+		t.Errorf("got:  %#v\nwant: %#v", got, want)
 	}
 }
 
-func TestParse_ImplicitFlush(t *testing.T) {
+func TestParseBlockEnds(t *testing.T) {
 	// a section or command line ends the block before it, blank line or not
 	input := `
 == main | Main
 Questo è un paragrafo attaccato
 == next | Next
 E questo è testo attaccato a un comando
-:: img: p.jpg | cap`
+:: img: /static/p.jpg | cap`
 
-	r := strings.NewReader(input)
-	got, err := Parse(r)
+	got, err := Parse("t.soffio", strings.NewReader(input))
 	if err != nil {
-		t.Fatalf("Parse failed: %v", err)
+		t.Fatal(err)
 	}
-
-	if len(got.Sections) != 2 {
-		t.Fatalf("Expected 2 sections, got %d", len(got.Sections))
+	want := []Section{
+		{Level: 2, ID: "main", Title: "Main", Blocks: []Block{
+			TextBlock{Line: 3, Elements: []Inline{PlainText{Content: "Questo è un paragrafo attaccato"}}},
+		}},
+		{Level: 2, ID: "next", Title: "Next", Blocks: []Block{
+			TextBlock{Line: 5, Elements: []Inline{PlainText{Content: "E questo è testo attaccato a un comando"}}},
+			ImageBlock{Line: 6, Path: "/static/p.jpg", Caption: []Inline{PlainText{Content: "cap"}}},
+		}},
 	}
-
-	stripLines(&got)
-
-	wantBlocksMain := []Block{
-		TextBlock{Elements: []Inline{PlainText{Content: "Questo è un paragrafo attaccato"}}},
-	}
-	if !reflect.DeepEqual(got.Sections[0].Blocks, wantBlocksMain) {
-		t.Errorf("Implicit flush section mismatch in Main")
-	}
-
-	wantBlocksNext := []Block{
-		TextBlock{Elements: []Inline{PlainText{Content: "E questo è testo attaccato a un comando"}}},
-		ImageBlock{Path: "p.jpg", Caption: []Inline{PlainText{Content: "cap"}}},
-	}
-	if !reflect.DeepEqual(got.Sections[1].Blocks, wantBlocksNext) {
-		t.Errorf("Implicit flush command mismatch in Next")
+	if !reflect.DeepEqual(got.Sections, want) {
+		t.Errorf("got:  %#v\nwant: %#v", got.Sections, want)
 	}
 }
 
-func TestParse_Errors(t *testing.T) {
+func TestParseErrors(t *testing.T) {
 	tests := []struct {
-		name          string
-		input         string
-		expectedError string
+		input string
+		want  string
 	}{
-		{
-			name: "Testo fuori dalla sezione",
-			input: `Titolo: Err
-
-Questo testo non ha una sezione dichiarata!`,
-			expectedError: "found block content outside any section",
-		},
-		{
-			name: "Sezione malformata (manca pipe)",
-			input: `
-== id TitoloSbagliato`,
-			expectedError: "malformed section (expected '== id | Title')",
-		},
-		{
-			name: "Sezione con ID vuoto",
-			input: `
-== | Solo Titolo`,
-			expectedError: "both ID and Title must be non-empty",
-		},
-		{
-			name: "Comando sconosciuto",
-			input: `
-== sec | Sec
-:: galleria: a | b`,
-			expectedError: "unknown command \"galleria\"",
-		},
-		{
-			name:          "ID con spazio",
-			input:         "id: scultura bronzo\n",
-			expectedError: `invalid id "scultura bronzo": it contains a space`,
-		},
-		{
-			name:          "ID con accento",
-			input:         "id: città\n",
-			expectedError: `'à' is not a plain ASCII character`,
-		},
-		{
-			name:          "ID con carattere vietato",
-			input:         "id: opere/toro\n",
-			expectedError: `'/' is not allowed`,
-		},
-		{
-			name:          "ID che inizia con un punto",
-			input:         "id: .nascosto\n",
-			expectedError: "it can't start with '.'",
-		},
-		{
-			name:          "Data non ISO",
-			input:         "date: 12-03-1960\n",
-			expectedError: `invalid date "12-03-1960": expected a real date as YYYY-MM-DD`,
-		},
-		{
-			name:          "Data inesistente",
-			input:         "updated: 2026-02-30\n",
-			expectedError: `invalid updated "2026-02-30"`,
-		},
-		{
-			name:          "Data evento solo anno",
-			input:         "event_date: 1960\n",
-			expectedError: `invalid event_date "1960"`,
-		},
-		{
-			name: "Sezione con ID non valido",
-			input: `
-== la tecnica | La Tecnica`,
-			expectedError: `invalid section id "la tecnica": it contains a space`,
-		},
-		{
-			name: "Nota con ID non valido",
-			input: `
-== sec | Sec
-:: note: nota#1 | testo`,
-			expectedError: `invalid note id "nota#1": '#' is not allowed`,
-		},
-		{
-			name: "Comando senza pipe",
-			input: `
-== sec | Sec
-:: img: path caption`,
-			expectedError: "malformed command (expected ':: cmd: meta | content')",
-		},
+		{"title: x\n\ntext", `t.soffio:3: text before the first section`},
+		{"\n== id Title", `t.soffio:2: "== id Title" is not == id | Title`},
+		{"\n== | Title", `t.soffio:2: section "== | Title" needs an id and a title`},
+		{"\n======= a | A", `t.soffio:2: section level 7: want 2 to 6`},
+		{"\n== a | A\n\n== a | Again", `t.soffio:4: duplicate section id "a"`},
+		{"\n== a b | A", `t.soffio:2: invalid section id "a b": it contains a space`},
+		{"\n== s | S\n:: gallery: a | b", `t.soffio:3: unknown command "gallery": want img or note`},
+		{"\n== s | S\n:: img: path caption", `t.soffio:3: ":: img: path caption" is not :: cmd: arg | text`},
+		{"\n== s | S\n:: img: img/a.png | a", `t.soffio:3: image "img/a.png" is not under /static/`},
+		{"\n== s | S\n:: img: /img/a.png | a", `t.soffio:3: image "/img/a.png" is not under /static/`},
+		{"\n== s | S\n:: note: n#1 | x", `t.soffio:3: invalid note id "n#1": '#' is not allowed`},
+		{"\n== s | S\n:: note: n | x\n\n:: note: n | y", `t.soffio:5: duplicate note id "n"`},
+		{"\n== s | S\n- a\n-\n- c", `t.soffio:4: empty list item`},
+		{"bad header\n", `t.soffio:1: "bad header" is not key: value`},
+		{"title: a\ntitle: b\n", `t.soffio:2: duplicate header key "title"`},
+		{"id: scultura bronzo\n", `t.soffio:1: invalid id "scultura bronzo": it contains a space`},
+		{"id: città\n", `'à' is not a plain ASCII character`},
+		{"id: opere/toro\n", `'/' is not allowed`},
+		{"id: .nascosto\n", `it can't start with '.'`},
+		{"id:\n", `invalid id "": it is empty`},
+		{"visibility: pubic\n", `t.soffio:1: invalid visibility "pubic": want public or private`},
+		{"date: 12-03-1960\n", `t.soffio:1: invalid date "12-03-1960": want a real date, YYYY-MM-DD`},
+		{"updated: 2026-02-30\n", `invalid updated "2026-02-30"`},
+		{"event_date: 1960\n", `invalid event_date "1960"`},
 	}
-
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := strings.NewReader(tt.input)
-			_, err := Parse(r)
+		_, err := Parse("t.soffio", strings.NewReader(tt.input))
+		if err == nil || !strings.Contains(err.Error(), tt.want) {
+			t.Errorf("Parse(%q) = %v, want %q", tt.input, err, tt.want)
+		}
+	}
+}
 
-			if err == nil {
-				t.Fatalf("Expected an error containing %q, but got no errors", tt.expectedError)
-			}
-
-			if !strings.Contains(err.Error(), tt.expectedError) {
-				t.Errorf("Expected error containing %q, got %v", tt.expectedError, err)
-			}
-		})
+func TestParseExternalImage(t *testing.T) {
+	doc, err := Parse("t.soffio", strings.NewReader("\n== s | S\n:: img: https://example.org/a.png | a"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := doc.Sections[0].Blocks[0].(ImageBlock); b.Path != "https://example.org/a.png" {
+		t.Errorf("path %q", b.Path)
 	}
 }
 
@@ -258,9 +175,7 @@ Text with *bold*.
 - Item 2
 `
 	b.ReportAllocs()
-
 	for b.Loop() {
-		r := strings.NewReader(input)
-		_, _ = Parse(r)
+		_, _ = Parse("bench", strings.NewReader(input))
 	}
 }

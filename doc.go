@@ -6,6 +6,7 @@ package soffio
 
 // A Document is one .soffio file.
 type Document struct {
+	File     string // where it comes from, for messages
 	ID       string
 	Title    string
 	Meta     map[string]string

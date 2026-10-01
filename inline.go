@@ -102,7 +102,7 @@ func linkOrNote(s string, start int) (Inline, int, bool) {
 
 	// (*id) is a note only with a valid ID: (*bold*) is prose
 	if id, ok := strings.CutPrefix(inner, "*"); ok {
-		if id = strings.TrimSpace(id); id != "" && checkID(id) == "" {
+		if id = strings.TrimSpace(id); id != "" && CheckID(id) == "" {
 			return FootnoteRef{Target: id}, end, true
 		}
 	}

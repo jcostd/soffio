@@ -7,10 +7,7 @@ import (
 	"cmp"
 	"fmt"
 	"html"
-	"log"
-	"maps"
 	"net/url"
-	"slices"
 	"strings"
 )
 
@@ -39,7 +36,9 @@ func Render(doc *Document) string {
 	if len(r.refs) > 0 {
 		title := cmp.Or(doc.Meta["notes_title"], "Notes")
 		fmt.Fprintf(&r.w, "\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes-%[1]s\">\n\t<h2 id=\"footnotes-%[1]s\">%s</h2>\n\t<ol>\n", doc.ID, html.EscapeString(title))
-		for _, ref := range r.refs {
+		// a note may refer to a later one: r.refs grows as it goes
+		for i := 0; i < len(r.refs); i++ {
+			ref := r.refs[i]
 			if note, ok := r.notes[ref]; ok {
 				fmt.Fprintf(&r.w, "\t\t<li id=\"fn-%s\" role=\"doc-endnote\">", ref)
 				r.inlines(note.Elements)
@@ -47,12 +46,6 @@ func Render(doc *Document) string {
 			}
 		}
 		r.w.WriteString("\t</ol>\n</section>\n")
-	}
-
-	for _, id := range slices.Sorted(maps.Keys(r.notes)) {
-		if r.num[id] == 0 {
-			log.Printf("soffio: warning: unused footnote ':: note: %s' in document '%s'", id, doc.ID)
-		}
 	}
 	return r.w.String()
 }
@@ -81,7 +74,7 @@ func (r *renderer) block(b Block) {
 		r.w.WriteString("</ul>\n")
 	case ImageBlock:
 		fmt.Fprintf(&r.w, "<figure>\n\t<img src=\"%s\" alt=\"%s\" loading=\"lazy\">\n\t<figcaption>",
-			html.EscapeString(v.Path), html.EscapeString(plainText(v.Caption)))
+			html.EscapeString(href(r.id, v.Path)), html.EscapeString(plainText(v.Caption)))
 		r.inlines(v.Caption)
 		r.w.WriteString("</figcaption>\n</figure>\n")
 	case NoteBlock:

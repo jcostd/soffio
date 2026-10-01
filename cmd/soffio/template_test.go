@@ -15,37 +15,57 @@ func TestSortBy(t *testing.T) {
 		{ID: "c", Meta: map[string]string{"event_date": "1964-01-01"}},
 		{ID: "d", Meta: map[string]string{}},
 	}
-
 	sorted := sortBy(docs, "event_date")
 
 	// highest first, then by ID; no date last
-	expected := []string{"b", "a", "c", "d"}
-	for i, id := range expected {
+	for i, id := range []string{"b", "a", "c", "d"} {
 		if sorted[i].ID != id {
 			t.Errorf("index %d: want %s, got %s", i, id, sorted[i].ID)
 		}
 	}
-
 	// docs itself is not sorted
 	if docs[0].ID != "a" {
-		t.Error("sortBy mutated original slice")
+		t.Error("sortBy changed docs")
+	}
+}
+
+func TestRFC822(t *testing.T) {
+	if got, err := rfc822("2026-08-19"); err != nil || got != "Wed, 19 Aug 2026 00:00:00 +0000" {
+		t.Errorf("rfc822 = %q, %v", got, err)
+	}
+	if _, err := rfc822("19/08/2026"); err == nil {
+		t.Error("rfc822 took a date that is not YYYY-MM-DD")
 	}
 }
 
 func TestLoadTemplates(t *testing.T) {
-	dir := t.TempDir()
-	file := filepath.Join(dir, "layout.html")
-
-	if err := os.WriteFile(file, []byte(`{{define "layout.html"}}override{{end}}`), 0644); err != nil {
-		t.Fatalf("write temp template: %v", err)
-	}
-
-	overrideTmpl, err := loadTemplates(dir)
+	builtin, err := loadTemplates("")
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, name := range append([]string{"layout.html"}, siteFiles...) {
+		if builtin.Lookup(name) == nil {
+			t.Errorf("built-in %s missing", name)
+		}
+	}
 
-	if overrideTmpl.Lookup("layout.html") == nil {
-		t.Error("failed to load local template override")
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "layout.html"), []byte(`mine`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	local, err := loadTemplates(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if local.Lookup("layout.html") == nil {
+		t.Error("layout.html of dir missing")
+	}
+	// the built-in ones are not mixed in
+	if local.Lookup("rss.xml") != nil {
+		t.Error("built-in rss.xml mixed into dir's templates")
+	}
+
+	if _, err := loadTemplates(filepath.Join(dir, "nope")); err == nil {
+		t.Error("a missing -t directory: no error")
 	}
 }

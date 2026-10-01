@@ -31,7 +31,7 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 						},
 					},
 					ImageBlock{
-						Path:    "img/test.jpg",
+						Path:    "/static/img/test.jpg",
 						Caption: []Inline{PlainText{Content: "Caption"}},
 					},
 				},
@@ -50,7 +50,7 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 		`<li>Second item</li>`,
 		`</ul>`,
 		`<figure>`,
-		`<img src="img/test.jpg" alt="Caption" loading="lazy">`,
+		`<img src="static/img/test.jpg" alt="Caption" loading="lazy">`,
 		`<figcaption>Caption</figcaption>`,
 		`</figure>`,
 		`</section>`,
@@ -177,6 +177,28 @@ func TestRender_Footnotes(t *testing.T) {
 		if !strings.Contains(got, part) {
 			t.Errorf("Footnote handling error.\nMissing: %s\nGot:\n%s", part, got)
 		}
+	}
+}
+
+func TestRenderRelativeImage(t *testing.T) {
+	doc := &Document{ID: "it/opere/toro", Sections: []Section{{Level: 2, ID: "s", Blocks: []Block{
+		ImageBlock{Path: "/static/img/toro.webp", Caption: []Inline{PlainText{Content: "Toro"}}},
+	}}}}
+	// relative, as links are: the site works under any base
+	if got, want := Render(doc), `<img src="../../static/img/toro.webp"`; !strings.Contains(got, want) {
+		t.Errorf("missing %s in:\n%s", want, got)
+	}
+}
+
+func TestRenderNoteInNote(t *testing.T) {
+	doc := &Document{ID: "d", Sections: []Section{{Level: 2, ID: "s", Blocks: []Block{
+		TextBlock{Elements: []Inline{FootnoteRef{Target: "a"}}},
+		NoteBlock{ID: "a", Elements: []Inline{PlainText{Content: "see "}, FootnoteRef{Target: "b"}}},
+		NoteBlock{ID: "b", Elements: []Inline{PlainText{Content: "B"}}},
+	}}}}
+	// b is referenced only from note a, yet it is an endnote too
+	if got, want := Render(doc), `<li id="fn-b" role="doc-endnote">B`; !strings.Contains(got, want) {
+		t.Errorf("missing %s in:\n%s", want, got)
 	}
 }
 

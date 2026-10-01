@@ -13,7 +13,7 @@
       <description>{{ $doc.Meta.description }}</description>
       {{- end }}
       {{- if $doc.Meta.date }}
-      <pubDate>{{ $doc.Meta.date }}</pubDate>
+      <pubDate>{{ rfc822 $doc.Meta.date }}</pubDate>
       {{- end }}
     </item>
     {{- end }}

@@ -1,11 +1,12 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Command soffio converts a content directory of .soffio files into a static site.
+// Command soffio turns a directory of .soffio texts into a static site,
+// or one text on standard input into HTML on standard output.
 package main
 
 import (
-	"cmp"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -22,138 +23,134 @@ import (
 // Version is set at build time with -ldflags "-X main.Version=...".
 var Version = "dev"
 
+// siteFiles are made at the root of the site from the templates of the
+// same name, each if its template is there.
+var siteFiles = []string{"rss.xml", "sitemap.xml", "robots.txt", "404.html", "manifest.json"}
+
 func main() {
-	baseURL := flag.String("baseurl", "http://localhost:8080", "The absolute base URL of the site")
-	langs := flag.String("langs", "en", "Comma-separated list of supported languages")
-	outDir := flag.String("o", "public", "output directory for site generation")
-	tmplDir := flag.String("t", "templates", "local templates directory")
-	staticDir := flag.String("s", "static", "static assets directory")
-	visFlag := flag.String("vis", "public", "visibility filter (public, private, all)")
-	genHTML := flag.Bool("html", true, "generate HTML pages and index")
-	genRSS := flag.Bool("rss", true, "generate RSS feed")
-	genSitemap := flag.Bool("sitemap", true, "generate XML sitemap")
-	genRobots := flag.Bool("robots", true, "generate robots.txt")
-	genErrorPage := flag.Bool("errpage", true, "generate error 404 page")
-	genManifest := flag.Bool("manifest", true, "generate manifest.json")
-	showVersion := flag.Bool("version", false, "print version and exit")
-	showV := flag.Bool("v", false, "print version and exit (shorthand)")
-
+	log.SetFlags(0)
+	all := flag.Bool("a", false, "all texts: the private ones too")
+	dry := flag.Bool("n", false, "check everything, write nothing")
+	baseURL := flag.String("baseurl", "http://localhost:8080", "the site's address, without a final '/'")
+	langs := flag.String("langs", "en", "the languages, as the first directories of the IDs")
+	outDir := flag.String("o", "public", "the output directory")
+	staticDir := flag.String("s", "", "the static files, copied to <o>/static")
+	tmplDir := flag.String("t", "", "the templates, instead of the built-in ones")
+	version := flag.Bool("v", false, "print the version and exit")
 	flag.Usage = func() {
-		fmt.Fprint(flag.CommandLine.Output(), `Soffio - Minimalist Static Site Generator
-
-Usage:
-  soffio [flags] <src_dir>   (Site generator mode)
-  soffio < input.soffio      (Pipe mode: stdin -> stdout)
-
-Flags:
+		fmt.Fprint(flag.CommandLine.Output(), `usage: soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir] [-t dir] dir
+       soffio < text.soffio > text.html
 `)
 		flag.PrintDefaults()
 	}
 	flag.Parse()
 
-	if *showVersion || *showV {
+	switch {
+	case *version:
 		fmt.Printf("soffio v%s\n", Version)
 		return
-	}
-
-	// pipe mode: stdin -> stdout
-	if flag.NArg() == 0 {
-		doc, err := soffio.Parse(os.Stdin)
-		if err != nil {
-			log.Fatalf("soffio: parse: %v", err)
-		}
-		if _, err := os.Stdout.WriteString(soffio.Render(&doc)); err != nil {
-			log.Fatalf("soffio: write: %v", err)
-		}
+	case flag.NArg() > 1:
+		flag.Usage()
+		os.Exit(2)
+	case flag.NArg() == 0:
+		pipe()
 		return
 	}
 
-	if err := checkBaseURL(*baseURL); err != nil {
+	if err := checkFlags(*baseURL, *langs, *staticDir); err != nil {
 		log.Fatalf("soffio: %v", err)
 	}
-	all, err := soffio.Load(os.DirFS(flag.Arg(0)), filepath.Base(*staticDir))
-	if err != nil {
-		log.Fatalf("soffio: load: %v", err)
-	}
-	docs := map[string]*soffio.Document{}
-	for id, doc := range all {
-		if vis := cmp.Or(doc.Meta["visibility"], "public"); *visFlag == "all" || vis == *visFlag {
-			docs[id] = doc
-		}
-	}
-	if err := soffio.Check(all, docs, *staticDir); err != nil {
-		log.Fatalf("soffio: link verification failed:\n%v", err)
-	}
-
 	tmpl, err := loadTemplates(*tmplDir)
 	if err != nil {
-		log.Fatalf("soffio: templates: %v", err)
+		log.Fatalf("soffio: %v", err)
 	}
-	if err := os.MkdirAll(*outDir, 0o755); err != nil {
-		log.Fatalf("soffio: unable to create the output directory: %v", err)
+	docs, err := soffio.Load(flag.Arg(0))
+	if err != nil {
+		log.Fatal(err)
+	}
+	active := map[string]*soffio.Document{}
+	for id, doc := range docs {
+		if *all || doc.Meta["visibility"] != "private" {
+			active[id] = doc
+		}
+	}
+	if err := soffio.Check(docs, active, *staticDir); err != nil {
+		log.Fatal(err)
 	}
 	s := &site{
 		baseURL: *baseURL,
 		langs:   strings.Split(*langs, ","),
 		outDir:  *outDir,
+		dry:     *dry,
 		tmpl:    tmpl,
-		docs:    docs,
-		ids:     slices.Sorted(maps.Keys(docs)),
+		docs:    active,
+		ids:     slices.Sorted(maps.Keys(active)),
+	}
+	if !*dry && *staticDir != "" {
+		if err := copyDir(*staticDir, filepath.Join(*outDir, "static")); err != nil {
+			log.Fatalf("soffio: %v", err)
+		}
 	}
 
 	// every page and file is attempted, but any that fails fails the
 	// build: a site missing a page is a broken site
-	failed := false
-
-	if *genHTML {
-		if fi, err := os.Stat(*staticDir); err == nil && fi.IsDir() {
-			if err := copyDir(*staticDir, filepath.Join(*outDir, "static")); err != nil {
-				log.Fatalf("soffio: failed to copy static assets: %v", err)
-			}
-		}
-		for _, id := range s.ids {
-			if err := s.writeDoc(docs[id]); err != nil {
-				log.Printf("soffio: err %s: %v", id, err)
-				failed = true
-			}
+	var errs []error
+	for _, id := range s.ids {
+		if err := s.writeDoc(active[id]); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", active[id].File, err))
 		}
 	}
-
 	data := map[string]any{
 		"BaseURL":   s.baseURL,
-		"Docs":      docs,
+		"Docs":      active,
 		"XMLHeader": template.HTML(`<?xml version="1.0" encoding="UTF-8"?>` + "\n"),
 	}
-	for _, f := range []struct {
-		name string
-		on   bool
-	}{
-		{"rss.xml", *genRSS},
-		{"sitemap.xml", *genSitemap},
-		{"robots.txt", *genRobots},
-		{"404.html", *genErrorPage},
-		{"manifest.json", *genManifest},
-	} {
-		// a file is made only if its template exists
-		if !f.on || tmpl.Lookup(f.name) == nil {
+	for _, name := range siteFiles {
+		if tmpl.Lookup(name) == nil {
 			continue
 		}
-		if err := s.write(f.name, f.name, data); err != nil {
-			log.Printf("soffio: error %s: %v", f.name, err)
-			failed = true
+		if err := s.write(name, name, data); err != nil {
+			errs = append(errs, fmt.Errorf("soffio: %s: %w", name, err))
 		}
 	}
-
-	if failed {
-		os.Exit(1)
+	if err := errors.Join(errs...); err != nil {
+		log.Fatal(err)
 	}
 }
 
-// checkBaseURL refuses a base URL ending in '/': every address is
-// BaseURL + "/" + path, and x.org//a.html is not x.org/a.html.
-func checkBaseURL(u string) error {
-	if strings.HasSuffix(u, "/") {
-		return fmt.Errorf("-baseurl %q: drop the trailing '/'", u)
+// pipe turns the text on standard input into HTML on standard output.
+// Alone, a text can check only its notes and its own sections.
+func pipe() {
+	doc, err := soffio.Parse("<stdin>", os.Stdin)
+	if err == nil {
+		err = soffio.CheckDoc(doc)
 	}
-	return nil
+	if err != nil {
+		log.Fatal(err)
+	}
+	if _, err := os.Stdout.WriteString(soffio.Render(doc)); err != nil {
+		log.Fatalf("soffio: %v", err)
+	}
+}
+
+// checkFlags refuses what would make a broken site: a base URL ending
+// in '/', as every address is BaseURL + "/" + path; a language that
+// can't be a directory; a static directory that is not there.
+func checkFlags(baseURL, langs, staticDir string) error {
+	if strings.HasSuffix(baseURL, "/") {
+		return fmt.Errorf("-baseurl %q: drop the final '/'", baseURL)
+	}
+	for l := range strings.SplitSeq(langs, ",") {
+		if why := soffio.CheckID(l); why != "" {
+			return fmt.Errorf("-langs %q: language %q: %s", langs, l, why)
+		}
+	}
+	if staticDir == "" {
+		return nil
+	}
+	fi, err := os.Stat(staticDir)
+	if err == nil && !fi.IsDir() {
+		err = fmt.Errorf("-s %s: not a directory", staticDir)
+	}
+	return err
 }
