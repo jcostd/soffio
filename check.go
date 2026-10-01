@@ -7,164 +7,105 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/url"
+	"maps"
 	"os"
-	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
-// BrokenLinkError indicates a reference to a non-existent document.
-type BrokenLinkError struct {
-	Source string
-	Line   int
-	Target string
-}
-
-func (e *BrokenLinkError) Error() string {
-	return fmt.Sprintf("%s:%d: [block start] broken link points to missing target '%s'", e.Source, e.Line, e.Target)
-}
-
-// BrokenNoteError indicates a reference to a non-existent footnote.
-type BrokenNoteError struct {
-	Source string
-	Line   int
-	Target string
-}
-
-func (e *BrokenNoteError) Error() string {
-	return fmt.Sprintf("%s:%d: [block start] broken note ref points to missing note '%s'", e.Source, e.Line, e.Target)
-}
-
-// PrivacyLeakError indicates a public document referencing a private/excluded document.
-type PrivacyLeakError struct {
-	Source string
-	Line   int
-	Target string
-}
-
-func (e *PrivacyLeakError) Error() string {
-	return fmt.Sprintf("%s:%d: [block start] PRIVACY LEAK: document references excluded/private target '%s'", e.Source, e.Line, e.Target)
-}
-
-type targetResult int
-
-const (
-	targetOK targetResult = iota
-	targetNotFound
-	targetPrivacyLeak
-)
-
-// ValidateLinks asserts reference integrity and guards against privacy leaks.
-func (c *Collection) ValidateLinks(activeDocs map[string]*Document, staticDir string) error {
+// Check verifies the links, note refs and images of the active
+// documents. A link to a document in all that is not active is a
+// privacy leak: the public site would point at a private page.
+func Check(all, active map[string]*Document, staticDir string) error {
 	var errs []error
-
-	// We iterate ONLY over activeDocs to ensure internal soundness.
-	for id, doc := range activeDocs {
-		notes := collectNotes(doc)
+	for _, id := range slices.Sorted(maps.Keys(active)) {
+		doc := active[id]
+		notes := map[string]bool{}
 		for _, sec := range doc.Sections {
-			for _, block := range sec.Blocks {
-				switch b := block.(type) {
-				case TextBlock:
-					walk(b.Elements, id, b.Line, notes, c.Docs, activeDocs, &errs)
-				case ImageBlock:
-					u, err := url.Parse(b.Path)
-					if err == nil && u.Scheme == "" && !strings.HasPrefix(b.Path, "//") {
-						relPath := strings.TrimPrefix(b.Path, "/static/")
-						relPath = strings.TrimPrefix(relPath, "/") // Fallback safety
+			for _, b := range sec.Blocks {
+				if n, ok := b.(NoteBlock); ok {
+					notes[n.ID] = true
+				}
+			}
+		}
 
-						imgPath := filepath.Join(staticDir, filepath.FromSlash(relPath))
-						if _, err := os.Stat(imgPath); os.IsNotExist(err) {
-							log.Printf("soffio: warning: missing image '%s' referenced in document '%s'", b.Path, id)
-						}
+		var line int
+		var walk func([]Inline)
+		walk = func(in []Inline) {
+			for _, el := range in {
+				switch v := el.(type) {
+				case Bold:
+					walk(v.Elements)
+				case Italic:
+					walk(v.Elements)
+				case FootnoteRef:
+					if !notes[v.Target] {
+						errs = append(errs, fmt.Errorf("%s:%d: [block start] broken note ref points to missing note '%s'", id, line, v.Target))
 					}
-					walk(b.Caption, id, b.Line, notes, c.Docs, activeDocs, &errs)
-				case NoteBlock:
-					walk(b.Elements, id, b.Line, notes, c.Docs, activeDocs, &errs)
-				case ListBlock:
-					for _, item := range b.Items {
-						walk(item, id, b.Line, notes, c.Docs, activeDocs, &errs)
+				case Link:
+					if why := checkLink(all, active, id, v.Target); why != "" {
+						errs = append(errs, fmt.Errorf("%s:%d: [block start] %s '%s'", id, line, why, v.Target))
 					}
 				}
 			}
 		}
-	}
 
-	if len(errs) == 0 {
-		return nil
+		for _, sec := range doc.Sections {
+			for _, b := range sec.Blocks {
+				switch b := b.(type) {
+				case TextBlock:
+					line = b.Line
+					walk(b.Elements)
+				case ImageBlock:
+					line = b.Line
+					checkImage(staticDir, id, b.Path)
+					walk(b.Caption)
+				case NoteBlock:
+					line = b.Line
+					walk(b.Elements)
+				case ListBlock:
+					line = b.Line
+					for _, item := range b.Items {
+						walk(item)
+					}
+				}
+			}
+		}
 	}
 	return errors.Join(errs...)
 }
 
-func walk(inlines []Inline, sourceID string, line int, notes map[string]struct{}, allDocs, activeDocs map[string]*Document, errs *[]error) {
-	for _, el := range inlines {
-		switch v := el.(type) {
-		case Link:
-			u, err := url.Parse(v.Target)
-			if err == nil && u.Scheme == "" && !strings.HasPrefix(v.Target, "//") {
-				res := checkTarget(allDocs, activeDocs, sourceID, v.Target)
-				switch res {
-				case targetNotFound:
-					*errs = append(*errs, &BrokenLinkError{Source: sourceID, Line: line, Target: v.Target})
-				case targetPrivacyLeak:
-					*errs = append(*errs, &PrivacyLeakError{Source: sourceID, Line: line, Target: v.Target})
-				}
-			}
-		case Bold:
-			walk(v.Elements, sourceID, line, notes, allDocs, activeDocs, errs)
-		case Italic:
-			walk(v.Elements, sourceID, line, notes, allDocs, activeDocs, errs)
-		case FootnoteRef:
-			if _, ok := notes[v.Target]; !ok {
-				*errs = append(*errs, &BrokenNoteError{Source: sourceID, Line: line, Target: v.Target})
-			}
-		}
-	}
-}
-
-// checkTarget resolves absolute and relative references within the corpus.
-func checkTarget(allDocs, activeDocs map[string]*Document, sourceID, target string) targetResult {
-	docID, secID, hasHash := strings.Cut(target, "#")
-
-	if docID == "" {
-		docID = sourceID
-	} else {
-		if !strings.HasPrefix(docID, "/") {
-			docID = path.Join(path.Dir(sourceID), docID)
-		} else {
-			docID = strings.TrimPrefix(docID, "/")
-		}
-	}
-
-	doc, ok := activeDocs[docID]
+// checkLink says what is wrong with target, or "".
+func checkLink(all, active map[string]*Document, from, target string) string {
+	id, frag, ok := resolve(from, target)
 	if !ok {
-		_, exists := allDocs[docID]
-		if exists {
-			return targetPrivacyLeak
-		}
-		return targetNotFound
+		return ""
 	}
-
-	if !hasHash {
-		return targetOK
+	doc, ok := active[id]
+	switch {
+	case !ok && all[id] != nil:
+		return "PRIVACY LEAK: document references excluded/private target"
+	case !ok:
+		return "broken link points to missing target"
+	case frag == "":
+		return ""
 	}
-
 	for _, sec := range doc.Sections {
-		if sec.ID == secID {
-			return targetOK
+		if "#"+sec.ID == frag {
+			return ""
 		}
 	}
-	return targetNotFound
+	return "broken link points to missing target"
 }
 
-func collectNotes(doc *Document) map[string]struct{} {
-	notes := make(map[string]struct{})
-	for _, sec := range doc.Sections {
-		for _, block := range sec.Blocks {
-			if n, ok := block.(NoteBlock); ok {
-				notes[n.ID] = struct{}{}
-			}
-		}
+// checkImage warns about an image of the site missing from staticDir.
+func checkImage(staticDir, id, src string) {
+	if _, _, ok := resolve(id, src); !ok {
+		return
 	}
-	return notes
+	rel := strings.TrimPrefix(strings.TrimPrefix(src, "/static/"), "/")
+	if _, err := os.Stat(filepath.Join(staticDir, filepath.FromSlash(rel))); errors.Is(err, os.ErrNotExist) {
+		log.Printf("soffio: warning: missing image '%s' referenced in document '%s'", src, id)
+	}
 }

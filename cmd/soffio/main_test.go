@@ -42,15 +42,16 @@ func TestWriteDoc(t *testing.T) {
 		},
 	}
 
-	ctx := &SiteContext{
-		BaseURL:        "http://localhost",
-		SupportedLangs: []string{"en"},
-		OutDir:         outDir,
-		Template:       tmpl,
-		AllDocs:        map[string]*soffio.Document{"test-doc": doc},
+	s := &site{
+		baseURL: "http://localhost",
+		langs:   []string{"en"},
+		outDir:  outDir,
+		tmpl:    tmpl,
+		docs:    map[string]*soffio.Document{"test-doc": doc},
+		ids:     []string{"test-doc"},
 	}
 
-	err = ctx.writeDoc("test-doc", doc)
+	err = s.writeDoc(doc)
 	if err != nil {
 		t.Fatalf("writeDoc failed: %v", err)
 	}
@@ -94,11 +95,6 @@ func TestCopyDir(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 2. Simulate the fix in main.go: Ensure the destination folder exists before copyDir
-	if err := os.MkdirAll(dstDir, 0o755); err != nil {
-		t.Fatalf("failed to setup dstDir: %v", err)
-	}
-
 	// 3. Execute copyDir
 	if err := copyDir(srcDir, dstDir); err != nil {
 		t.Fatalf("copyDir failed: %v", err)
@@ -127,13 +123,13 @@ func TestWriteDocAlternatesChildren(t *testing.T) {
 	for _, id := range []string{"en/x", "it/x", "it/x/c", "it/x/a", "it/x/b", "blog/x"} {
 		docs[id] = page(id)
 	}
-	ctx := &SiteContext{
-		BaseURL:        "https://example.org",
-		SupportedLangs: []string{"it", "en"},
-		OutDir:         t.TempDir(),
-		Template:       tmpl,
-		AllDocs:        docs,
-		IDs:            slices.Sorted(maps.Keys(docs)),
+	s := &site{
+		baseURL: "https://example.org",
+		langs:   []string{"it", "en"},
+		outDir:  t.TempDir(),
+		tmpl:    tmpl,
+		docs:    docs,
+		ids:     slices.Sorted(maps.Keys(docs)),
 	}
 
 	tests := []struct{ id, want string }{
@@ -142,10 +138,10 @@ func TestWriteDocAlternatesChildren(t *testing.T) {
 		{"blog/x", "|"},
 	}
 	for _, tt := range tests {
-		if err := ctx.writeDoc(tt.id, docs[tt.id]); err != nil {
+		if err := s.writeDoc(docs[tt.id]); err != nil {
 			t.Fatal(err)
 		}
-		got, err := os.ReadFile(filepath.Join(ctx.OutDir, tt.id+".html"))
+		got, err := os.ReadFile(filepath.Join(s.outDir, tt.id+".html"))
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -40,7 +40,10 @@ func TestLoadTemplates(t *testing.T) {
 		t.Fatalf("write temp template: %v", err)
 	}
 
-	overrideTmpl := loadTemplates(dir)
+	overrideTmpl, err := loadTemplates(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if overrideTmpl.Lookup("layout.html") == nil {
 		t.Error("failed to load local template override")

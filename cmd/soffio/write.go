@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bytes"
 	"html/template"
 	"io"
 	"io/fs"
@@ -15,199 +16,111 @@ import (
 	"soffio"
 )
 
-// SiteContext holds the global state required to generate the site.
-type SiteContext struct {
-	BaseURL        string
-	SupportedLangs []string
-	OutDir         string
-	Template       *template.Template
-	AllDocs        map[string]*soffio.Document
-	IDs            []string // AllDocs' keys, sorted
+// site is what the pages are made from.
+type site struct {
+	baseURL string
+	langs   []string
+	outDir  string
+	tmpl    *template.Template
+	docs    map[string]*soffio.Document
+	ids     []string // docs' keys, sorted
 }
 
-func (ctx *SiteContext) writeDoc(id string, doc *soffio.Document) error {
-	layout := doc.Meta["layout"]
-	if layout == "" || ctx.Template.Lookup(layout+".html") == nil {
-		layout = "layout"
+type alternate struct{ Lang, URL string }
+
+// writeDoc renders doc through its layout into <outDir>/<id>.html.
+func (s *site) writeDoc(doc *soffio.Document) error {
+	layout := "layout.html"
+	if l := doc.Meta["layout"]; l != "" && s.tmpl.Lookup(l+".html") != nil {
+		layout = l + ".html"
 	}
 
-	var buf strings.Builder
-	if err := soffio.Render(&buf, doc); err != nil {
+	var content strings.Builder
+	if err := soffio.Render(&content, doc); err != nil {
 		return err
 	}
 
-	permalink := ctx.BaseURL + "/" + id + ".html"
-
-	type Alternate struct {
-		Lang string
-		URL  string
-	}
-	var alternates []Alternate
-
 	// IDs use '/' everywhere, so no filepath here: on Windows it
 	// would turn en/x into en\x and find nothing
-	if lang, slug, ok := strings.Cut(id, "/"); ok && slices.Contains(ctx.SupportedLangs, lang) {
-		for _, l := range ctx.SupportedLangs {
-			if _, ok := ctx.AllDocs[l+"/"+slug]; ok {
-				alternates = append(alternates, Alternate{
-					Lang: l,
-					URL:  ctx.BaseURL + "/" + l + "/" + slug + ".html",
-				})
+	var alternates []alternate
+	if lang, slug, ok := strings.Cut(doc.ID, "/"); ok && slices.Contains(s.langs, lang) {
+		for _, l := range s.langs {
+			if s.docs[l+"/"+slug] != nil {
+				alternates = append(alternates, alternate{l, s.baseURL + "/" + l + "/" + slug + ".html"})
 			}
 		}
 	}
 
-	outPath := filepath.Join(ctx.OutDir, filepath.FromSlash(id)+".html")
-	if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
-		return err
-	}
-
-	f, err := os.Create(outPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
 	// by ID, or a map would shuffle them on every build; sorted, the
 	// IDs under id/ are one run
 	var children []*soffio.Document
-	i, _ := slices.BinarySearch(ctx.IDs, id+"/")
-	for _, cid := range ctx.IDs[i:] {
-		if !strings.HasPrefix(cid, id+"/") {
+	prefix := doc.ID + "/"
+	i, _ := slices.BinarySearch(s.ids, prefix)
+	for _, id := range s.ids[i:] {
+		if !strings.HasPrefix(id, prefix) {
 			break
 		}
-		children = append(children, ctx.AllDocs[cid])
+		children = append(children, s.docs[id])
 	}
 
-	return ctx.Template.ExecuteTemplate(f, layout+".html", map[string]any{
+	return s.write(doc.ID+".html", layout, map[string]any{
 		"Title":      doc.Title,
 		"Meta":       doc.Meta,
-		"Content":    template.HTML(buf.String()),
-		"BaseURL":    ctx.BaseURL,
-		"Permalink":  permalink,
+		"Content":    template.HTML(content.String()),
+		"BaseURL":    s.baseURL,
+		"Permalink":  s.baseURL + "/" + doc.ID + ".html",
 		"Alternates": alternates,
 		"Children":   children,
 	})
 }
 
-func (ctx *SiteContext) writeFeed() error {
-	outPath := filepath.Join(ctx.OutDir, "rss.xml")
-	f, err := os.Create(outPath)
-	if err != nil {
+// write executes the template name into <outDir>/<file> in one write:
+// html/template writes in small pieces, one syscall each.
+func (s *site) write(file, name string, data any) error {
+	var b bytes.Buffer
+	if err := s.tmpl.ExecuteTemplate(&b, name, data); err != nil {
 		return err
 	}
-	defer f.Close()
-
-	return ctx.Template.ExecuteTemplate(f, "rss.xml", map[string]any{
-		"BaseURL":   ctx.BaseURL,
-		"Docs":      ctx.AllDocs,
-		"XMLHeader": template.HTML("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n"),
-	})
+	path := filepath.Join(s.outDir, filepath.FromSlash(file))
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(path, b.Bytes(), 0o666)
 }
 
-func (ctx *SiteContext) writeSitemap() error {
-	if err := os.MkdirAll(ctx.OutDir, 0o755); err != nil {
-		return err
-	}
-
-	outPath := filepath.Join(ctx.OutDir, "sitemap.xml")
-	f, err := os.Create(outPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return ctx.Template.ExecuteTemplate(f, "sitemap.xml", map[string]any{
-		"BaseURL":   ctx.BaseURL,
-		"Docs":      ctx.AllDocs,
-		"XMLHeader": template.HTML("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"),
-	})
-}
-
-func (ctx *SiteContext) writeRobots() error {
-	outPath := filepath.Join(ctx.OutDir, "robots.txt")
-	f, err := os.Create(outPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return ctx.Template.ExecuteTemplate(f, "robots.txt", map[string]any{
-		"BaseURL": ctx.BaseURL,
-	})
-}
-
-func (ctx *SiteContext) write404() error {
-	outPath := filepath.Join(ctx.OutDir, "404.html")
-	f, err := os.Create(outPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return ctx.Template.ExecuteTemplate(f, "404.html", map[string]any{
-		"BaseURL": ctx.BaseURL,
-	})
-}
-
-func (ctx *SiteContext) writeManifest() error {
-	outPath := filepath.Join(ctx.OutDir, "manifest.json")
-	f, err := os.Create(outPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	return ctx.Template.ExecuteTemplate(f, "manifest.json", map[string]any{
-		"BaseURL": ctx.BaseURL,
-	})
-}
-
-// copyDir mirrors src into dst, preserving the directory tree.
-// It handles symbolic links transparently.
+// copyDir copies the tree src into dst, following symbolic links; a
+// linked directory comes out empty.
 func copyDir(src, dst string) error {
-	realSrc, err := filepath.EvalSymlinks(src)
-	if err != nil {
-		return err
-	}
-
-	return filepath.WalkDir(realSrc, func(path string, d fs.DirEntry, err error) error {
+	fsys := os.DirFS(src)
+	return fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-
-		rel, err := filepath.Rel(realSrc, path)
+		fi, err := fs.Stat(fsys, name)
 		if err != nil {
 			return err
 		}
-		target := filepath.Join(dst, rel)
-
-		info, err := os.Stat(path)
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() {
-			return os.MkdirAll(target, 0o755)
-		}
-
-		if !info.Mode().IsRegular() {
+		path := filepath.Join(dst, filepath.FromSlash(name))
+		switch {
+		case fi.IsDir():
+			return os.MkdirAll(path, 0o755)
+		case !fi.Mode().IsRegular():
 			return nil
 		}
 
-		in, err := os.Open(path)
+		in, err := fsys.Open(name)
 		if err != nil {
 			return err
 		}
 		defer in.Close()
-
-		out, err := os.Create(target)
+		out, err := os.Create(path)
 		if err != nil {
 			return err
 		}
-		defer out.Close()
-
-		_, err = io.Copy(out, in)
-		return err
+		if _, err := io.Copy(out, in); err != nil {
+			out.Close()
+			return err
+		}
+		return out.Close()
 	})
 }

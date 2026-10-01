@@ -5,10 +5,10 @@
 package main
 
 import (
-	"bytes"
+	"cmp"
 	"flag"
 	"fmt"
-	"io"
+	"html/template"
 	"log"
 	"maps"
 	"os"
@@ -19,7 +19,7 @@ import (
 	"soffio"
 )
 
-// Version is injected at build time via -ldflags "-X main.Version=..."
+// Version is set at build time with -ldflags "-X main.Version=...".
 var Version = "dev"
 
 func main() {
@@ -39,143 +39,107 @@ func main() {
 	showV := flag.Bool("v", false, "print version and exit (shorthand)")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Soffio - Minimalist Static Site Generator\n\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage:\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "  soffio [flags] <src_dir>   (Site generator mode)\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "  soffio < input.soffio      (Pipe mode: stdin -> stdout)\n\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
+		fmt.Fprint(flag.CommandLine.Output(), `Soffio - Minimalist Static Site Generator
+
+Usage:
+  soffio [flags] <src_dir>   (Site generator mode)
+  soffio < input.soffio      (Pipe mode: stdin -> stdout)
+
+Flags:
+`)
 		flag.PrintDefaults()
 	}
-
 	flag.Parse()
 
-	// print version and exit
 	if *showVersion || *showV {
 		fmt.Printf("soffio v%s\n", Version)
 		return
 	}
 
-	// pipe mode: (stdin -> stdout)
+	// pipe mode: stdin -> stdout
 	if flag.NArg() == 0 {
-		src, err := io.ReadAll(os.Stdin)
-		if err != nil {
-			log.Fatalf("soffio: read stdin: %v", err)
-		}
-		doc, err := soffio.Parse(bytes.NewReader(src))
+		doc, err := soffio.Parse(os.Stdin)
 		if err != nil {
 			log.Fatalf("soffio: parse: %v", err)
 		}
-
 		if err := soffio.Render(os.Stdout, &doc); err != nil {
 			log.Fatalf("soffio: render: %v", err)
 		}
 		return
 	}
 
-	// site generator mode: arg is src directory
 	if err := checkBaseURL(*baseURL); err != nil {
 		log.Fatalf("soffio: %v", err)
 	}
-	inDir := flag.Arg(0)
-	c := soffio.New()
-
-	skipDir := filepath.Base(*staticDir)
-	if err := c.Load(os.DirFS(inDir), "*.soffio", skipDir); err != nil {
+	all, err := soffio.Load(os.DirFS(flag.Arg(0)), filepath.Base(*staticDir))
+	if err != nil {
 		log.Fatalf("soffio: load: %v", err)
 	}
-
-	// filter docs for visibility meta
-	visibleDocs := make(map[string]*soffio.Document)
-	for id, doc := range c.Docs {
-		vis := doc.Meta["visibility"]
-		if vis == "" {
-			vis = "public"
+	docs := map[string]*soffio.Document{}
+	for id, doc := range all {
+		if vis := cmp.Or(doc.Meta["visibility"], "public"); *visFlag == "all" || vis == *visFlag {
+			docs[id] = doc
 		}
-		if *visFlag != "all" && vis != *visFlag {
-			continue
-		}
-		visibleDocs[id] = doc
 	}
-
-	if err := c.ValidateLinks(visibleDocs, *staticDir); err != nil {
+	if err := soffio.Check(all, docs, *staticDir); err != nil {
 		log.Fatalf("soffio: link verification failed:\n%v", err)
 	}
 
-	tmpl := loadTemplates(*tmplDir)
-
+	tmpl, err := loadTemplates(*tmplDir)
+	if err != nil {
+		log.Fatalf("soffio: templates: %v", err)
+	}
 	if err := os.MkdirAll(*outDir, 0o755); err != nil {
 		log.Fatalf("soffio: unable to create the output directory: %v", err)
 	}
-
-	ctx := &SiteContext{
-		BaseURL:        *baseURL,
-		SupportedLangs: strings.Split(*langs, ","),
-		OutDir:         *outDir,
-		Template:       tmpl,
-		AllDocs:        visibleDocs,
-		IDs:            slices.Sorted(maps.Keys(visibleDocs)),
+	s := &site{
+		baseURL: *baseURL,
+		langs:   strings.Split(*langs, ","),
+		outDir:  *outDir,
+		tmpl:    tmpl,
+		docs:    docs,
+		ids:     slices.Sorted(maps.Keys(docs)),
 	}
 
-	// every page and feed is attempted, but any that fails fails the
+	// every page and file is attempted, but any that fails fails the
 	// build: a site missing a page is a broken site
 	failed := false
 
-	// html generation
 	if *genHTML {
-		staticOut := filepath.Join(*outDir, "static")
-		if stat, err := os.Stat(*staticDir); err == nil && stat.IsDir() {
-			if err := os.MkdirAll(staticOut, 0o755); err != nil {
-				log.Fatalf("soffio: unable to create static output directory: %v", err)
-			}
-			if err := copyDir(*staticDir, staticOut); err != nil {
+		if fi, err := os.Stat(*staticDir); err == nil && fi.IsDir() {
+			if err := copyDir(*staticDir, filepath.Join(*outDir, "static")); err != nil {
 				log.Fatalf("soffio: failed to copy static assets: %v", err)
 			}
 		}
-
-		for id, doc := range visibleDocs {
-			if err := ctx.writeDoc(id, doc); err != nil {
+		for _, id := range s.ids {
+			if err := s.writeDoc(docs[id]); err != nil {
 				log.Printf("soffio: err %s: %v", id, err)
 				failed = true
 			}
 		}
 	}
 
-	// rss generation
-	if *genRSS && tmpl.Lookup("rss.xml") != nil {
-		if err := ctx.writeFeed(); err != nil {
-			log.Printf("soffio: error feed: %v", err)
-			failed = true
-		}
+	data := map[string]any{
+		"BaseURL":   s.baseURL,
+		"Docs":      docs,
+		"XMLHeader": template.HTML(`<?xml version="1.0" encoding="UTF-8"?>` + "\n"),
 	}
-
-	// sitemap generation
-	if *genSitemap && tmpl.Lookup("sitemap.xml") != nil {
-		if err := ctx.writeSitemap(); err != nil {
-			log.Printf("soffio: error sitemap: %v", err)
-			failed = true
+	for _, f := range []struct {
+		name string
+		on   bool
+	}{
+		{"rss.xml", *genRSS},
+		{"sitemap.xml", *genSitemap},
+		{"robots.txt", *genRobots},
+		{"404.html", *genErrorPage},
+		{"manifest.json", *genManifest},
+	} {
+		// a file is made only if its template exists
+		if !f.on || tmpl.Lookup(f.name) == nil {
+			continue
 		}
-	}
-
-	// robots generation
-	if *genRobots && tmpl.Lookup("robots.txt") != nil {
-		if err := ctx.writeRobots(); err != nil {
-			log.Printf("soffio: error robots: %v", err)
-			failed = true
-		}
-	}
-
-	// 404 generation
-	if *genErrorPage && tmpl.Lookup("404.html") != nil {
-		if err := ctx.write404(); err != nil {
-			log.Printf("soffio: error 404: %v", err)
-			failed = true
-		}
-	}
-
-	// manifest generation
-	if *genManifest && tmpl.Lookup("manifest.json") != nil {
-		if err := ctx.writeManifest(); err != nil {
-			log.Printf("soffio: error manifest: %v", err)
+		if err := s.write(f.name, f.name, data); err != nil {
+			log.Printf("soffio: error %s: %v", f.name, err)
 			failed = true
 		}
 	}

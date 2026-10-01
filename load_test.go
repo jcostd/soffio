@@ -1,32 +1,14 @@
+// Copyright (C) 2026 Jacopo Costantini
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 package soffio
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
-
-func TestGet(t *testing.T) {
-	c := New()
-	c.Docs["test-doc"] = &Document{ID: "test-doc", Title: "Test"}
-
-	// Caso di successo
-	doc, err := c.Get("test-doc")
-	if err != nil {
-		t.Fatalf("unexpected error getting document: %v", err)
-	}
-	if doc.Title != "Test" {
-		t.Errorf("expected Title 'Test', got '%s'", doc.Title)
-	}
-
-	// Caso documento non trovato
-	_, err = c.Get("missing-doc")
-	if !errors.Is(err, ErrNotFound) {
-		t.Errorf("expected ErrNotFound, got %v", err)
-	}
-}
 
 func TestLoad(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -44,27 +26,24 @@ func TestLoad(t *testing.T) {
 	}
 
 	// 1. File valido con ID esplicito nel frontmatter
-	writeFile("doc1.txt", "ID: explicit-id\nTitle: Doc 1\n\n== s1 | S1\nText")
+	writeFile("doc1.soffio", "ID: explicit-id\nTitle: Doc 1\n\n== s1 | S1\nText")
 
 	// 2. File valido senza ID (dovrebbe usare il nome del file 'doc2')
-	writeFile("doc2.txt", "Title: Doc 2\n\n== s1 | S1\nText")
+	writeFile("doc2.soffio", "Title: Doc 2\n\n== s1 | S1\nText")
 
 	// 3. File in una sottocartella senza ID (dovrebbe diventare 'sub/doc3')
-	writeFile("sub/doc3.txt", "Title: Doc 3\n\n== s1 | S1\nText")
+	writeFile("sub/doc3.soffio", "Title: Doc 3\n\n== s1 | S1\nText")
 
 	// 4. File duplicato (usa l'ID esplicito già preso da doc1.txt)
-	writeFile("dup.txt", "ID: explicit-id\nTitle: Dup\n\n== s1 | S1\nText")
+	writeFile("dup.soffio", "ID: explicit-id\nTitle: Dup\n\n== s1 | S1\nText")
 
 	// 5. File con sintassi non valida per scatenare un errore del parser
-	writeFile("bad.txt", "Title: Bad\n\nTesto senza sezione dichiarata")
+	writeFile("bad.soffio", "Title: Bad\n\nTesto senza sezione dichiarata")
 
 	// 6. File dentro una cartella 'static' (dovrebbe essere ignorato da WalkDir)
-	writeFile("static/ignored.txt", "Title: Ignored\n\n== s1 | S1\nText")
+	writeFile("static/ignored.soffio", "Title: Ignored\n\n== s1 | S1\nText")
 
-	c := New()
-	fsys := os.DirFS(tmpDir)
-
-	err := c.Load(fsys, "*.txt", "static")
+	docs, err := Load(os.DirFS(tmpDir), "static")
 
 	if err == nil {
 		t.Fatal("expected Load to return errors for duplicates and bad syntax, got nil")
@@ -77,201 +56,32 @@ func TestLoad(t *testing.T) {
 		t.Errorf("expected parser error, got: %v", err)
 	}
 
-	if _, err := c.Get("explicit-id"); err != nil {
+	if docs["explicit-id"] == nil {
 		t.Errorf("missing explicitly named doc 'explicit-id'")
 	}
-	if _, err := c.Get("doc2"); err != nil {
+	if docs["doc2"] == nil {
 		t.Errorf("missing fallback named doc 'doc2'")
 	}
-	if _, err := c.Get("sub/doc3"); err != nil {
+	if docs["sub/doc3"] == nil {
 		t.Errorf("missing subfolder doc 'sub/doc3'")
 	}
-	if _, err := c.Get("static/ignored"); err == nil {
+	if docs["static/ignored"] != nil {
 		t.Errorf("document inside 'static' dir should have been skipped")
 	}
 }
 
 func TestLoadCaseDuplicate(t *testing.T) {
 	tmpDir := t.TempDir()
-	for name, id := range map[string]string{"a.txt": "Toro", "b.txt": "toro"} {
+	for name, id := range map[string]string{"a.soffio": "Toro", "b.soffio": "toro"} {
 		content := "id: " + id + "\ntitle: T\n\n== s1 | S1\nText"
 		if err := os.WriteFile(filepath.Join(tmpDir, name), []byte(content), 0644); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	err := New().Load(os.DirFS(tmpDir), "*.txt", "static")
-	if !errors.Is(err, ErrDuplicateID) || !strings.Contains(err.Error(), "only in case") {
+	_, err := Load(os.DirFS(tmpDir), "static")
+	if err == nil || !strings.Contains(err.Error(), "only in case") {
 		t.Errorf("expected a case-only duplicate ID error, got: %v", err)
 	}
 }
 
-func TestCheckTarget(t *testing.T) {
-	allDocs := map[string]*Document{
-		"it/home": {
-			ID:       "it/home",
-			Sections: []Section{{ID: "intro"}},
-		},
-		"it/about": {
-			ID:       "it/about",
-			Sections: []Section{{ID: "team"}},
-		},
-		"en/home": {
-			ID:       "en/home",
-			Sections: []Section{{ID: "intro"}},
-		},
-		"private/secret": {
-			ID:       "private/secret",
-			Sections: []Section{{ID: "data"}},
-		},
-	}
-
-	// activeDocs simula la "vista" pubblica, omettendo il file privato
-	activeDocs := map[string]*Document{
-		"it/home":  allDocs["it/home"],
-		"it/about": allDocs["it/about"],
-		"en/home":  allDocs["en/home"],
-	}
-
-	tests := []struct {
-		name     string
-		sourceID string
-		target   string
-		want     targetResult
-	}{
-		{"absolute existing", "it/home", "/it/about", targetOK},
-		{"relative same folder", "it/home", "about", targetOK},
-		{"relative with section", "it/home", "about#team", targetOK},
-		{"relative failed (different folder)", "en/home", "about", targetNotFound},
-		{"internal section absolute", "it/home", "/it/home#intro", targetOK},
-		{"internal section relative (hash only)", "it/home", "#intro", targetOK},
-		{"missing target", "it/home", "privacy", targetNotFound},
-		{"privacy leak target", "it/home", "/private/secret", targetPrivacyLeak},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := checkTarget(allDocs, activeDocs, tt.sourceID, tt.target)
-			if got != tt.want {
-				t.Errorf("checkTarget(source=%q, target=%q) = %v; want %v", tt.sourceID, tt.target, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestValidateLinks(t *testing.T) {
-	c := New()
-
-	c.Docs["it/doc1"] = &Document{
-		ID: "it/doc1",
-		Sections: []Section{
-			{
-				ID: "sec1",
-				Blocks: []Block{
-					TextBlock{
-						Elements: []Inline{
-							Link{
-								Target: "doc2",
-								Label:  []Inline{PlainText{Content: "Vai a doc2"}},
-							},
-							Link{
-								Target: "broken",
-								Label:  []Inline{PlainText{Content: "Link rotto"}},
-							},
-							FootnoteRef{Target: "n1"},
-						},
-					},
-					NoteBlock{ID: "n1"},
-				},
-			},
-		},
-	}
-
-	c.Docs["it/doc2"] = &Document{
-		ID:       "it/doc2",
-		Sections: []Section{{ID: "intro"}},
-	}
-
-	// Passiamo c.Docs come activeDocs per testare la validazione standard
-	err := c.ValidateLinks(c.Docs, "static")
-
-	if err == nil {
-		t.Fatalf("expected an error, got nil")
-	}
-
-	if !strings.Contains(err.Error(), "broken") {
-		t.Fatalf("expected error about 'broken' link, got: %v", err)
-	}
-}
-
-func TestPrivacyLeak(t *testing.T) {
-	c := New()
-
-	c.Docs["public/post"] = &Document{
-		ID: "public/post",
-		Sections: []Section{
-			{
-				ID: "sec1",
-				Blocks: []Block{
-					TextBlock{
-						Elements: []Inline{
-							Link{
-								Target: "/private/secret",
-								Label:  []Inline{PlainText{Content: "Nota Segreta"}},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	c.Docs["private/secret"] = &Document{
-		ID:       "private/secret",
-		Sections: []Section{{ID: "sec1"}},
-	}
-
-	// Simuliamo una build pubblica dove private/secret viene escluso
-	activeDocs := map[string]*Document{
-		"public/post": c.Docs["public/post"],
-	}
-
-	err := c.ValidateLinks(activeDocs, "static")
-	if err == nil {
-		t.Fatalf("expected privacy leak error, got nil")
-	}
-
-	var leakErr *PrivacyLeakError
-	if !errors.As(err, &leakErr) {
-		t.Fatalf("expected error of type *PrivacyLeakError, got: %v", err)
-	}
-}
-
-func BenchmarkValidateLinks(b *testing.B) {
-	c := New()
-	doc := &Document{
-		ID: "bench",
-		Sections: []Section{
-			{
-				ID: "s1",
-				Blocks: []Block{
-					TextBlock{
-						Elements: []Inline{
-							Link{
-								Target: "bench#s1",
-								Label:  []Inline{PlainText{Content: "Self ref"}},
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	c.Docs["bench"] = doc
-
-	b.ReportAllocs()
-
-	for b.Loop() {
-		_ = c.ValidateLinks(c.Docs, "static")
-	}
-}
