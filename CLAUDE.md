@@ -36,6 +36,14 @@ a static site to `-o` (default `public`). Pipe mode: `soffio < input.soffio > ou
 full flag list (`-baseurl`, `-langs`, `-o`, `-t`, `-s`, `-vis`, and `-html`/`-rss`/`-sitemap`/
 `-robots`/`-errpage`/`-manifest` toggles).
 
+## Release
+
+Bump `VERSION`, commit "bump to vX.Y.Z", `git tag -a vX.Y.Z`, `./release.sh`, and upload
+what it made in `dist/` to the GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip`
+for windows), each holding the two programs, README and LICENSE, owned by root, 755/644.
+fucina-factory takes those archives as they are, so build them from the clean tag:
+the binaries carry the git revision, and `vcs.modified=true` if the tree was dirty.
+
 ## Architecture
 
 Pipeline: `parser` -> `ast` -> `corpus` -> `renderer` -> `cmd/soffio` (site assembly).

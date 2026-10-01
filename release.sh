@@ -1,56 +1,47 @@
-#!/bin/sh
-# release.sh - Compile static binaries and pack them into release archives.
-set -e
+#!/bin/bash
+# Copyright (C) 2026 Jacopo Costantini
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# release.sh: build soffio and preview for every system in TARGETS into
+# dist/soffio-<VERSION>-<os>-<arch>.tar.gz, .zip for windows, each
+# holding soffio-<VERSION>-<os>-<arch>/ with the two programs, README and
+# LICENSE. fucina-factory takes them as they are.
 
+cd "$(dirname "$0")" || exit 1
+CWD=$(pwd)
 VERSION=$(cat VERSION)
-DIST_DIR="dist"
-LDFLAGS="-s -w -X main.Version=$VERSION"
+TARGETS=${TARGETS:-"linux/386 linux/amd64 linux/arm linux/arm64 darwin/amd64 darwin/arm64 windows/386 windows/amd64 windows/arm64"}
 
-rm -rf "$DIST_DIR"
-mkdir -p "$DIST_DIR"
+set -eu
 
-echo "==> Building Soffio v$VERSION release archives..."
+TMP=$(mktemp -d)
+trap 'rm -rf "$TMP"' EXIT
 
-build() {
-    os=$1
-    arch=$2
-    ext=""
-    if [ "$os" = "windows" ]; then
-        ext=".exe"
-    fi
+rm -rf dist
+mkdir dist
+for t in $TARGETS; do
+  OS=${t%/*}
+  ARCH=${t#*/}
+  NAME=soffio-$VERSION-$OS-$ARCH
+  EXE=
+  [ $OS != windows ] || EXE=.exe
 
-    name="soffio-$VERSION-$os-$arch"
-    target="$DIST_DIR/$name"
-    mkdir -p "$target"
+  mkdir "$TMP/$NAME"
+  for c in soffio preview; do
+    CGO_ENABLED=0 GOOS=$OS GOARCH=$ARCH go build -trimpath \
+      -ldflags "-s -w -X main.Version=$VERSION" -o "$TMP/$NAME/$c$EXE" ./cmd/$c
+  done
+  cp README LICENSE "$TMP/$NAME"
 
-    echo "==> Compiling for $os ($arch)..."
-    CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o "$target/soffio$ext" ./cmd/soffio
-    CGO_ENABLED=0 GOOS=$os GOARCH=$arch go build -trimpath -ldflags "$LDFLAGS" -o "$target/preview$ext" ./cmd/preview
-
-    cp -f README LICENSE "$target/" 2>/dev/null || true
-
-    if [ "$os" = "windows" ] && command -v zip >/dev/null 2>&1; then
-        (cd "$DIST_DIR" && zip -q -r "$name.zip" "$name")
-    else
-        tar -czf "$DIST_DIR/$name.tar.gz" -C "$DIST_DIR" "$name"
-    fi
-
-    rm -rf "$target"
-}
-
-# LINUX
-build linux amd64
-build linux 386
-build linux arm
-build linux arm64
-
-# WINDOWS
-build windows amd64
-build windows 386
-build windows arm64
-
-# MACOS
-build darwin arm64
-build darwin amd64
-
-echo "==> Done! Release archives available in ./$DIST_DIR/:"
+  cd "$TMP"
+  chmod 755 $NAME $NAME/soffio$EXE $NAME/preview$EXE
+  chmod 644 $NAME/README $NAME/LICENSE
+  if [ $OS = windows ]; then
+    zip -qrX "$CWD/dist/$NAME.zip" $NAME
+    echo "dist/$NAME.zip"
+  else
+    tar --sort=name --owner=0 --group=0 -czf "$CWD/dist/$NAME.tar.gz" $NAME
+    echo "dist/$NAME.tar.gz"
+  fi
+  cd "$CWD"
+done
