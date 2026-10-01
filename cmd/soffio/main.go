@@ -113,6 +113,10 @@ func main() {
 		AllDocs:        visibleDocs,
 	}
 
+	// every page and feed is attempted, but any that fails fails the
+	// build: a site missing a page is a broken site
+	failed := false
+
 	// html generation
 	if *genHTML {
 		staticOut := filepath.Join(*outDir, "static")
@@ -128,6 +132,7 @@ func main() {
 		for id, doc := range visibleDocs {
 			if err := ctx.writeDoc(id, doc); err != nil {
 				log.Printf("soffio: err %s: %v", id, err)
+				failed = true
 			}
 		}
 	}
@@ -136,6 +141,7 @@ func main() {
 	if *genRSS && tmpl.Lookup("rss.xml") != nil {
 		if err := ctx.writeFeed(); err != nil {
 			log.Printf("soffio: error feed: %v", err)
+			failed = true
 		}
 	}
 
@@ -143,6 +149,7 @@ func main() {
 	if *genSitemap && tmpl.Lookup("sitemap.xml") != nil {
 		if err := ctx.writeSitemap(); err != nil {
 			log.Printf("soffio: error sitemap: %v", err)
+			failed = true
 		}
 	}
 
@@ -150,6 +157,7 @@ func main() {
 	if *genRobots && tmpl.Lookup("robots.txt") != nil {
 		if err := ctx.writeRobots(); err != nil {
 			log.Printf("soffio: error robots: %v", err)
+			failed = true
 		}
 	}
 
@@ -157,6 +165,7 @@ func main() {
 	if *genErrorPage && tmpl.Lookup("404.html") != nil {
 		if err := ctx.write404(); err != nil {
 			log.Printf("soffio: error 404: %v", err)
+			failed = true
 		}
 	}
 
@@ -164,6 +173,11 @@ func main() {
 	if *genManifest && tmpl.Lookup("manifest.json") != nil {
 		if err := ctx.writeManifest(); err != nil {
 			log.Printf("soffio: error manifest: %v", err)
+			failed = true
 		}
+	}
+
+	if failed {
+		os.Exit(1)
 	}
 }
