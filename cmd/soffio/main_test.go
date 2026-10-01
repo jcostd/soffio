@@ -116,3 +116,38 @@ func TestCopyDir(t *testing.T) {
 		t.Errorf("css/deep/style.css not copied correctly")
 	}
 }
+
+func TestWriteDocAlternatesChildren(t *testing.T) {
+	tmpl := template.Must(template.New("layout.html").Parse(
+		`{{range .Alternates}}{{.Lang}}={{.URL}};{{end}}|{{range .Children}}{{.ID}};{{end}}`))
+	page := func(id string) *ast.Document { return &ast.Document{ID: id, Meta: map[string]string{}} }
+	docs := map[string]*ast.Document{}
+	for _, id := range []string{"en/x", "it/x", "it/x/c", "it/x/a", "it/x/b", "blog/x"} {
+		docs[id] = page(id)
+	}
+	ctx := &SiteContext{
+		BaseURL:        "https://example.org",
+		SupportedLangs: []string{"it", "en"},
+		OutDir:         t.TempDir(),
+		Template:       tmpl,
+		AllDocs:        docs,
+	}
+
+	tests := []struct{ id, want string }{
+		{"it/x", "it=https://example.org/it/x.html;en=https://example.org/en/x.html;|it/x/a;it/x/b;it/x/c;"},
+		// blog is no language: no alternates in en/ or it/
+		{"blog/x", "|"},
+	}
+	for _, tt := range tests {
+		if err := ctx.writeDoc(tt.id, docs[tt.id]); err != nil {
+			t.Fatal(err)
+		}
+		got, err := os.ReadFile(filepath.Join(ctx.OutDir, tt.id+".html"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != tt.want {
+			t.Errorf("%s: got %q, want %q", tt.id, got, tt.want)
+		}
+	}
+}

@@ -7,11 +7,14 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
+	"strings"
+
 	"soffio/ast"
 	"soffio/renderer"
-	"strings"
 )
 
 // SiteContext holds the global state required to generate the site.
@@ -34,8 +37,7 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 		return err
 	}
 
-	permalink := ctx.BaseURL + "/" + filepath.ToSlash(id) + ".html"
-	parts := strings.SplitN(filepath.ToSlash(id), "/", 2)
+	permalink := ctx.BaseURL + "/" + id + ".html"
 
 	type Alternate struct {
 		Lang string
@@ -43,14 +45,14 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 	}
 	var alternates []Alternate
 
-	if len(parts) == 2 {
-		slug := parts[1]
+	// IDs use '/' everywhere, so no filepath here: on Windows it
+	// would turn en/x into en\x and find nothing
+	if lang, slug, ok := strings.Cut(id, "/"); ok && slices.Contains(ctx.SupportedLangs, lang) {
 		for _, l := range ctx.SupportedLangs {
-			altID := l + "/" + slug
-			if _, exists := ctx.AllDocs[filepath.FromSlash(altID)]; exists {
+			if _, ok := ctx.AllDocs[l+"/"+slug]; ok {
 				alternates = append(alternates, Alternate{
 					Lang: l,
-					URL:  ctx.BaseURL + "/" + altID + ".html",
+					URL:  ctx.BaseURL + "/" + l + "/" + slug + ".html",
 				})
 			}
 		}
@@ -67,11 +69,11 @@ func (ctx *SiteContext) writeDoc(id string, doc *ast.Document) error {
 	}
 	defer f.Close()
 
+	// by ID, or a map would shuffle them on every build
 	var children []*ast.Document
-	prefix := filepath.ToSlash(id) + "/"
-	for cid, cdoc := range ctx.AllDocs {
-		if strings.HasPrefix(filepath.ToSlash(cid), prefix) {
-			children = append(children, cdoc)
+	for _, cid := range slices.Sorted(maps.Keys(ctx.AllDocs)) {
+		if strings.HasPrefix(cid, id+"/") {
+			children = append(children, ctx.AllDocs[cid])
 		}
 	}
 
