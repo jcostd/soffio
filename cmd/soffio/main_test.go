@@ -125,6 +125,17 @@ func TestSoffioPipe(t *testing.T) {
 		t.Errorf("pipe: %v: %s", err, out)
 	}
 
+	// -n checks and prints nothing; a flag about the site is refused
+	cmd = exec.Command(os.Args[0], "-n")
+	cmd.Env = append(os.Environ(), "SOFFIO_MAIN=1")
+	cmd.Stdin = strings.NewReader("title: T\n\n== s | S\nx")
+	if out, err := cmd.Output(); err != nil || len(out) != 0 {
+		t.Errorf("pipe -n: %v: %q", err, out)
+	}
+	if code, stderr := soffioRun(t, t.TempDir(), "-o", "x"); code != 2 || !strings.Contains(stderr, "soffio: -o needs a dir") {
+		t.Errorf("pipe -o: exit %d, %q", code, stderr)
+	}
+
 	cmd = exec.Command(os.Args[0])
 	cmd.Env = append(os.Environ(), "SOFFIO_MAIN=1")
 	cmd.Stdin = strings.NewReader("title: T\n\n== s | S\nx(*n)")

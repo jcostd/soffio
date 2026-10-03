@@ -54,7 +54,14 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	case flag.NArg() == 0:
-		pipe()
+		// alone, a text has no site: of the flags, only -n means something
+		flag.Visit(func(f *flag.Flag) {
+			if f.Name != "n" {
+				log.Printf("soffio: -%s needs a dir", f.Name)
+				os.Exit(2)
+			}
+		})
+		pipe(*dry)
 		return
 	}
 
@@ -124,15 +131,19 @@ func main() {
 	}
 }
 
-// pipe turns the text on standard input into HTML on standard output.
-// Alone, a text can check only its notes and its own sections.
-func pipe() {
+// pipe turns the text on standard input into HTML on standard output,
+// or with -n only checks it. Alone, a text can check only its notes and
+// its own sections.
+func pipe(dry bool) {
 	doc, err := soffio.Parse("<stdin>", os.Stdin)
 	if err == nil {
 		err = soffio.CheckDoc(doc)
 	}
 	if err != nil {
 		log.Fatal(err)
+	}
+	if dry {
+		return
 	}
 	if _, err := os.Stdout.WriteString(soffio.Render(doc)); err != nil {
 		log.Fatalf("soffio: %v", err)
