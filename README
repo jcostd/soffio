@@ -59,14 +59,14 @@ OPTIONS
 MARKUP
     A text is UTF-8: a header, a blank line, and the body. The header
     is 'key: value' lines, keys of letters, digits and _, each once;
-    'id', 'title', 'layout', 'visibility' (public or private) and
-    'notes_title' mean something to soffio, and every key reaches the
-    templates. A page needs a title; the rest is up to you. 'date',
-    'updated' and any '*_date' hold a real date as YYYY-MM-DD, or
-    nothing. 'image' and any '*_image' hold an image, checked as one of
-    :: img: is (see LINKS AND FILES), or nothing. A byte order mark at the start is ignored. The notes come
-    at the end of the page, under 'notes_title' if the text has one,
-    with no heading if not, which reads well in any language.
+    'id', 'title', 'layout' and 'visibility' (public or private) mean
+    something to soffio, and every key reaches the templates. A page
+    needs a title; the rest is up to you. 'date', 'updated' and any
+    '*_date' hold a real date as YYYY-MM-DD, or nothing. 'image' and any
+    '*_image' hold an image, checked as one of :: img: is (see LINKS AND
+    FILES), or nothing. A byte order mark at the start is ignored. The
+    notes come at the end of the page, with no heading, which reads
+    well in any language.
 
     == id | Title                     section (== to ======: h2 to h6)
     *text*                            bold

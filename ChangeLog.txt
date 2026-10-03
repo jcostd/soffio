@@ -1,5 +1,9 @@
 Sat Oct  3 15:41:29 UTC 2026
 Not released yet: since v3.0.0, to be 3.1.0.
+soffio: Notes never have a heading; notes_title is gone.
+  3.0.0 headed them only when a text said notes_title, so a site had
+  notes with a heading and notes without. notes_title is now a key like
+  any other, for templates.
 soffio: image and any *_image in the header are checked, as :: img: is.
   Under /static/ and there, or an address out of the site, or empty.
   A cover with a wrong path, or a private image in a public text, was a

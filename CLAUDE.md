@@ -112,9 +112,8 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 
 - **`html.go`**: `Render` returns one document as an HTML fragment, knowing nothing of
   the corpus. Note refs are numbered as met and the endnotes come last, in order of
-  first reference, under an h2 only if the text has `notes_title` (no English default:
-  no heading reads well in any language). Their anchors are `fn:x`, `fnref:x:n` and `footnotes:<id>`: no
-  section ID holds ':', so they never clash with one.
+  first reference, with no heading (none reads well in any language). Their anchors are
+  `fn:x` and `fnref:x:n`: no section ID holds ':', so they never clash with one.
 
 - **`cmd/soffio`**: flags (`checkFlags`: -baseurl is http(s)://host[/path] with
   nothing html/template would escape) and templates, configuration first, then load ->
@@ -152,7 +151,7 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 ## Markup format (`.soffio`)
 
 Frontmatter (`key: value` lines) + blank line + body. Known frontmatter keys: `id`,
-`title`, `layout`, `visibility`, `notes_title`; `date`, `updated`, `*_date` are dates;
+`title`, `layout`, `visibility`; `date`, `updated`, `*_date` are dates;
 `image`, `*_image` are images, checked as `:: img:` (parse: under `/static/`; `Check`: the
 file is there, at the header line, which `Document.lines` keeps); any other key lands in `Meta` and is
 available to templates/`sortBy`; `visibility` is `public` or `private`. Body syntax: `== id | Title` (section header, level

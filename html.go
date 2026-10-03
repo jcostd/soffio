@@ -20,8 +20,8 @@ type renderer struct {
 }
 
 // Render returns doc as HTML: its sections, then the notes in the
-// order they are first referenced, under notes_title if doc has one:
-// with none they have no heading, which reads well in any language.
+// order they are first referenced, with no heading: it reads well in
+// any language, and role=doc-endnotes says what they are.
 func Render(doc *Document) string {
 	r := renderer{
 		id:    doc.ID,
@@ -34,12 +34,7 @@ func Render(doc *Document) string {
 	}
 
 	if len(r.refs) > 0 {
-		if title := doc.Meta["notes_title"]; title != "" {
-			fmt.Fprintf(&r.w, "\n<section role=\"doc-endnotes\" aria-labelledby=\"footnotes:%[1]s\">\n\t<h2 id=\"footnotes:%[1]s\">%s</h2>\n", html.EscapeString(doc.ID), html.EscapeString(title))
-		} else {
-			r.w.WriteString("\n<section role=\"doc-endnotes\">\n")
-		}
-		r.w.WriteString("\t<ol>\n")
+		r.w.WriteString("\n<section role=\"doc-endnotes\">\n\t<ol>\n")
 		// a note may refer to a later one: r.refs grows as it goes
 		for i := 0; i < len(r.refs); i++ {
 			ref := html.EscapeString(r.refs[i])
