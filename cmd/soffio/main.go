@@ -32,18 +32,18 @@ func main() {
 	log.SetFlags(0)
 	all := flag.Bool("a", false, "all texts: the private ones too")
 	dry := flag.Bool("n", false, "check everything, write nothing")
-	baseURL := flag.String("baseurl", "http://localhost:8080", "the site's address, without a final '/'")
-	langs := flag.String("langs", "en", "the languages, as the first directories of the IDs")
-	outDir := flag.String("o", "public", "the output directory")
+	baseURL := flag.String("baseurl", "http://localhost:8080", "the site's `url`, without a final '/'")
+	langs := flag.String("langs", "en", "the languages, as the first directories of the IDs: `it,en`")
+	outDir := flag.String("o", "public", "the output `dir`")
 	var staticDirs []string
-	flag.Func("s", "the static files, copied to <o>/static; -s again adds a directory", func(dir string) error {
+	flag.Func("s", "a `dir` of static files, copied to <o>/static; -s again adds one", func(dir string) error {
 		if dir == "" {
 			return errors.New("no directory")
 		}
 		staticDirs = append(staticDirs, dir)
 		return nil
 	})
-	tmplDir := flag.String("t", "", "the templates, instead of the built-in ones")
+	tmplDir := flag.String("t", "", "the templates' `dir`, instead of the built-in ones")
 	version := flag.Bool("v", false, "print the version and exit")
 	flag.Usage = func() {
 		fmt.Fprint(flag.CommandLine.Output(), `usage: soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]... [-t dir] dir

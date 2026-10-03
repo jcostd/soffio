@@ -1,6 +1,6 @@
 Thu Oct  1 23:00:00 UTC 2026
 Not released yet: since v2.1.0, to be 3.0.0. Fewer flags, no
-warnings, a quarter less code, three times faster.
+warnings, many more checks in 7% less code, three times faster.
 soffio: The command line is smaller.  (* Changes the interface. *)
   soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]
   [-t dir] dir. -a takes the private texts too, for -vis all; without
