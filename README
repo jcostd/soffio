@@ -144,8 +144,9 @@ TEMPLATES
     404.html, rss.xml, sitemap.xml and robots.txt. They need only a
     title: a date, or updated, is shown if a text has one, and dated
     pages go in rss.xml. Home is index, or <lang>/index in a site with
-    languages. They are in cmd/soffio/templates of the source: copy
-    them into a directory of your own to start one for -t.
+    languages. The same files are in templates/ of the release
+    archives, and in cmd/soffio/templates of the source: copy them
+    into a directory of your own to start one for -t.
 
     sortBy orders pages by a header key, highest first; rfc822 turns a
     date into the form RSS wants:

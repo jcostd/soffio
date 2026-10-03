@@ -52,8 +52,9 @@ Every change worth knowing gets a line in `ChangeLog.txt`, newest first, Slackwa
 style. Bump `VERSION`, date the ChangeLog entry, commit "bump to vX.Y.Z",
 `git tag -a vX.Y.Z`, `./release.sh`, and upload what it made in `dist/` to the
 GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip`
-for windows), each holding the two programs as the Makefile builds them, README and
-LICENSE, owned by root, 755/644.
+for windows), each holding the two programs as the Makefile builds them, README,
+LICENSE and `templates/` (the built-in templates as files, to start a `-t` from),
+owned by root, 755/644.
 fucina-factory takes those archives as they are, so build them from the clean tag:
 the binaries carry the git revision, and `vcs.modified=true` if the tree was dirty.
 

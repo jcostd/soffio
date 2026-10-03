@@ -39,6 +39,8 @@ soffio: rfc822 for templates; the built-in rss.xml uses it.
 soffio: A link to a directory in -s is refused, as it may loop.
   It came out as an empty directory.
 release.sh: Refuses a tree that is not clean, or not tagged v$VERSION.
+release.sh: The archives hold templates/, the built-in templates as
+  files, to start a -t of one's own from.
 soffio: -s and <o>/static can't overlap, however the paths are spelled.
   -s public/static -o public copied every file onto itself, and that
   emptied it: a.png came out 0 bytes.
