@@ -15,15 +15,16 @@ import (
 )
 
 // Check verifies the active documents: every link and image points at
-// an active page, one of its sections or a file in staticDir, and every
+// an active page, one of its sections or a file in one of staticDirs,
+// and every
 // note is both defined and referenced. A link to a document of all
 // that is not active is a privacy leak: the public site would point
 // at a private page.
-func Check(all, active map[string]*Document, staticDir string) error {
+func Check(all, active map[string]*Document, staticDirs []string) error {
 	var errs []error
 	for _, id := range slices.Sorted(maps.Keys(active)) {
 		errs = append(errs, check(active[id], func(target string) string {
-			return checkTarget(all, active, staticDir, id, target)
+			return checkTarget(all, active, staticDirs, id, target)
 		})...)
 	}
 	return errors.Join(errs...)
@@ -128,19 +129,21 @@ func check(doc *Document, target func(string) string) []error {
 }
 
 // checkTarget says what is wrong with target in the document from, or "".
-func checkTarget(all, active map[string]*Document, staticDir, from, target string) string {
+func checkTarget(all, active map[string]*Document, staticDirs []string, from, target string) string {
 	id, frag, ok := resolve(from, target)
 	if !ok {
 		return ""
 	}
 	if file, ok := strings.CutPrefix(id, "static/"); ok {
-		switch fi, err := os.Stat(filepath.Join(staticDir, filepath.FromSlash(file))); {
-		case strings.Contains("/"+file, "/."):
+		if strings.Contains("/"+file, "/.") {
 			return "hidden file"
-		case staticDir == "" || err != nil || !fi.Mode().IsRegular():
-			return "missing file"
 		}
-		return ""
+		for _, dir := range staticDirs {
+			if fi, err := os.Stat(filepath.Join(dir, filepath.FromSlash(file))); err == nil && fi.Mode().IsRegular() {
+				return ""
+			}
+		}
+		return "missing file"
 	}
 	doc := active[id]
 	switch {

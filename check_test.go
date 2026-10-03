@@ -29,6 +29,11 @@ func TestCheckTarget(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// a second -s: its files are there too
+	drafts := t.TempDir()
+	if err := os.WriteFile(filepath.Join(drafts, "c.png"), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		from, target, want string
@@ -50,16 +55,18 @@ func TestCheckTarget(t *testing.T) {
 		{"it/home", "/static/docs", "missing file"},
 		// there, but never copied
 		{"it/home", "/static/docs/.b.pdf", "hidden file"},
+		{"it/home", "/static/c.png", ""},
+		{"it/home", "/static/docs/c.png", "missing file"},
 		{"it/home", "/it/x/../about", ""},
 		{"it/home", "/static/../static/docs/a.pdf", ""},
 		{"it/home", "/static/../../etc/passwd", "link to missing page"},
 	}
 	for _, tt := range tests {
-		if got := checkTarget(all, active, static, tt.from, tt.target); got != tt.want {
+		if got := checkTarget(all, active, []string{static, drafts}, tt.from, tt.target); got != tt.want {
 			t.Errorf("checkTarget(%q, %q) = %q, want %q", tt.from, tt.target, got, tt.want)
 		}
 	}
-	if got := checkTarget(all, active, "", "it/home", "/static/docs/a.pdf"); got != "missing file" {
+	if got := checkTarget(all, active, nil, "it/home", "/static/docs/a.pdf"); got != "missing file" {
 		t.Errorf("a file with no static dir: %q, want missing file", got)
 	}
 }
@@ -94,7 +101,7 @@ func TestCheck(t *testing.T) {
 	all := map[string]*Document{"a": a, "b": b, "secret": secret}
 	active := map[string]*Document{"a": a, "b": b}
 
-	err := Check(all, active, t.TempDir())
+	err := Check(all, active, []string{t.TempDir()})
 	want := `a.soffio:3: link to missing page "nope"
 a.soffio:3: link to private page "secret"
 a.soffio:3: note "n9" is not defined
@@ -103,7 +110,7 @@ a.soffio:13: note "n3" is never referenced`
 	if err == nil || err.Error() != want {
 		t.Errorf("got:\n%v\nwant:\n%s", err, want)
 	}
-	if err := Check(all, all, t.TempDir()); err == nil || strings.Contains(err.Error(), "private") {
+	if err := Check(all, all, []string{t.TempDir()}); err == nil || strings.Contains(err.Error(), "private") {
 		t.Errorf("with every text active, no link is private: %v", err)
 	}
 }
@@ -160,6 +167,6 @@ func BenchmarkCheck(b *testing.B) {
 	docs := map[string]*Document{"bench": doc}
 	b.ReportAllocs()
 	for b.Loop() {
-		_ = Check(docs, docs, "static")
+		_ = Check(docs, docs, []string{"static"})
 	}
 }

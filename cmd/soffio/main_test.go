@@ -229,7 +229,7 @@ func TestWriteDocAlternatesChildren(t *testing.T) {
 func TestCopyDir(t *testing.T) {
 	src := writeFiles(t, map[string]string{"file.txt": "hello", "css/deep/style.css": "body {}", ".DS_Store": "", ".git/x": ""})
 	dst := filepath.Join(t.TempDir(), "static")
-	if err := copyDir(src, dst, false); err != nil {
+	if err := copyDir([]string{src}, dst, false); err != nil {
 		t.Fatal(err)
 	}
 	for name, want := range map[string]string{"file.txt": "hello", "css/deep/style.css": "body {}"} {
@@ -241,13 +241,13 @@ func TestCopyDir(t *testing.T) {
 		t.Error("hidden files copied")
 	}
 	// a second build copies over the first
-	if err := copyDir(src, dst, false); err != nil {
+	if err := copyDir([]string{src}, dst, false); err != nil {
 		t.Errorf("copy again: %v", err)
 	}
 
 	// a dry run writes nothing
 	dry := filepath.Join(t.TempDir(), "static")
-	if err := copyDir(src, dry, true); err != nil || exists(dry, ".") {
+	if err := copyDir([]string{src}, dry, true); err != nil || exists(dry, ".") {
 		t.Errorf("dry run: %v, wrote %v", err, exists(dry, "."))
 	}
 
@@ -255,7 +255,7 @@ func TestCopyDir(t *testing.T) {
 	// be copied onto itself; a dry run says so too
 	for _, d := range []string{src, filepath.Join(src, "css"), filepath.Join(src, "public", "static")} {
 		for _, dry := range []bool{true, false} {
-			if err := copyDir(src, d, dry); err == nil || !strings.Contains(err.Error(), "copied onto itself") {
+			if err := copyDir([]string{src}, d, dry); err == nil || !strings.Contains(err.Error(), "copied onto itself") {
 				t.Errorf("copyDir(%s, %s, %v): %v", src, d, dry, err)
 			}
 		}
@@ -268,7 +268,7 @@ func TestCopyDir(t *testing.T) {
 		t.Skip("no symlinks here:", err)
 	}
 	for _, dry := range []bool{true, false} {
-		if err := copyDir(src, t.TempDir(), dry); err == nil || !strings.Contains(err.Error(), "a link to a directory") {
+		if err := copyDir([]string{src}, t.TempDir(), dry); err == nil || !strings.Contains(err.Error(), "a link to a directory") {
 			t.Errorf("link to a directory, dry %v: %v", dry, err)
 		}
 	}
@@ -280,8 +280,33 @@ func TestCopyDir(t *testing.T) {
 	if err := os.Symlink(filepath.Join(src, "nope"), loop); err != nil {
 		t.Fatal(err)
 	}
-	if err := copyDir(src, t.TempDir(), true); err == nil || !strings.Contains(err.Error(), loop) {
+	if err := copyDir([]string{src}, t.TempDir(), true); err == nil || !strings.Contains(err.Error(), loop) {
 		t.Errorf("broken link: %v", err)
+	}
+}
+
+func TestCopyDirs(t *testing.T) {
+	a := writeFiles(t, map[string]string{"css/s.css": "a", "img/x.png": "a"})
+	b := writeFiles(t, map[string]string{"img/y.png": "b"})
+	dst := filepath.Join(t.TempDir(), "static")
+	if err := copyDir([]string{a, b}, dst, false); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"css/s.css", "img/x.png", "img/y.png"} {
+		if !exists(dst, name) {
+			t.Errorf("%s missing", name)
+		}
+	}
+
+	// one address, two files: in two -s, or in letter case only
+	c := writeFiles(t, map[string]string{"img/X.png": "c"})
+	for _, srcs := range [][]string{{a, a}, {a, c}} {
+		for _, dry := range []bool{true, false} {
+			err := copyDir(srcs, t.TempDir(), dry)
+			if err == nil || !strings.Contains(err.Error(), "are both /static/") {
+				t.Errorf("copyDir(%v, dry %v): %v", srcs, dry, err)
+			}
+		}
 	}
 }
 
@@ -309,7 +334,7 @@ func TestCheckFlags(t *testing.T) {
 		{"https://example.org", "en", file, false},
 	}
 	for _, tt := range tests {
-		if err := checkFlags(tt.baseURL, tt.langs, tt.static, ""); (err == nil) != tt.ok {
+		if err := checkFlags(tt.baseURL, tt.langs, []string{tt.static}, ""); (err == nil) != tt.ok {
 			t.Errorf("checkFlags(%q, %q, %q) = %v", tt.baseURL, tt.langs, tt.static, err)
 		}
 	}
@@ -318,9 +343,35 @@ func TestCheckFlags(t *testing.T) {
 		filepath.Join(static, "nope"): "no such file",
 		file:                          "-t " + file + ": not a directory",
 	} {
-		if err := checkFlags("", "en", "", tmpl); want == "" && err != nil || !strings.Contains(fmt.Sprint(err), want) {
+		if err := checkFlags("", "en", nil, tmpl); want == "" && err != nil || !strings.Contains(fmt.Sprint(err), want) {
 			t.Errorf("checkFlags -t %s: %v, want %q", tmpl, err, want)
 		}
+	}
+}
+
+// The files only drafts use live in a -s of their own, which only the
+// preview gets: the public site has none of them, and a public text
+// pointing at one is a missing file, as a link to a draft is an error.
+func TestSoffioPrivateStatic(t *testing.T) {
+	dir := writeFiles(t, map[string]string{
+		"src/a.soffio":     "title: A\n\n== s | S\n:: img: /static/a.png | a",
+		"src/draft.soffio": "title: D\nvisibility: private\n\n== s | S\n:: img: /static/d.png | d",
+		"leak/a.soffio":    "title: A\n\n== s | S\n:: img: /static/d.png | d",
+		"static/a.png":     "A",
+		"drafts/d.png":     "D",
+	})
+	if code, stderr := soffioRun(t, dir, "-s", "static", "src"); code != 0 || exists(dir, "public/static/d.png") {
+		t.Errorf("public: exit %d, d.png there: %v: %s", code, exists(dir, "public/static/d.png"), stderr)
+	}
+	if code, stderr := soffioRun(t, dir, "-a", "-s", "static", "-s", "drafts", "-o", "www", "src"); code != 0 ||
+		!exists(dir, "www/static/a.png") || !exists(dir, "www/static/d.png") {
+		t.Errorf("preview: exit %d: %s", code, stderr)
+	}
+	if code, stderr := soffioRun(t, dir, "-n", "-s", "static", "leak"); code != 1 || !strings.Contains(stderr, `missing file "/static/d.png"`) {
+		t.Errorf("public text, draft file: exit %d, %q", code, stderr)
+	}
+	if code, stderr := soffioRun(t, dir, "-n", "-s", "", "src"); code != 2 || !strings.Contains(stderr, "no directory") {
+		t.Errorf("-s \"\": exit %d, %q", code, stderr)
 	}
 }
 

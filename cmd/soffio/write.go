@@ -89,12 +89,13 @@ func (s *site) write(file, name string, data any) error {
 	return os.WriteFile(path, b.Bytes(), 0o666)
 }
 
-// copyDir copies the tree src into dst, but hidden files; if dry, it
+// copyDir copies the trees srcs into dst, but hidden files; if dry, it
 // only checks that it could. A link to a file is copied as the file; a
-// link to a directory is refused, as it may loop. So are src and dst
+// link to a directory is refused, as it may loop. So are a src and dst
 // overlapping: a file copied onto itself comes out empty. os.SameFile
-// sees through links and letter case.
-func copyDir(src, dst string, dry bool) error {
+// sees through links and letter case. So is one path in two srcs, or
+// twice in letter case only: one address, two files.
+func copyDir(srcs []string, dst string, dry bool) error {
 	// dst, or the nearest directory above it that is there: if src
 	// holds that, dst would be inside src
 	top, err := os.Stat(dst)
@@ -105,6 +106,16 @@ func copyDir(src, dst string, dry bool) error {
 	if err != nil {
 		return err
 	}
+	seen := map[string]string{} // path in dst, folded, to its file
+	for _, src := range srcs {
+		if err := copyTree(src, dst, top, dry, seen); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyTree(src, dst string, top fs.FileInfo, dry bool, seen map[string]string) error {
 	return filepath.WalkDir(src, func(file string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -127,10 +138,18 @@ func copyDir(src, dst string, dry bool) error {
 			return nil
 		case fi.IsDir() && d.Type()&fs.ModeSymlink != 0:
 			return fmt.Errorf("%s: a link to a directory", file)
-		case dry || !fi.IsDir() && !fi.Mode().IsRegular():
+		case dry && fi.IsDir(), !fi.IsDir() && !fi.Mode().IsRegular():
 			return nil
 		case fi.IsDir():
 			return os.MkdirAll(path, 0o755)
+		}
+		key := strings.ToLower(filepath.ToSlash(rel))
+		if other := seen[key]; other != "" {
+			return fmt.Errorf("%s and %s are both /static/%s", other, file, filepath.ToSlash(rel))
+		}
+		seen[key] = file
+		if dry {
+			return nil
 		}
 		b, err := os.ReadFile(file)
 		if err != nil {

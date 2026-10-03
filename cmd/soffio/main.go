@@ -35,11 +35,18 @@ func main() {
 	baseURL := flag.String("baseurl", "http://localhost:8080", "the site's address, without a final '/'")
 	langs := flag.String("langs", "en", "the languages, as the first directories of the IDs")
 	outDir := flag.String("o", "public", "the output directory")
-	staticDir := flag.String("s", "", "the static files, copied to <o>/static")
+	var staticDirs []string
+	flag.Func("s", "the static files, copied to <o>/static; -s again adds a directory", func(dir string) error {
+		if dir == "" {
+			return errors.New("no directory")
+		}
+		staticDirs = append(staticDirs, dir)
+		return nil
+	})
 	tmplDir := flag.String("t", "", "the templates, instead of the built-in ones")
 	version := flag.Bool("v", false, "print the version and exit")
 	flag.Usage = func() {
-		fmt.Fprint(flag.CommandLine.Output(), `usage: soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir] [-t dir] dir
+		fmt.Fprint(flag.CommandLine.Output(), `usage: soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]... [-t dir] dir
        soffio [-n] < text.soffio > text.html
 `)
 		flag.PrintDefaults()
@@ -65,7 +72,7 @@ func main() {
 		return
 	}
 
-	if err := checkFlags(*baseURL, *langs, *staticDir, *tmplDir); err != nil {
+	if err := checkFlags(*baseURL, *langs, staticDirs, *tmplDir); err != nil {
 		log.Fatalf("soffio: %v", err)
 	}
 	tmpl, err := loadTemplates(*tmplDir)
@@ -82,7 +89,7 @@ func main() {
 			active[id] = doc
 		}
 	}
-	if err := soffio.Check(docs, active, *staticDir); err != nil {
+	if err := soffio.Check(docs, active, staticDirs); err != nil {
 		log.Fatal(err)
 	}
 	s := &site{
@@ -94,10 +101,8 @@ func main() {
 		docs:    active,
 		ids:     slices.Sorted(maps.Keys(active)),
 	}
-	if *staticDir != "" {
-		if err := copyDir(*staticDir, filepath.Join(*outDir, "static"), *dry); err != nil {
-			log.Fatalf("soffio: %v", err)
-		}
+	if err := copyDir(staticDirs, filepath.Join(*outDir, "static"), *dry); err != nil {
+		log.Fatalf("soffio: %v", err)
 	}
 
 	// every page and file is attempted, but any that fails fails the
@@ -156,7 +161,7 @@ func pipe(dry bool) {
 // in robots.txt or manifest.json, or ends in '/', as every address is
 // BaseURL + "/" + path; a language that can't be a directory, or is
 // twice; a static or template directory that is not there.
-func checkFlags(baseURL, langs, staticDir, tmplDir string) error {
+func checkFlags(baseURL, langs string, staticDirs []string, tmplDir string) error {
 	if baseURL != "" {
 		u, err := url.Parse(baseURL)
 		switch {
@@ -177,7 +182,11 @@ func checkFlags(baseURL, langs, staticDir, tmplDir string) error {
 		}
 		seen[l] = true
 	}
-	for _, f := range [][2]string{{"-s", staticDir}, {"-t", tmplDir}} {
+	dirs := [][2]string{{"-t", tmplDir}}
+	for _, d := range staticDirs {
+		dirs = append(dirs, [2]string{"-s", d})
+	}
+	for _, f := range dirs {
 		if f[1] == "" {
 			continue
 		}
