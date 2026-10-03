@@ -206,3 +206,19 @@ Text with *bold*.
 		_, _ = Parse("bench", strings.NewReader(input))
 	}
 }
+
+// A refused section line is the error: the text under it is not also
+// "before the first section". Text that is before one still is.
+func TestParseRefusedSection(t *testing.T) {
+	for src, want := range map[string]string{
+		"title: T\n\n== storia Storia\nx\n\n- y":       `t.soffio:3: "== storia Storia" is not == id | Title`,
+		"title: T\n\n======= s | S\nx":                 `t.soffio:3: section level 7: want 2 to 6`,
+		"title: T\n\nx\n\n== s Storia\ny":              "t.soffio:3: text before the first section\nt.soffio:5: \"== s Storia\" is not == id | Title",
+		"title: T\n\n== s | S\nx\n\n== s | Again\n(y)": `t.soffio:6: duplicate section id "s"`,
+	} {
+		_, err := Parse("t.soffio", strings.NewReader(src))
+		if err == nil || err.Error() != want {
+			t.Errorf("Parse(%q):\n%v\nwant:\n%s", src, err, want)
+		}
+	}
+}

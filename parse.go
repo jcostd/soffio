@@ -18,6 +18,7 @@ type parser struct {
 	keys     map[string]bool // header keys seen
 	sections map[string]bool
 	notes    map[string]bool
+	refused  bool // a section line: the text after it has no section
 }
 
 // errorf records an error at line n, as file:n: message.
@@ -72,7 +73,7 @@ func Parse(name string, r io.Reader) (*Document, error) {
 		switch {
 		case line == "":
 		case strings.HasPrefix(line, "=="):
-			p.section(i+1, line)
+			p.refused = p.refused || !p.section(i+1, line)
 		default:
 			if block == nil {
 				start = i + 1
@@ -170,33 +171,35 @@ func CheckID(id string) string {
 	return ""
 }
 
-// section decodes "== id | Title": as many '=' as the level, 2 to 6.
-func (p *parser) section(n int, line string) {
+// section decodes "== id | Title": as many '=' as the level, 2 to 6;
+// if it refuses it, it says why and returns false.
+func (p *parser) section(n int, line string) bool {
 	level := len(line) - len(strings.TrimLeft(line, "="))
 	if level > 6 {
 		p.errorf(n, "section level %d: want 2 to 6", level)
-		return
+		return false
 	}
 	id, title, ok := strings.Cut(line[level:], "|")
 	if !ok {
 		p.errorf(n, "%q is not == id | Title", line)
-		return
+		return false
 	}
 	id, title = strings.TrimSpace(id), strings.TrimSpace(title)
 	if id == "" || title == "" {
 		p.errorf(n, "section %q needs an id and a title", line)
-		return
+		return false
 	}
 	if why := CheckID(id); why != "" {
 		p.errorf(n, "invalid section id %q: %s", id, why)
-		return
+		return false
 	}
 	if p.sections[id] {
 		p.errorf(n, "duplicate section id %q", id)
-		return
+		return false
 	}
 	p.sections[id] = true
 	p.doc.Sections = append(p.doc.Sections, Section{Level: level, ID: id, Title: title})
+	return true
 }
 
 // block adds the block made of lines, which starts at line n, to the
@@ -221,7 +224,10 @@ func (p *parser) block(n int, lines []string) {
 		// refused, and said why
 		return
 	case len(p.doc.Sections) == 0:
-		p.errorf(n, "text before the first section")
+		// after a refused section line, that is the error: one is enough
+		if !p.refused {
+			p.errorf(n, "text before the first section")
+		}
 		return
 	}
 	sec := &p.doc.Sections[len(p.doc.Sections)-1]
