@@ -67,16 +67,17 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 
 - **`parse.go`**: no state machine. The header is `key: value` lines up to the first
   blank line. The body is cut into blocks at blank lines, and before every `==`
-  section line and `:: ` command line; then a block's first line says what it is
-  (command, `- ` list, or text). A leading BOM is dropped, invalid UTF-8 refused.
+  section line and `::` command line (`::img:` is refused, not text); then a block's
+  first line says what it is (command, `- ` list, or text). A leading BOM is dropped, invalid UTF-8 refused.
   `inline.go` scans inline markup by byte (every marker is ASCII): a `*` or `_` opens
   only at the start of a word and closes only at its end; `(*id)` is a note only when
   `id` is a valid ID; `(label -> target)` is a link, and a link or note inside a
-  label is an error, said by `parseInline` itself. The scan is linear: parentheses
+  label is an error, said by `inline` itself. The scan is linear: parentheses
   are paired once (`parens`), a failed search for a closing marker is remembered (a
   closer is good whatever opener it is for), and a label is parsed one level deep
-  only. The fuzz test in `fuzz_test.go` keeps it from panicking, nesting `<a>` or
-  leaking markup: `go test -fuzz FuzzParse -fuzztime 60s .` after touching it.
+  only. The fuzz test in `fuzz_test.go` keeps it from panicking, nesting `<a>`,
+  repeating an id or leaking markup: `go test -fuzz FuzzParse -fuzztime 60s .`
+  after touching it.
 
 - **`load.go`**: `Load` walks the source dir in lexical order, sequentially (parsing is
   microseconds; order makes errors reproducible), skipping hidden files and refusing
@@ -102,25 +103,29 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 
 - **`html.go`**: `Render` returns one document as an HTML fragment, knowing nothing of
   the corpus. Note refs are numbered as met and the endnotes come last, in order of
-  first reference.
+  first reference. Their anchors are `fn:x`, `fnref:x:n` and `footnotes:<id>`: no
+  section ID holds ':', so they never clash with one.
 
 - **`cmd/soffio`**: flags (`checkFlags`: -baseurl is http(s)://host[/path] with
   nothing html/template would escape) and templates, configuration first, then load ->
   visibility filter -> check -> static copy -> pages and site files. `write.go`: each page goes through its layout
   (`layout` header, else `layout.html`; a missing one is an error) with `Children` (docs under `<id>/`, by ID:
-  the IDs are sorted once and the children are one run, found by binary search) and
-  `Alternates` (the same path in each `-langs` language, only when the first part
+  the IDs are sorted once and the children are the run from `id/` to `id0`, two
+  binary searches) and `Alternates` (the same path in each `-langs` language, only when the first part
   of the ID is one). Every file is executed into a buffer and written in one call;
   html/template alone writes in small pieces; with `-n` it is executed and dropped.
   `copyDir` refuses, by `os.SameFile`, to copy a file onto itself (it would come out
-  empty) when -s and `<o>/static` overlap, however the paths are spelled.
+  empty) when -s and `<o>/static` overlap, however the paths are spelled; with `-n` it
+  walks and checks the same and writes nothing, so `-n` exits as the build would.
+  `Check` refuses a link to a hidden file under -s, as `copyDir` never copies one.
   `template.go` parses either `-t` or the embedded `cmd/soffio/templates/*`, never a
   mix, and gives templates `sortBy` and `rfc822`. `siteFiles` in `main.go` (rss.xml,
   sitemap.xml, robots.txt, 404.html, manifest.json) are each made if the template is
   there.
 
 - **`cmd/preview`**: a static file server (`http.FileServer`) over the output dir
-  that opens the default browser (`open_darwin.go`/`open_linux.go`/`open_windows.go`).
+  that opens the default browser (`open` on macOS, `start` on Windows, else `xdg-open`,
+  one switch on `runtime.GOOS`, so it builds on the BSDs too).
   Every response carries a `Soffio-Preview: <abs dir>` header, so a second `preview`
   of the same dir finds the first one when the port is taken, opens the browser on
   it, and exits 0.

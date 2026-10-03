@@ -58,6 +58,18 @@ soffio: Header keys are letters, digits and _.
   A section line in the header, == s | Title: sub, was a key.
 soffio: A list item starts with "- ". "-5 gradi" was a list.
 soffio: Hidden files and directories in the texts and in -s are skipped.
+soffio: A link to a hidden file under -s is refused.
+  It passed the check, but the file is never copied: a broken link.
+soffio: -n checks the copy of -s too, and writes nothing.
+  A link to a directory in -s, or -o inside -s, gave exit 0 with -n
+  and exit 1 in the build. A broken link in -s says where it is.
+soffio: Note anchors are fn:x, fnref:x:1 and footnotes:<id>.
+  A section fn-x and a note x had the same id; no section ID holds ':'.
+soffio: A line starting with :: is a command, or is refused.
+  ::img: /static/a.png | a, a slip for :: img:, was a paragraph.
+soffio: soffio file.soffio says it is not a directory, not "stat .".
+preview: It builds on the BSDs: one xdg-open, open or start for all.
+  The usage is one line; extra arguments are refused, as by soffio.
   The ._ files macOS leaves on other disks were parsed as texts.
 soffio: A link to a directory among the texts is refused, as in -s.
 soffio: A text named like a site file, as 404.soffio, is refused.
