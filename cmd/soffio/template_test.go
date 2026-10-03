@@ -43,7 +43,7 @@ func TestLoadTemplates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range append([]string{"layout.html"}, siteFiles...) {
+	for _, name := range []string{"layout.html", "404.html", "rss.xml", "sitemap.xml", "robots.txt"} {
 		if builtin.Lookup(name) == nil {
 			t.Errorf("built-in %s missing", name)
 		}

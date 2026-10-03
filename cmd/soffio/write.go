@@ -40,10 +40,13 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 		return fmt.Errorf("no layout %s in the templates", layout)
 	}
 
-	// IDs use '/' everywhere, so no filepath here: on Windows it
-	// would turn en/x into en\x and find nothing
+	// the language is the first directory of the ID, if it is one of
+	// -langs, or else the first of them. IDs use '/' everywhere, so no
+	// filepath here: on Windows it would turn en/x into en\x
+	lang := s.langs[0]
 	var alternates []alternate
-	if lang, slug, ok := strings.Cut(doc.ID, "/"); ok && slices.Contains(s.langs, lang) {
+	if dir, slug, ok := strings.Cut(doc.ID, "/"); ok && slices.Contains(s.langs, dir) {
+		lang = dir
 		for _, l := range s.langs {
 			if s.docs[l+"/"+slug] != nil {
 				alternates = append(alternates, alternate{l, s.baseURL + "/" + l + "/" + slug + ".html"})
@@ -62,6 +65,7 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 
 	return s.write(doc.ID+".html", layout, map[string]any{
 		"Title":      doc.Title,
+		"Lang":       lang,
 		"Meta":       doc.Meta,
 		"Content":    template.HTML(soffio.Render(doc)),
 		"BaseURL":    s.baseURL,

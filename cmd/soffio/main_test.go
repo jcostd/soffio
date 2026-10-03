@@ -203,12 +203,14 @@ func TestWriteDocAlternatesChildren(t *testing.T) {
 	for _, id := range []string{"en/x", "it/x", "it/x/c", "it/x/a", "it/x/b", "it/x-y", "it/x0", "blog/x"} {
 		docs[id] = page(id, nil)
 	}
-	s := testSite(t, `{{define "layout.html"}}{{range .Alternates}}{{.Lang}}={{.URL}};{{end}}|{{range .Children}}{{.ID}};{{end}}{{end}}`, docs)
+	s := testSite(t, `{{define "layout.html"}}{{.Lang}}|{{range .Alternates}}{{.Lang}}={{.URL}};{{end}}|{{range .Children}}{{.ID}};{{end}}{{end}}`, docs)
 
 	tests := []struct{ id, want string }{
-		{"it/x", "it=https://example.org/it/x.html;en=https://example.org/en/x.html;|it/x/a;it/x/b;it/x/c;"},
-		// blog is no language: no alternates in en/ or it/
-		{"blog/x", "|"},
+		{"it/x", "it|it=https://example.org/it/x.html;en=https://example.org/en/x.html;|it/x/a;it/x/b;it/x/c;"},
+		{"en/x", "en|it=https://example.org/it/x.html;en=https://example.org/en/x.html;|"},
+		// blog is no language: no alternates in en/ or it/, the first
+		// language of -langs
+		{"blog/x", "it||"},
 	}
 	for _, tt := range tests {
 		if err := s.writeDoc(docs[tt.id]); err != nil {

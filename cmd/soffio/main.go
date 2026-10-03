@@ -110,6 +110,7 @@ func main() {
 	}
 	data := map[string]any{
 		"BaseURL":   s.baseURL,
+		"Lang":      s.langs[0],
 		"Docs":      active,
 		"XMLHeader": template.HTML(`<?xml version="1.0" encoding="UTF-8"?>` + "\n"),
 	}
