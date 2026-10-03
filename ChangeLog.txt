@@ -38,6 +38,8 @@ soffio: rfc822 for templates; the built-in rss.xml uses it.
   RSS wants Wed, 19 Aug 2026 00:00:00 +0000, not 2026-08-19.
 soffio: A link to a directory in -s is refused, as it may loop.
   It came out as an empty directory.
+go.mod: go 1.26, not 1.26.2: any Go 1.26 builds soffio, as the README
+  says. go1.26.0 builds it and passes every test.
 release.sh: Refuses a tree that is not clean, or not tagged v$VERSION.
 release.sh: The archives hold templates/, the built-in templates as
   files, to start a -t of one's own from.
