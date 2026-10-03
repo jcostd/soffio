@@ -6,7 +6,6 @@ package main
 import (
 	"cmp"
 	"embed"
-	"fmt"
 	"html/template"
 	"io/fs"
 	"os"
@@ -49,13 +48,6 @@ func rfc822(date string) (template.HTML, error) {
 func loadTemplates(dir string) (*template.Template, error) {
 	fsys, _ := fs.Sub(embedded, "templates")
 	if dir != "" {
-		fi, err := os.Stat(dir)
-		if err == nil && !fi.IsDir() {
-			err = fmt.Errorf("-t %s: not a directory", dir)
-		}
-		if err != nil {
-			return nil, err
-		}
 		fsys = os.DirFS(dir)
 	}
 	tmpl := template.New("").Funcs(funcs)

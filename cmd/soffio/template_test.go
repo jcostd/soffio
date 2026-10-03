@@ -65,7 +65,4 @@ func TestLoadTemplates(t *testing.T) {
 		t.Error("built-in rss.xml mixed into dir's templates")
 	}
 
-	if _, err := loadTemplates(filepath.Join(dir, "nope")); err == nil {
-		t.Error("a missing -t directory: no error")
-	}
 }

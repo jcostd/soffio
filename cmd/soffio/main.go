@@ -58,7 +58,7 @@ func main() {
 		return
 	}
 
-	if err := checkFlags(*baseURL, *langs, *staticDir); err != nil {
+	if err := checkFlags(*baseURL, *langs, *staticDir, *tmplDir); err != nil {
 		log.Fatalf("soffio: %v", err)
 	}
 	tmpl, err := loadTemplates(*tmplDir)
@@ -143,8 +143,8 @@ func pipe() {
 // not http(s)://host[/path], or holds what html/template would escape
 // in robots.txt or manifest.json, or ends in '/', as every address is
 // BaseURL + "/" + path; a language that can't be a directory, or is
-// twice; a static directory that is not there.
-func checkFlags(baseURL, langs, staticDir string) error {
+// twice; a static or template directory that is not there.
+func checkFlags(baseURL, langs, staticDir, tmplDir string) error {
 	if baseURL != "" {
 		u, err := url.Parse(baseURL)
 		switch {
@@ -165,12 +165,15 @@ func checkFlags(baseURL, langs, staticDir string) error {
 		}
 		seen[l] = true
 	}
-	if staticDir == "" {
-		return nil
+	for _, f := range [][2]string{{"-s", staticDir}, {"-t", tmplDir}} {
+		if f[1] == "" {
+			continue
+		}
+		if fi, err := os.Stat(f[1]); err != nil {
+			return err
+		} else if !fi.IsDir() {
+			return fmt.Errorf("%s %s: not a directory", f[0], f[1])
+		}
 	}
-	fi, err := os.Stat(staticDir)
-	if err == nil && !fi.IsDir() {
-		err = fmt.Errorf("-s %s: not a directory", staticDir)
-	}
-	return err
+	return nil
 }

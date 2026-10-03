@@ -52,14 +52,11 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 	}
 
 	// by ID, or a map would shuffle them on every build; sorted, the
-	// IDs under id/ are one run
+	// IDs under id/ are one run, from id/ to id0, as '0' follows '/'
 	var children []*soffio.Document
-	prefix := doc.ID + "/"
-	i, _ := slices.BinarySearch(s.ids, prefix)
-	for _, id := range s.ids[i:] {
-		if !strings.HasPrefix(id, prefix) {
-			break
-		}
+	i, _ := slices.BinarySearch(s.ids, doc.ID+"/")
+	j, _ := slices.BinarySearch(s.ids, doc.ID+"0")
+	for _, id := range s.ids[i:j] {
 		children = append(children, s.docs[id])
 	}
 

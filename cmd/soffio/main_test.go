@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"html/template"
 	"maps"
 	"os"
@@ -33,7 +35,7 @@ func soffioRun(t *testing.T, dir string, args ...string) (int, string) {
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	err := cmd.Run()
-	if e, ok := err.(*exec.ExitError); ok {
+	if e, ok := errors.AsType[*exec.ExitError](err); ok {
 		return e.ExitCode(), stderr.String()
 	}
 	if err != nil {
@@ -186,7 +188,8 @@ func TestWriteDoc(t *testing.T) {
 
 func TestWriteDocAlternatesChildren(t *testing.T) {
 	docs := map[string]*soffio.Document{}
-	for _, id := range []string{"en/x", "it/x", "it/x/c", "it/x/a", "it/x/b", "blog/x"} {
+	// it/x-y and it/x0 sort just before and after it/x/...
+	for _, id := range []string{"en/x", "it/x", "it/x/c", "it/x/a", "it/x/b", "it/x-y", "it/x0", "blog/x"} {
 		docs[id] = page(id, nil)
 	}
 	s := testSite(t, `{{define "layout.html"}}{{range .Alternates}}{{.Lang}}={{.URL}};{{end}}|{{range .Children}}{{.ID}};{{end}}{{end}}`, docs)
@@ -293,8 +296,17 @@ func TestCheckFlags(t *testing.T) {
 		{"https://example.org", "en", file, false},
 	}
 	for _, tt := range tests {
-		if err := checkFlags(tt.baseURL, tt.langs, tt.static); (err == nil) != tt.ok {
+		if err := checkFlags(tt.baseURL, tt.langs, tt.static, ""); (err == nil) != tt.ok {
 			t.Errorf("checkFlags(%q, %q, %q) = %v", tt.baseURL, tt.langs, tt.static, err)
+		}
+	}
+	for tmpl, want := range map[string]string{
+		static:                        "",
+		filepath.Join(static, "nope"): "no such file",
+		file:                          "-t " + file + ": not a directory",
+	} {
+		if err := checkFlags("", "en", "", tmpl); want == "" && err != nil || !strings.Contains(fmt.Sprint(err), want) {
+			t.Errorf("checkFlags -t %s: %v, want %q", tmpl, err, want)
 		}
 	}
 }
