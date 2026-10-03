@@ -6,7 +6,7 @@ NAME
 SYNOPSIS
     soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]
            [-t dir] dir
-    soffio < text.soffio > text.html
+    soffio [-n] < text.soffio > text.html
     preview [-d dir] [-p port] [dir]
 
 DESCRIPTION
@@ -21,7 +21,8 @@ DESCRIPTION
 
     With no dir, soffio is a filter: one text on standard input, an
     HTML fragment on standard output. Alone, a text can only check its
-    notes and its links to its own sections.
+    notes and its links to its own sections; -n checks it and prints
+    nothing, and the flags about a site are refused.
 
     preview serves a directory on 127.0.0.1 and opens the browser. If
     the port is taken by a preview of the same directory, it opens the
@@ -56,7 +57,7 @@ MARKUP
     is 'key: value' lines, keys of letters, digits and _, each once;
     'id', 'title', 'layout', 'visibility' (public or private) and
     'notes_title' mean something to soffio, and every key reaches the
-    templates. 'date', 'updated' and any '*_date' hold a real date as
+    templates. A page needs a title; the rest is up to you. 'date', 'updated' and any '*_date' hold a real date as
     YYYY-MM-DD, or nothing. A byte order mark at the start is ignored.
 
     == id | Title                     section (== to ======: h2 to h6)
@@ -102,15 +103,24 @@ LINKS AND FILES
 TEMPLATES
     Go html/template files. A page goes through its 'layout' (post means
     post.html), or layout.html; a layout that is not there is an error.
-    A page gets .Title, .Meta, .Content, .BaseURL, .Permalink,
-    .Alternates (.Lang, .URL) and .Children: the pages under its ID,
-    sorted by ID.
+    A page gets .Title, .Meta, .Content, .BaseURL, .Permalink, .Lang
+    (the first directory of its ID if it is one of -langs, else the
+    first of them), .Alternates (.Lang, .URL) and .Children: the pages
+    under its ID, sorted by ID.
 
     rss.xml, sitemap.xml, robots.txt, 404.html and manifest.json are
     made at the site root, each if its template is there; a page with
-    the same name, as 404.soffio, is an error. They get .BaseURL, .Docs
-    (the pages by ID) and .XMLHeader. -baseurl holds nothing that
+    the same name, as 404.soffio, is an error. They get .BaseURL, .Lang
+    (the first of -langs), .Docs (the pages by ID) and .XMLHeader. -baseurl holds nothing that
     html/template would escape, so it comes out as it is in them all.
+
+    Without -t, soffio uses the templates built into it, and says
+    nothing about it, as it says nothing when all is well: layout.html,
+    404.html, rss.xml, sitemap.xml and robots.txt. They need only a
+    title: a date, or updated, is shown if a text has one, and dated
+    pages go in rss.xml. Home is index, or <lang>/index in a site with
+    languages. They are in cmd/soffio/templates of the source: copy
+    them into a directory of your own to start one for -t.
 
     sortBy orders pages by a header key, highest first; rfc822 turns a
     date into the form RSS wants:

@@ -70,6 +70,17 @@ soffio: A line starting with :: is a command, or is refused.
 soffio: soffio file.soffio says it is not a directory, not "stat .".
 preview: It builds on the BSDs: one xdg-open, open or start for all.
   The usage is one line; extra arguments are refused, as by soffio.
+soffio: A page needs a title.
+  One without was an empty link, so unseen, in every list of pages.
+soffio: In pipe mode -n only checks; a flag about the site is refused.
+  soffio -o x < t.soffio ignored -o.
+soffio: .Lang for templates: the language of the page, from its ID.
+  A text needs no lang: header for <html lang>.
+soffio: The built-in templates need only a title.  (* Changes the look. *)
+  date and updated are shown if a text has them; description, author,
+  image, json-ld and the manifest are gone. They show .Lang, a language
+  switch, children by date, rfc822. sitemap.xml no longer lists /,
+  which may not be there. A -t with manifest.json still makes it.
   The ._ files macOS leaves on other disks were parsed as texts.
 soffio: A link to a directory among the texts is refused, as in -s.
 soffio: A text named like a site file, as 404.soffio, is refused.

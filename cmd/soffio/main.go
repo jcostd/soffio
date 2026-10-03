@@ -40,7 +40,7 @@ func main() {
 	version := flag.Bool("v", false, "print the version and exit")
 	flag.Usage = func() {
 		fmt.Fprint(flag.CommandLine.Output(), `usage: soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir] [-t dir] dir
-       soffio < text.soffio > text.html
+       soffio [-n] < text.soffio > text.html
 `)
 		flag.PrintDefaults()
 	}

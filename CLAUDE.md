@@ -41,7 +41,8 @@ Generator mode: `soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir
 reads the `.soffio` texts under dir and writes a site to `-o` (default `public`): `-a`
 takes the private texts too, `-n` checks everything and writes nothing, `-s` is the
 static dir copied to `<o>/static`, `-t` the templates instead of the built-in ones,
-`-v` prints the version. Pipe mode, with no dir: `soffio < text.soffio > text.html`.
+`-v` prints the version. Pipe mode, with no dir: `soffio [-n] < text.soffio > text.html`
+(`-n` only checks; any other flag is refused, exit 2).
 The README is the man page.
 
 ## Release
@@ -83,8 +84,8 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   microseconds; order makes errors reproducible), skipping hidden files and refusing
   links to directories, and returns documents by ID: the
   `id` header or the file name, under the file's directory (`it/about`). Every part
-  of an ID passes `CheckID`; IDs differing only in case are duplicates; `static/` is
-  no ID, it is where the static files go. `Document.File` is the path for messages.
+  of an ID passes `CheckID`; a text with no title is refused (an empty link in every
+  list of pages); IDs differing only in case are duplicates; `static/` is no ID, it is where the static files go. `Document.File` is the path for messages.
 
 - **`url.go`**: `resolve` is the one place a link target is interpreted: the ID or
   static file it points to, and its `#fragment`. `Check` and `href` both go through
@@ -111,15 +112,18 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   visibility filter -> check -> static copy -> pages and site files. `write.go`: each page goes through its layout
   (`layout` header, else `layout.html`; a missing one is an error) with `Children` (docs under `<id>/`, by ID:
   the IDs are sorted once and the children are the run from `id/` to `id0`, two
-  binary searches) and `Alternates` (the same path in each `-langs` language, only when the first part
-  of the ID is one). Every file is executed into a buffer and written in one call;
+  binary searches), `Alternates` (the same path in each `-langs` language, only when
+  the first part of the ID is one) and `Lang` (that first part, else the first of
+  `-langs`). Every file is executed into a buffer and written in one call;
   html/template alone writes in small pieces; with `-n` it is executed and dropped.
   `copyDir` refuses, by `os.SameFile`, to copy a file onto itself (it would come out
   empty) when -s and `<o>/static` overlap, however the paths are spelled; with `-n` it
   walks and checks the same and writes nothing, so `-n` exits as the build would.
   `Check` refuses a link to a hidden file under -s, as `copyDir` never copies one.
   `template.go` parses either `-t` or the embedded `cmd/soffio/templates/*`, never a
-  mix, and gives templates `sortBy` and `rfc822`. `siteFiles` in `main.go` (rss.xml,
+  mix, and gives templates `sortBy` and `rfc822`. The embedded ones are the showcase:
+  they need only a title (date and updated if there) and use `.Lang`, `.Alternates`,
+  `.Children` with `sortBy`, `rfc822`, a shared `style` partial; keep them that small. `siteFiles` in `main.go` (rss.xml,
   sitemap.xml, robots.txt, 404.html, manifest.json) are each made if the template is
   there.
 
