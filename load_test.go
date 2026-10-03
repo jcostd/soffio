@@ -100,4 +100,9 @@ func TestLoadMissingDir(t *testing.T) {
 	if _, err := Load(filepath.Join(t.TempDir(), "nope")); err == nil {
 		t.Error("Load of a missing directory: no error")
 	}
+	dir := writeFiles(t, map[string]string{"a.soffio": "title: A" + body})
+	file := filepath.Join(dir, "a.soffio")
+	if _, err := Load(file); err == nil || err.Error() != file+": not a directory" {
+		t.Errorf("Load of a file: %v", err)
+	}
 }

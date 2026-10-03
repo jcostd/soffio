@@ -87,8 +87,8 @@ func main() {
 		docs:    active,
 		ids:     slices.Sorted(maps.Keys(active)),
 	}
-	if !*dry && *staticDir != "" {
-		if err := copyDir(*staticDir, filepath.Join(*outDir, "static")); err != nil {
+	if *staticDir != "" {
+		if err := copyDir(*staticDir, filepath.Join(*outDir, "static"), *dry); err != nil {
 			log.Fatalf("soffio: %v", err)
 		}
 	}

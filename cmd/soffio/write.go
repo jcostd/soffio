@@ -5,9 +5,9 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"html/template"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -88,59 +88,53 @@ func (s *site) write(file, name string, data any) error {
 	return os.WriteFile(path, b.Bytes(), 0o666)
 }
 
-// copyDir copies the tree src into dst, but hidden files. A link to a
-// file is copied as the file; a link to a directory is refused, as it
-// may loop. So are src and dst overlapping: a file copied onto itself
-// comes out empty. os.SameFile sees through links and letter case.
-func copyDir(src, dst string) error {
-	if err := os.MkdirAll(dst, 0o755); err != nil {
-		return err
-	}
+// copyDir copies the tree src into dst, but hidden files; if dry, it
+// only checks that it could. A link to a file is copied as the file; a
+// link to a directory is refused, as it may loop. So are src and dst
+// overlapping: a file copied onto itself comes out empty. os.SameFile
+// sees through links and letter case.
+func copyDir(src, dst string, dry bool) error {
+	// dst, or the nearest directory above it that is there: if src
+	// holds that, dst would be inside src
 	top, err := os.Stat(dst)
+	for d := dst; errors.Is(err, fs.ErrNotExist) && d != filepath.Dir(d); {
+		d = filepath.Dir(d)
+		top, err = os.Stat(d)
+	}
 	if err != nil {
 		return err
 	}
-	fsys := os.DirFS(src)
-	return fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
+	return filepath.WalkDir(src, func(file string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		fi, err := fs.Stat(fsys, name)
+		fi, err := os.Stat(file)
 		if err != nil {
 			return err
 		}
-		path := filepath.Join(dst, filepath.FromSlash(name))
+		rel, _ := filepath.Rel(src, file)
+		path := filepath.Join(dst, rel)
 		if out, err := os.Stat(path); err == nil && os.SameFile(fi, out) || fi.IsDir() && os.SameFile(fi, top) {
-			return fmt.Errorf("%s would be copied onto itself: -s and -o overlap", filepath.Join(src, name))
+			return fmt.Errorf("%s would be copied onto itself: -s and -o overlap", file)
 		}
 		switch {
-		case name != "." && strings.HasPrefix(d.Name(), "."):
+		case file != src && strings.HasPrefix(d.Name(), "."):
 			// hidden, as for ls: .DS_Store, .git
 			if d.IsDir() {
 				return fs.SkipDir
 			}
 			return nil
 		case fi.IsDir() && d.Type()&fs.ModeSymlink != 0:
-			return fmt.Errorf("%s: a link to a directory", filepath.Join(src, name))
+			return fmt.Errorf("%s: a link to a directory", file)
+		case dry || !fi.IsDir() && !fi.Mode().IsRegular():
+			return nil
 		case fi.IsDir():
 			return os.MkdirAll(path, 0o755)
-		case !fi.Mode().IsRegular():
-			return nil
 		}
-
-		in, err := fsys.Open(name)
+		b, err := os.ReadFile(file)
 		if err != nil {
 			return err
 		}
-		defer in.Close()
-		out, err := os.Create(path)
-		if err != nil {
-			return err
-		}
-		if _, err := io.Copy(out, in); err != nil {
-			out.Close()
-			return err
-		}
-		return out.Close()
+		return os.WriteFile(path, b, 0o666)
 	})
 }

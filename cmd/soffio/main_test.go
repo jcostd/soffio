@@ -213,7 +213,7 @@ func TestWriteDocAlternatesChildren(t *testing.T) {
 func TestCopyDir(t *testing.T) {
 	src := writeFiles(t, map[string]string{"file.txt": "hello", "css/deep/style.css": "body {}", ".DS_Store": "", ".git/x": ""})
 	dst := filepath.Join(t.TempDir(), "static")
-	if err := copyDir(src, dst); err != nil {
+	if err := copyDir(src, dst, false); err != nil {
 		t.Fatal(err)
 	}
 	for name, want := range map[string]string{"file.txt": "hello", "css/deep/style.css": "body {}"} {
@@ -225,14 +225,23 @@ func TestCopyDir(t *testing.T) {
 		t.Error("hidden files copied")
 	}
 	// a second build copies over the first
-	if err := copyDir(src, dst); err != nil {
+	if err := copyDir(src, dst, false); err != nil {
 		t.Errorf("copy again: %v", err)
 	}
 
-	// the same tree, or dst inside src: a file would be copied onto itself
-	for _, d := range []string{src, filepath.Join(src, "css")} {
-		if err := copyDir(src, d); err == nil || !strings.Contains(err.Error(), "copied onto itself") {
-			t.Errorf("copyDir(%s, %s): %v", src, d, err)
+	// a dry run writes nothing
+	dry := filepath.Join(t.TempDir(), "static")
+	if err := copyDir(src, dry, true); err != nil || exists(dry, ".") {
+		t.Errorf("dry run: %v, wrote %v", err, exists(dry, "."))
+	}
+
+	// the same tree, or dst inside src, there or not yet: a file would
+	// be copied onto itself; a dry run says so too
+	for _, d := range []string{src, filepath.Join(src, "css"), filepath.Join(src, "public", "static")} {
+		for _, dry := range []bool{true, false} {
+			if err := copyDir(src, d, dry); err == nil || !strings.Contains(err.Error(), "copied onto itself") {
+				t.Errorf("copyDir(%s, %s, %v): %v", src, d, dry, err)
+			}
 		}
 	}
 	if got, _ := os.ReadFile(filepath.Join(src, "file.txt")); string(got) != "hello" {
@@ -242,8 +251,21 @@ func TestCopyDir(t *testing.T) {
 	if err := os.Symlink(filepath.Join(src, "css"), filepath.Join(src, "loop")); err != nil {
 		t.Skip("no symlinks here:", err)
 	}
-	if err := copyDir(src, t.TempDir()); err == nil || !strings.Contains(err.Error(), "a link to a directory") {
-		t.Errorf("link to a directory: %v", err)
+	for _, dry := range []bool{true, false} {
+		if err := copyDir(src, t.TempDir(), dry); err == nil || !strings.Contains(err.Error(), "a link to a directory") {
+			t.Errorf("link to a directory, dry %v: %v", dry, err)
+		}
+	}
+	// a broken link says where it is
+	loop := filepath.Join(src, "loop")
+	if err := os.Remove(loop); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(src, "nope"), loop); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyDir(src, t.TempDir(), true); err == nil || !strings.Contains(err.Error(), loop) {
+		t.Errorf("broken link: %v", err)
 	}
 }
 
@@ -282,9 +304,19 @@ func TestSoffioStaticOntoItself(t *testing.T) {
 		"src/a.soffio":        "title: A\n\n== s | S\n:: img: /static/a.png | a",
 		"public/static/a.png": "PNG",
 	})
-	code, stderr := soffioRun(t, dir, "-s", "public/static", "-o", "public", "src")
-	got, _ := os.ReadFile(filepath.Join(dir, "public", "static", "a.png"))
-	if code != 1 || !strings.Contains(stderr, "would be copied onto itself") || string(got) != "PNG" {
-		t.Errorf("exit %d, %q, a.png %q", code, stderr, got)
+	// -n says what the build would: -o inside -s, not there yet, too
+	for _, args := range [][]string{
+		{"-s", "public/static", "-o", "public", "src"},
+		{"-n", "-s", "public/static", "-o", "public", "src"},
+		{"-n", "-s", "public/static", "-o", "public/static/site", "src"},
+	} {
+		code, stderr := soffioRun(t, dir, args...)
+		got, _ := os.ReadFile(filepath.Join(dir, "public", "static", "a.png"))
+		if code != 1 || !strings.Contains(stderr, "would be copied onto itself") || string(got) != "PNG" {
+			t.Errorf("soffio %v: exit %d, %q, a.png %q", args, code, stderr, got)
+		}
+	}
+	if exists(dir, "public/static/site") {
+		t.Error("-n made public/static/site")
 	}
 }

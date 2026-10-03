@@ -134,8 +134,10 @@ func checkTarget(all, active map[string]*Document, staticDir, from, target strin
 		return ""
 	}
 	if file, ok := strings.CutPrefix(id, "static/"); ok {
-		fi, err := os.Stat(filepath.Join(staticDir, filepath.FromSlash(file)))
-		if staticDir == "" || err != nil || !fi.Mode().IsRegular() {
+		switch fi, err := os.Stat(filepath.Join(staticDir, filepath.FromSlash(file))); {
+		case strings.Contains("/"+file, "/."):
+			return "hidden file"
+		case staticDir == "" || err != nil || !fi.Mode().IsRegular():
 			return "missing file"
 		}
 		return ""

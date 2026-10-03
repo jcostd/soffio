@@ -25,8 +25,10 @@ func Load(dir string) (map[string]*Document, error) {
 	folded := map[string]*Document{}
 	var errs []error
 
-	if _, err := os.Stat(dir); err != nil {
+	if fi, err := os.Stat(dir); err != nil {
 		return nil, err
+	} else if !fi.IsDir() {
+		return nil, fmt.Errorf("%s: not a directory", dir)
 	}
 	fsys := os.DirFS(dir)
 	err := fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {

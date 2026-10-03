@@ -24,8 +24,10 @@ func TestCheckTarget(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(static, "docs"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(static, "docs", "a.pdf"), nil, 0o644); err != nil {
-		t.Fatal(err)
+	for _, f := range []string{"a.pdf", ".b.pdf"} {
+		if err := os.WriteFile(filepath.Join(static, "docs", f), nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	tests := []struct {
@@ -46,6 +48,8 @@ func TestCheckTarget(t *testing.T) {
 		{"it/home", "/private/secret", "link to private page"},
 		{"it/home", "/static/docs/b.pdf", "missing file"},
 		{"it/home", "/static/docs", "missing file"},
+		// there, but never copied
+		{"it/home", "/static/docs/.b.pdf", "hidden file"},
 		{"it/home", "/it/x/../about", ""},
 		{"it/home", "/static/../static/docs/a.pdf", ""},
 		{"it/home", "/static/../../etc/passwd", "link to missing page"},
