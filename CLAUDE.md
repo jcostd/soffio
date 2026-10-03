@@ -37,10 +37,11 @@ go test ./... -v
 
 Requires Go 1.26+ (see `go.mod`).
 
-Generator mode: `soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir] [-t dir] dir`
+Generator mode: `soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]... [-t dir] dir`
 reads the `.soffio` texts under dir and writes a site to `-o` (default `public`): `-a`
-takes the private texts too, `-n` checks everything and writes nothing, `-s` is the
-static dir copied to `<o>/static`, `-t` the templates instead of the built-in ones,
+takes the private texts too, `-n` checks everything and writes nothing, `-s` a
+static dir copied to `<o>/static` (repeatable: the drafts' files go in one only the
+preview gets, as everything in `-s` is published), `-t` the templates instead of the built-in ones,
 `-v` prints the version. Pipe mode, with no dir: `soffio [-n] < text.soffio > text.html`
 (`-n` only checks; any other flag is refused, exit 2).
 The README is the man page.
@@ -85,7 +86,8 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   links to directories, and returns documents by ID: the
   `id` header or the file name, under the file's directory (`it/about`). Every part
   of an ID passes `CheckID`; a text with no title is refused (an empty link in every
-  list of pages); IDs differing only in case are duplicates; `static/` is no ID, it is where the static files go. `Document.File` is the path for messages.
+  list of pages); IDs differing only in case are duplicates; `static/` is no ID, it is where the
+  static files go. `Document.File` is the path for messages.
 
 - **`url.go`**: `resolve` is the one place a link target is interpreted: the ID or
   static file it points to, and its `#fragment`. `Check` and `href` both go through
@@ -99,7 +101,10 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   note is defined and reached from the body, maybe through other notes, as `Render`
   reaches it: a note referred to only by itself, or by unreached notes, is "never
   referenced". A link to a document in all but not active is a **privacy leak**, an
-  error of its own. This active-vs-all model is how `-a` works; keep it. `CheckDoc`
+  error of its own. This active-vs-all model is how `-a` works; keep it. Files have no
+  visibility: everything in -s is published, and a draft's files live in a -s that only
+  the preview gets, so a public text pointing at one is a missing file. Never guess
+  privacy from links (headers, CSS and templates point at files too): fail closed. `CheckDoc`
   is what pipe mode can check alone: notes and `#section` links.
 
 - **`html.go`**: `Render` returns one document as an HTML fragment, knowing nothing of
@@ -116,8 +121,10 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   the first part of the ID is one) and `Lang` (that first part, else the first of
   `-langs`). Every file is executed into a buffer and written in one call;
   html/template alone writes in small pieces; with `-n` it is executed and dropped.
-  `copyDir` refuses, by `os.SameFile`, to copy a file onto itself (it would come out
-  empty) when -s and `<o>/static` overlap, however the paths are spelled; with `-n` it
+  `copyDir` copies every -s into `<o>/static`, refusing a path in two of them or twice
+  in letter case only (one address, two files), and refuses, by `os.SameFile`, to copy a
+  file onto itself (it would come out empty) when a -s and `<o>/static` overlap,
+  however the paths are spelled; with `-n` it
   walks and checks the same and writes nothing, so `-n` exits as the build would.
   `Check` refuses a link to a hidden file under -s, as `copyDir` never copies one.
   `template.go` parses either `-t` or the embedded `cmd/soffio/templates/*`, never a

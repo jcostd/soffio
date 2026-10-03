@@ -70,6 +70,11 @@ soffio: A line starting with :: is a command, or is refused.
 soffio: soffio file.soffio says it is not a directory, not "stat .".
 preview: It builds on the BSDs: one xdg-open, open or start for all.
   The usage is one line; extra arguments are refused, as by soffio.
+soffio: -s can be given more than once.
+  Everything in -s is published; the files only drafts use go in a
+  -s of their own that only the preview gets: -a -s static -s drafts.
+  A public text pointing at one is a missing file. A path in two -s,
+  or twice in letter case only, is refused.
 soffio: A page needs a title.
   One without was an empty link, so unseen, in every list of pages.
 soffio: In pipe mode -n only checks; a flag about the site is refused.

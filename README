@@ -4,7 +4,7 @@ NAME
     soffio - a minimalist, strict static site generator
 
 SYNOPSIS
-    soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]
+    soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]...
            [-t dir] dir
     soffio [-n] < text.soffio > text.html
     preview [-d dir] [-p port] [dir]
@@ -45,9 +45,10 @@ OPTIONS
                 alternates if it and en are listed. Default en.
     -o dir      the output directory. Default public.
     -s dir      the static files, copied to <o>/static, but hidden
-                ones: a link to one is an error. Without -s a link or
-                image under /static/ is an error. It can't overlap
-                <o>/static.
+                ones: a link to one is an error. -s again adds a
+                directory; a path in two of them is an error. Without
+                -s a link or image under /static/ is an error. None
+                can overlap <o>/static.
     -t dir      the templates; without it, the built-in ones. The two
                 are never mixed.
     -v          print the version and exit.
@@ -99,6 +100,25 @@ LINKS AND FILES
     disk.
 
     An image is a file under /static/, or an address out of the site.
+
+PRIVATE TEXTS AND FILES
+    A text with 'visibility: private' is a draft: without -a it is not
+    written, and a public text that links to it is an error, as the
+    link would lead nowhere. So the public site is closed: every link
+    in it leads to a page or a file that is in it.
+
+    Everything in -s is published, all of it: soffio does not guess
+    which file is private. Keep the files only drafts use in a
+    directory of their own, and give it to the preview alone:
+
+        soffio -s static dir                         the public site
+        soffio -a -s static -s drafts -o www dir     the preview
+
+    A public text pointing at a file in drafts is then a missing file,
+    as a link to a draft is an error: a file in the wrong place is
+    missing, never published. When a draft goes public, move its
+    files to static. Build the public site into an empty directory:
+    soffio never deletes, and what a build with -a wrote would stay.
 
 TEMPLATES
     Go html/template files. A page goes through its 'layout' (post means
