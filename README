@@ -50,7 +50,8 @@ OPTIONS
                 -s a link or image under /static/ is an error. None
                 can overlap <o>/static.
     -t dir      the templates; without it, the built-in ones. The two
-                are never mixed.
+                are never mixed. It can't be -o: the site files would
+                be written over the templates.
     -v          print the version and exit.
 
 MARKUP

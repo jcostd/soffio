@@ -72,7 +72,7 @@ func main() {
 		return
 	}
 
-	if err := checkFlags(*baseURL, *langs, staticDirs, *tmplDir); err != nil {
+	if err := checkFlags(*baseURL, *langs, staticDirs, *tmplDir, *outDir); err != nil {
 		log.Fatalf("soffio: %v", err)
 	}
 	tmpl, err := loadTemplates(*tmplDir)
@@ -160,8 +160,9 @@ func pipe(dry bool) {
 // not http(s)://host[/path], or holds what html/template would escape
 // in robots.txt or manifest.json, or ends in '/', as every address is
 // BaseURL + "/" + path; a language that can't be a directory, or is
-// twice; a static or template directory that is not there.
-func checkFlags(baseURL, langs string, staticDirs []string, tmplDir string) error {
+// twice; a static or template directory that is not there; templates
+// in -o, where the site files would be written over them.
+func checkFlags(baseURL, langs string, staticDirs []string, tmplDir, outDir string) error {
 	if baseURL != "" {
 		u, err := url.Parse(baseURL)
 		switch {
@@ -195,6 +196,11 @@ func checkFlags(baseURL, langs string, staticDirs []string, tmplDir string) erro
 		} else if !fi.IsDir() {
 			return fmt.Errorf("%s %s: not a directory", f[0], f[1])
 		}
+	}
+	t, errT := os.Stat(tmplDir)
+	o, errO := os.Stat(outDir)
+	if tmplDir != "" && errT == nil && errO == nil && os.SameFile(t, o) {
+		return fmt.Errorf("-t %s is -o %s: the site would be written over its templates", tmplDir, outDir)
 	}
 	return nil
 }

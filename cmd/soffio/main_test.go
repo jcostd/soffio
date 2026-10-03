@@ -334,7 +334,7 @@ func TestCheckFlags(t *testing.T) {
 		{"https://example.org", "en", file, false},
 	}
 	for _, tt := range tests {
-		if err := checkFlags(tt.baseURL, tt.langs, []string{tt.static}, ""); (err == nil) != tt.ok {
+		if err := checkFlags(tt.baseURL, tt.langs, []string{tt.static}, "", "public"); (err == nil) != tt.ok {
 			t.Errorf("checkFlags(%q, %q, %q) = %v", tt.baseURL, tt.langs, tt.static, err)
 		}
 	}
@@ -343,7 +343,7 @@ func TestCheckFlags(t *testing.T) {
 		filepath.Join(static, "nope"): "no such file",
 		file:                          "-t " + file + ": not a directory",
 	} {
-		if err := checkFlags("", "en", nil, tmpl); want == "" && err != nil || !strings.Contains(fmt.Sprint(err), want) {
+		if err := checkFlags("", "en", nil, tmpl, "public"); want == "" && err != nil || !strings.Contains(fmt.Sprint(err), want) {
 			t.Errorf("checkFlags -t %s: %v, want %q", tmpl, err, want)
 		}
 	}
@@ -372,6 +372,20 @@ func TestSoffioPrivateStatic(t *testing.T) {
 	}
 	if code, stderr := soffioRun(t, dir, "-n", "-s", "", "src"); code != 2 || !strings.Contains(stderr, "no directory") {
 		t.Errorf("-s \"\": exit %d, %q", code, stderr)
+	}
+}
+
+func TestSoffioTemplatesOntoThemselves(t *testing.T) {
+	dir := writeFiles(t, map[string]string{
+		"src/a.soffio":     "title: A\n\n== s | S\nx",
+		"site/layout.html": "{{ .Content }}",
+		"site/rss.xml":     "RSS",
+	})
+	// site and ./site/ are one directory
+	code, stderr := soffioRun(t, dir, "-t", "site", "-o", "./site/", "src")
+	got, _ := os.ReadFile(filepath.Join(dir, "site", "rss.xml"))
+	if code != 1 || !strings.Contains(stderr, "written over its templates") || string(got) != "RSS" {
+		t.Errorf("exit %d, %q, rss.xml %q", code, stderr, got)
 	}
 }
 
