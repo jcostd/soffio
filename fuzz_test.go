@@ -10,8 +10,10 @@ import (
 // that was not escaped.
 var tags = regexp.MustCompile(`</?(section|h[2-6]|p|ul|ol|li|figure|figcaption|strong|em|a|sup)( [^<>]*)?>|<img [^<>]*>`)
 
+var ids = regexp.MustCompile(` id="[^"]*"`)
+
 // FuzzParse checks that no text makes Parse or Render panic, nests a
-// link in a link, or gets markup through unescaped.
+// link in a link, repeats an id, or gets markup through unescaped.
 func FuzzParse(f *testing.F) {
 	for _, s := range []string{
 		"title: T\n\n== s | S\n*bold* _it_ (a -> b) (*n)\n\n:: note: n | note\n",
@@ -19,6 +21,7 @@ func FuzzParse(f *testing.F) {
 		"\n== s | S\n(a (b -> c) -> d) \\* <script>x</script> & \"q\"\n",
 		"\n=== t | T\n(*bold*) snake_case 2*3*4 (x -> #t) (y -> https://x.org/a_b)\n",
 		"notes_title: <N>\n\n== s | S\n(*a)\n\n:: note: a | (*b)\n\n:: note: b | (*a)\n",
+		"id: d\n\n== fn-x | S\n(*x)\n\n== footnotes-d | F\n\n:: note: x | x\n",
 	} {
 		f.Add(s)
 	}
@@ -43,6 +46,13 @@ func FuzzParse(f *testing.F) {
 		}
 		if depth != 0 {
 			t.Fatalf("unbalanced <a>:\n%s", out)
+		}
+		seen := map[string]bool{}
+		for _, id := range ids.FindAllString(out, -1) {
+			if seen[id] {
+				t.Fatalf("%s twice:\n%s", id, out)
+			}
+			seen[id] = true
 		}
 		if text := tags.ReplaceAllString(out, ""); strings.ContainsAny(text, "<>") {
 			t.Fatalf("markup not escaped:\n%s", out)
