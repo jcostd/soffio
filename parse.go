@@ -279,8 +279,8 @@ func (p *parser) command(n int, line string, more []string) Block {
 // inlines decodes the inline markup of the block at line n; if it
 // refuses it, it says why and ok is false.
 func (p *parser) inlines(n int, s string) (in []Inline, ok bool) {
-	in, why := parseInline(s)
-	if why != "" {
+	var why string
+	if in = inline(s, false, &why); why != "" {
 		p.errorf(n, "%s", why)
 		return nil, false
 	}

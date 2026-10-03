@@ -9,17 +9,12 @@ import (
 	"unicode/utf8"
 )
 
-// parseInline decodes *bold*, _italic_, (label -> target), (*note) and
-// \ escapes; why says what it refuses, or is "". Every marker is ASCII,
-// so s is scanned by byte: a byte of a multibyte rune is never one.
-func parseInline(s string) (in []Inline, why string) {
-	in = inline(s, false, &why)
-	return in, why
-}
-
-// inline is parseInline; inLabel is true in a link label, where a link
-// or a note ref is refused, as an <a> can't hold an <a>. There a link's
-// own label stays text, and parsing goes no deeper.
+// inline decodes *bold*, _italic_, (label -> target), (*note) and \
+// escapes; *why says what it refuses. Every marker is ASCII, so s is
+// scanned by byte: a byte of a multibyte rune is never one. inLabel is
+// true in a link label, where a link or a note ref is refused, as an
+// <a> can't hold an <a>. There a link's own label stays text, and
+// parsing goes no deeper.
 func inline(s string, inLabel bool, why *string) []Inline {
 	var out []Inline
 	var text strings.Builder

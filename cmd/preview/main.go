@@ -90,12 +90,9 @@ func servesDir(url, dir string) bool {
 	}
 	resp.Body.Close()
 
-	served := resp.Header.Get(dirHeader)
-	if served == "" {
-		return false
-	}
-	// SameFile, not string equality: Windows paths are case-insensitive
-	a, errA := os.Stat(served)
+	// SameFile, not string equality: Windows paths are case-insensitive;
+	// no header, no file
+	a, errA := os.Stat(resp.Header.Get(dirHeader))
 	b, errB := os.Stat(dir)
 	return errA == nil && errB == nil && os.SameFile(a, b)
 }

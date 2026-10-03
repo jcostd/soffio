@@ -162,7 +162,8 @@ func TestParseInline(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, why := parseInline(tt.input)
+			var why string
+			got := inline(tt.input, false, &why)
 			if why != "" {
 				t.Errorf("refused: %s", why)
 			}
@@ -178,6 +179,7 @@ func BenchmarkParseInline(b *testing.B) {
 	b.ReportAllocs()
 
 	for b.Loop() {
-		_, _ = parseInline(input)
+		var why string
+		_ = inline(input, false, &why)
 	}
 }
