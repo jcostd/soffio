@@ -65,6 +65,10 @@ soffio: A link to a hidden file under -s is refused.
 soffio: -n checks the copy of -s too, and writes nothing.
   A link to a directory in -s, or -o inside -s, gave exit 0 with -n
   and exit 1 in the build. A broken link in -s says where it is.
+soffio: The public site needs -baseurl.  (* Changes the interface. *)
+  It was http://localhost:8080 if not given, so a public build that
+  forgot it pointed its feeds and canonical links there, with exit 0.
+  With -a or -n it still is, for the preview.
 soffio: Notes have no heading but notes_title.  (* Changes the look. *)
   It was "Notes", in English on an Italian page.
 soffio: Note anchors are fn:x, fnref:x:1 and footnotes:<id>.

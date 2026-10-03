@@ -76,7 +76,7 @@ func TestSoffio(t *testing.T) {
 		"e404/404.soffio":   "title: Not found\n\n== s | S\nx",
 	})
 
-	if code, stderr := soffioRun(t, dir, "-s", "static", "src"); code != 0 {
+	if code, stderr := soffioRun(t, dir, "-baseurl", "https://example.org", "-s", "static", "src"); code != 0 {
 		t.Fatalf("build: exit %d: %s", code, stderr)
 	}
 	for _, name := range []string{"index.html", "about.html", "static/a.png", "rss.xml", "404.html"} {
@@ -90,6 +90,14 @@ func TestSoffio(t *testing.T) {
 
 	if code, stderr := soffioRun(t, dir, "-a", "-s", "static", "-o", "all", "src"); code != 0 || !exists(dir, "all/draft.html") {
 		t.Errorf("-a: exit %d, draft.html there: %v: %s", code, exists(dir, "all/draft.html"), stderr)
+	}
+	for file, want := range map[string]string{
+		"public/index.html": `href="https://example.org/index.html"`,
+		"all/index.html":    `href="http://localhost:8080/index.html"`, // the preview's
+	} {
+		if got, _ := os.ReadFile(filepath.Join(dir, file)); !strings.Contains(string(got), want) {
+			t.Errorf("%s has no %s", file, want)
+		}
 	}
 	if code, stderr := soffioRun(t, dir, "-n", "-s", "static", "-o", "none", "src"); code != 0 || exists(dir, "none") {
 		t.Errorf("-n: exit %d, none/ there: %v: %s", code, exists(dir, "none"), stderr)
@@ -107,6 +115,9 @@ func TestSoffio(t *testing.T) {
 		{[]string{"-n", "-baseurl", "https://x.org/", "src"}, 1, `drop the final '/'`},
 		{[]string{"-n", "-langs", "it, en", "src"}, 1, `language " en": it contains a space`},
 		{[]string{"src", "more"}, 2, "usage: soffio"},
+		// a public site that says nowhere where it goes would point at
+		// localhost
+		{[]string{"-s", "static", "-o", "nowhere", "src"}, 2, "the public site needs -baseurl"},
 		{[]string{"-n", "-s", "static", "e404"}, 1, "page 404 is the site file 404.html too"},
 	} {
 		code, stderr := soffioRun(t, dir, tt.args...)
@@ -320,7 +331,7 @@ func TestCheckFlags(t *testing.T) {
 		{"https://example.org", "it,en", static, true},
 		{"https://example.org/sub", "en", "", true},
 		{"http://localhost:8080", "en", "", true},
-		{"", "en", "", true},
+		{"", "en", "", false},
 		{"https://example.org/", "en", "", false},
 		{"/", "en", "", false},
 		{"example.org", "en", "", false},
@@ -343,7 +354,7 @@ func TestCheckFlags(t *testing.T) {
 		filepath.Join(static, "nope"): "no such file",
 		file:                          "-t " + file + ": not a directory",
 	} {
-		if err := checkFlags("", "en", nil, tmpl, "public"); want == "" && err != nil || !strings.Contains(fmt.Sprint(err), want) {
+		if err := checkFlags("https://example.org", "en", nil, tmpl, "public"); want == "" && err != nil || !strings.Contains(fmt.Sprint(err), want) {
 			t.Errorf("checkFlags -t %s: %v, want %q", tmpl, err, want)
 		}
 	}
@@ -360,7 +371,7 @@ func TestSoffioPrivateStatic(t *testing.T) {
 		"static/a.png":     "A",
 		"drafts/d.png":     "D",
 	})
-	if code, stderr := soffioRun(t, dir, "-s", "static", "src"); code != 0 || exists(dir, "public/static/d.png") {
+	if code, stderr := soffioRun(t, dir, "-baseurl", "https://example.org", "-s", "static", "src"); code != 0 || exists(dir, "public/static/d.png") {
 		t.Errorf("public: exit %d, d.png there: %v: %s", code, exists(dir, "public/static/d.png"), stderr)
 	}
 	if code, stderr := soffioRun(t, dir, "-a", "-s", "static", "-s", "drafts", "-o", "www", "src"); code != 0 ||
@@ -382,7 +393,7 @@ func TestSoffioTemplatesOntoThemselves(t *testing.T) {
 		"site/rss.xml":     "RSS",
 	})
 	// site and ./site/ are one directory
-	code, stderr := soffioRun(t, dir, "-t", "site", "-o", "./site/", "src")
+	code, stderr := soffioRun(t, dir, "-baseurl", "https://example.org", "-t", "site", "-o", "./site/", "src")
 	got, _ := os.ReadFile(filepath.Join(dir, "site", "rss.xml"))
 	if code != 1 || !strings.Contains(stderr, "written over its templates") || string(got) != "RSS" {
 		t.Errorf("exit %d, %q, rss.xml %q", code, stderr, got)
@@ -396,7 +407,7 @@ func TestSoffioStaticOntoItself(t *testing.T) {
 	})
 	// -n says what the build would: -o inside -s, not there yet, too
 	for _, args := range [][]string{
-		{"-s", "public/static", "-o", "public", "src"},
+		{"-baseurl", "https://example.org", "-s", "public/static", "-o", "public", "src"},
 		{"-n", "-s", "public/static", "-o", "public", "src"},
 		{"-n", "-s", "public/static", "-o", "public/static/site", "src"},
 	} {

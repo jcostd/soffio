@@ -38,8 +38,10 @@ OPTIONS
                 included, and write nothing, as sh -n.
     -baseurl url
                 the site's address, for canonical links, hreflang,
-                feeds and sitemaps; without a final '/'.
-                Default http://localhost:8080.
+                feeds and sitemaps; without a final '/'. The public
+                site needs it: without it, it would point at
+                localhost. With -a or -n it is http://localhost:8080,
+                where preview serves, if not given.
     -langs l,...
                 the languages: it/about and en/about are each other's
                 alternates if it and en are listed. Default en.

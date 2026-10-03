@@ -39,7 +39,9 @@ Requires Go 1.26+ (see `go.mod`).
 
 Generator mode: `soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]... [-t dir] dir`
 reads the `.soffio` texts under dir and writes a site to `-o` (default `public`): `-a`
-takes the private texts too, `-n` checks everything and writes nothing, `-s` a
+takes the private texts too, `-n` checks everything and writes nothing, `-baseurl` is
+required for the public site (with `-a` or `-n` it is the preview's localhost if not
+given), `-s` a
 static dir copied to `<o>/static` (repeatable: the drafts' files go in one only the
 preview gets, as everything in `-s` is published), `-t` the templates instead of the built-in ones,
 `-v` prints the version. Pipe mode, with no dir: `soffio [-n] < text.soffio > text.html`

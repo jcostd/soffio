@@ -24,6 +24,9 @@ import (
 // Version is set at build time with -ldflags "-X main.Version=...".
 var Version = "dev"
 
+// preview is the address of the preview, where preview serves it.
+const preview = "http://localhost:8080"
+
 // siteFiles are made at the root of the site from the templates of the
 // same name, each if its template is there.
 var siteFiles = []string{"rss.xml", "sitemap.xml", "robots.txt", "404.html", "manifest.json"}
@@ -32,7 +35,7 @@ func main() {
 	log.SetFlags(0)
 	all := flag.Bool("a", false, "all texts: the private ones too")
 	dry := flag.Bool("n", false, "check everything, write nothing")
-	baseURL := flag.String("baseurl", "http://localhost:8080", "the site's `url`, without a final '/'")
+	baseURL := flag.String("baseurl", "", "the site's `url`, without a final '/'; with -a or -n, "+preview+" if none")
 	langs := flag.String("langs", "en", "the languages, as the first directories of the IDs: `it,en`")
 	outDir := flag.String("o", "public", "the output `dir`")
 	var staticDirs []string
@@ -72,6 +75,15 @@ func main() {
 		return
 	}
 
+	// the preview and a check can do with localhost; the public site
+	// can't: its feeds and canonical links would point there
+	if *baseURL == "" {
+		if !*all && !*dry {
+			log.Print("soffio: the public site needs -baseurl, its address")
+			os.Exit(2)
+		}
+		*baseURL = preview
+	}
 	if err := checkFlags(*baseURL, *langs, staticDirs, *tmplDir, *outDir); err != nil {
 		log.Fatalf("soffio: %v", err)
 	}
@@ -163,15 +175,13 @@ func pipe(dry bool) {
 // twice; a static or template directory that is not there; templates
 // in -o, where the site files would be written over them.
 func checkFlags(baseURL, langs string, staticDirs []string, tmplDir, outDir string) error {
-	if baseURL != "" {
-		u, err := url.Parse(baseURL)
-		switch {
-		case err != nil || u.Scheme != "http" && u.Scheme != "https" || u.Host == "" ||
-			u.RawQuery != "" || u.Fragment != "" || strings.ContainsAny(baseURL, `"'&<>+ `):
-			return fmt.Errorf("-baseurl %q: want http(s)://host[/path]", baseURL)
-		case strings.HasSuffix(baseURL, "/"):
-			return fmt.Errorf("-baseurl %q: drop the final '/'", baseURL)
-		}
+	u, err := url.Parse(baseURL)
+	switch {
+	case err != nil || u.Scheme != "http" && u.Scheme != "https" || u.Host == "" ||
+		u.RawQuery != "" || u.Fragment != "" || strings.ContainsAny(baseURL, `"'&<>+ `):
+		return fmt.Errorf("-baseurl %q: want http(s)://host[/path]", baseURL)
+	case strings.HasSuffix(baseURL, "/"):
+		return fmt.Errorf("-baseurl %q: drop the final '/'", baseURL)
 	}
 	seen := map[string]bool{}
 	for l := range strings.SplitSeq(langs, ",") {
