@@ -88,6 +88,10 @@ func parseFile(fsys fs.FS, name, file string) (*Document, error) {
 	if err != nil {
 		return nil, err
 	}
+	// a page with no title is an empty link in every list of pages
+	if doc.Title == "" {
+		return nil, fmt.Errorf("%s: no title", file)
+	}
 	if doc.ID == "" {
 		doc.ID = strings.TrimSuffix(path.Base(name), ".soffio")
 	}
