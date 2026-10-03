@@ -11,7 +11,9 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -25,18 +27,17 @@ func main() {
 	port := flag.String("p", "8080", "port to listen on")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Soffio Preview - Minimal local web server\n\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage:\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "  preview [flags] [dir]\n\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "Flags:\n")
+		fmt.Fprint(flag.CommandLine.Output(), "usage: preview [-d dir] [-p port] [dir]\n")
 		flag.PrintDefaults()
 	}
-
 	flag.Parse()
-
-	// overwrite -d if positional arg present
-	if flag.NArg() > 0 {
+	switch flag.NArg() {
+	case 0:
+	case 1:
 		*dir = flag.Arg(0)
+	default:
+		flag.Usage()
+		os.Exit(2)
 	}
 
 	absDir, err := filepath.Abs(*dir)
@@ -59,23 +60,13 @@ func main() {
 		// it already serves the fresh build, so just show it again
 		if servesDir(url, absDir) {
 			log.Printf("preview: already serving %s at %s", *dir, url)
-			if err := openBrowser(url); err != nil {
-				log.Printf("preview: warning: open browser: %v", err)
-			}
+			openBrowser(url)
 			return
 		}
-		log.Fatalf("preview: failed to listen on %s: %v", addr, err)
+		log.Fatalf("preview: %v", err)
 	}
-
-	go func() {
-		if err := openBrowser(url); err != nil {
-			log.Printf("preview: warning: open browser: %v", err)
-		}
-	}()
-
-	log.Printf("preview: serving %s at %s", *dir, url)
-	log.Printf("preview: press Ctrl+C to stop")
-
+	log.Printf("preview: serving %s at %s; Ctrl+C stops it", *dir, url)
+	openBrowser(url)
 	if err := http.Serve(listener, handler(absDir)); err != nil {
 		log.Fatalf("preview: %v", err)
 	}
@@ -107,4 +98,19 @@ func servesDir(url, dir string) bool {
 	a, errA := os.Stat(served)
 	b, errB := os.Stat(dir)
 	return errA == nil && errB == nil && os.SameFile(a, b)
+}
+
+// openBrowser opens url in the default browser, or says why it can't:
+// the site is served all the same.
+func openBrowser(url string) {
+	cmd := []string{"xdg-open", url} // Linux and the BSDs
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = []string{"open", url}
+	case "windows":
+		cmd = []string{"cmd", "/c", "start", "", url}
+	}
+	if err := exec.Command(cmd[0], cmd[1:]...).Start(); err != nil {
+		log.Printf("preview: %v", err)
+	}
 }
