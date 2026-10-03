@@ -65,7 +65,7 @@ func Parse(name string, r io.Reader) (*Document, error) {
 	start := 0
 	for i := n; i < len(lines); i++ {
 		line := strings.TrimSpace(lines[i])
-		if line == "" || strings.HasPrefix(line, "==") || strings.HasPrefix(line, ":: ") {
+		if line == "" || strings.HasPrefix(line, "==") || strings.HasPrefix(line, "::") {
 			p.block(start, block)
 			block = nil
 		}
@@ -207,7 +207,7 @@ func (p *parser) block(n int, lines []string) {
 	}
 	var b Block
 	switch first := lines[0]; {
-	case strings.HasPrefix(first, ":: "):
+	case strings.HasPrefix(first, "::"):
 		b = p.command(n, first, lines[1:])
 	case isItem(first):
 		b = p.list(n, lines)
@@ -229,10 +229,12 @@ func (p *parser) block(n int, lines []string) {
 }
 
 // command decodes ":: img: path | caption" or ":: note: id | text";
-// the lines after it go on with the caption or text.
+// the lines after it go on with the caption or text. "::img:" is a
+// slip, not text.
 func (p *parser) command(n int, line string, more []string) Block {
-	cmd, payload, ok := strings.Cut(line[len(":: "):], ": ")
-	if !ok {
+	rest, ok := strings.CutPrefix(line, ":: ")
+	cmd, payload, cut := strings.Cut(rest, ": ")
+	if !ok || !cut {
 		p.errorf(n, "%q is not :: cmd: arg | text", line)
 		return nil
 	}

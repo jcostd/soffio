@@ -127,6 +127,8 @@ func TestParseErrors(t *testing.T) {
 		{"\n== a | A\n\n== a | Again", `t.soffio:4: duplicate section id "a"`},
 		{"\n== a b | A", `t.soffio:2: invalid section id "a b": it contains a space`},
 		{"\n== s | S\n:: gallery: a | b", `t.soffio:3: unknown command "gallery": want img or note`},
+		{"\n== s | S\n::img: /static/a.png | a", `t.soffio:3: "::img: /static/a.png | a" is not :: cmd: arg | text`},
+		{"\n== s | S\ntext\n::", `t.soffio:4: "::" is not :: cmd: arg | text`},
 		{"\n== s | S\n:: img: path caption", `t.soffio:3: ":: img: path caption" is not :: cmd: arg | text`},
 		{"\n== s | S\n:: img: img/a.png | a", `t.soffio:3: image "img/a.png" is not under /static/`},
 		{"\n== s | S\n:: img: /img/a.png | a", `t.soffio:3: image "/img/a.png" is not under /static/`},
