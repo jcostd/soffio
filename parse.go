@@ -38,7 +38,7 @@ func Parse(name string, r io.Reader) (*Document, error) {
 	// a byte order mark, as Notepad may write, is ignored, as Go does
 	lines := strings.Split(strings.TrimPrefix(string(src), "\uFEFF"), "\n")
 	p := parser{
-		doc:      Document{File: name, Meta: map[string]string{}},
+		doc:      Document{File: name, Meta: map[string]string{}, lines: map[string]int{}},
 		keys:     map[string]bool{},
 		sections: map[string]bool{},
 		notes:    map[string]bool{},
@@ -108,6 +108,7 @@ func (p *parser) header(n int, line string) {
 		return
 	}
 	p.keys[key] = true
+	p.doc.lines[key] = n
 
 	switch {
 	case key == "id":
@@ -120,6 +121,13 @@ func (p *parser) header(n int, line string) {
 		p.doc.Title = val
 	case key == "visibility" && val != "public" && val != "private":
 		p.errorf(n, "invalid visibility %q: want public or private", val)
+	case isImageKey(key) && val != "":
+		// as for :: img:, an image of the site is a static file
+		if _, _, ok := resolve("", val); ok && !strings.HasPrefix(val, "/static/") {
+			p.errorf(n, "%s %q is not under /static/", key, val)
+			return
+		}
+		p.doc.Meta[key] = val
 	case isDateKey(key) && val != "":
 		if _, err := time.Parse(time.DateOnly, val); err != nil {
 			p.errorf(n, "invalid %s %q: want a real date, YYYY-MM-DD", key, val)
@@ -133,6 +141,12 @@ func (p *parser) header(n int, line string) {
 
 func isKeyRune(r rune) bool {
 	return 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '_'
+}
+
+// isImageKey reports whether a header key holds an image: "image" and
+// any "*_image". A template shows it, so it is checked as :: img: is.
+func isImageKey(key string) bool {
+	return key == "image" || strings.HasSuffix(key, "_image")
 }
 
 // isDateKey reports whether a header key holds a date: "date",

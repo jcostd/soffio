@@ -1,3 +1,13 @@
+Sat Oct  3 15:41:29 UTC 2026
+Not released yet: since v3.0.0, to be 3.1.0.
+soffio: image and any *_image in the header are checked, as :: img: is.
+  Under /static/ and there, or an address out of the site, or empty.
+  A cover with a wrong path, or a private image in a public text, was a
+  broken image with exit 0.
+soffio: After a refused section line, one error, not two.
+  The text under it was "text before the first section" too, and a
+  writer fixed what was not wrong.
++--------------------------+
 Sat Oct  3 15:00:56 UTC 2026
 soffio 3.0.0, since v2.1.0. Fewer flags, no warnings, many more
 checks in 7% less code, three times faster.

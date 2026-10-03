@@ -152,7 +152,9 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 ## Markup format (`.soffio`)
 
 Frontmatter (`key: value` lines) + blank line + body. Known frontmatter keys: `id`,
-`title`, `layout`, `visibility`, `notes_title`; any other key lands in `Meta` and is
+`title`, `layout`, `visibility`, `notes_title`; `date`, `updated`, `*_date` are dates;
+`image`, `*_image` are images, checked as `:: img:` (parse: under `/static/`; `Check`: the
+file is there, at the header line, which `Document.lines` keeps); any other key lands in `Meta` and is
 available to templates/`sortBy`; `visibility` is `public` or `private`. Body syntax: `== id | Title` (section header, level
 2–6 `=`), `*bold*`, `_italic_`, `(Label -> target)` links, `:: img: /static/path | caption`,
 `- item` lists, `:: note: id | text` footnote defs, `(*note-id)` footnote refs. Link

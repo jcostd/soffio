@@ -53,6 +53,7 @@ list continuation
 		ID:    "test-doc",
 		Title: "The Title",
 		Meta:  map[string]string{"layout": "custom"},
+		lines: map[string]int{"id": 1, "title": 2, "layout": 3},
 		Sections: []Section{
 			{
 				Level: 2,
@@ -148,6 +149,8 @@ func TestParseErrors(t *testing.T) {
 		{"event_date: 1960\n", `invalid event_date "1960"`},
 		{"title: T\n== s | Title: sub\n", `t.soffio:2: invalid header key "== s | title": letters, digits and _ only`},
 		{"my-key: x\n", `invalid header key "my-key"`},
+		{"image: img/a.webp\n", `t.soffio:1: image "img/a.webp" is not under /static/`},
+		{"title: T\ncover_image: /img/a.webp\n", `t.soffio:2: cover_image "/img/a.webp" is not under /static/`},
 		{"title: x\xff\n", `t.soffio:1: invalid UTF-8: save the file as UTF-8`},
 		{"\n== s | S\n(a (b -> c) -> d)", `t.soffio:3: a link inside a link`},
 		{"\n== s | S\n(*a (b -> c)* -> d)", `t.soffio:3: a link inside a link`},

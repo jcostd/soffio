@@ -4,6 +4,7 @@
 package soffio
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -70,6 +71,16 @@ func check(doc *Document, target func(string) string) []error {
 			}
 		}
 	}
+	// the images of the header, in their order
+	keys := slices.SortedFunc(maps.Keys(doc.Meta), func(a, b string) int {
+		return cmp.Or(cmp.Compare(doc.lines[a], doc.lines[b]), cmp.Compare(a, b))
+	})
+	for _, key := range keys {
+		if isImageKey(key) && doc.Meta[key] != "" {
+			address(doc.lines[key], doc.Meta[key])
+		}
+	}
+
 	var queue []NoteBlock // referenced, in order of first reference
 	used := map[string]bool{}
 

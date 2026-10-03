@@ -11,6 +11,7 @@ type Document struct {
 	Title    string
 	Meta     map[string]string
 	Sections []Section
+	lines    map[string]int // header key to its line, for messages
 }
 
 // A Section is a heading and the blocks under it.
