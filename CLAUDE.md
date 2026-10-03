@@ -109,7 +109,8 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 
 - **`html.go`**: `Render` returns one document as an HTML fragment, knowing nothing of
   the corpus. Note refs are numbered as met and the endnotes come last, in order of
-  first reference. Their anchors are `fn:x`, `fnref:x:n` and `footnotes:<id>`: no
+  first reference, under an h2 only if the text has `notes_title` (no English default:
+  no heading reads well in any language). Their anchors are `fn:x`, `fnref:x:n` and `footnotes:<id>`: no
   section ID holds ':', so they never clash with one.
 
 - **`cmd/soffio`**: flags (`checkFlags`: -baseurl is http(s)://host[/path] with

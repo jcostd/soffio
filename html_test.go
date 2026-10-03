@@ -167,8 +167,8 @@ func TestRender_Footnotes(t *testing.T) {
 		`<sup id="fnref:n2:1"><a href="#fn:n2" role="doc-noteref">2</a></sup>`,
 		`<sup id="fnref:n1:2"><a href="#fn:n1" role="doc-noteref">1</a></sup>`,
 		// Endnotes section
-		`<section role="doc-endnotes" aria-labelledby="footnotes:doc-note">`,
-		`<h2 id="footnotes:doc-note">Notes</h2>`,
+		// no notes_title, no heading: it reads well in any language
+		"<section role=\"doc-endnotes\">\n\t<ol>\n",
 		`<li id="fn:n1" role="doc-endnote">Note one. <a href="#fnref:n1:1" aria-label="back to reference">↩</a></li>`,
 		`<li id="fn:n2" role="doc-endnote">Note two. <a href="#fnref:n2:1" aria-label="back to reference">↩</a></li>`,
 	}
@@ -203,12 +203,12 @@ func TestRenderNoteInNote(t *testing.T) {
 }
 
 func TestRenderEscapesIDs(t *testing.T) {
-	doc := &Document{ID: "a&b", Sections: []Section{{Level: 2, ID: "s&t", Blocks: []Block{
+	doc := &Document{ID: "a&b", Meta: map[string]string{"notes_title": "Note & co"}, Sections: []Section{{Level: 2, ID: "s&t", Blocks: []Block{
 		TextBlock{Elements: []Inline{FootnoteRef{Target: "n&m"}}},
 		NoteBlock{ID: "n&m", Elements: []Inline{PlainText{Content: "N"}}},
 	}}}}
 	got := Render(doc)
-	for _, want := range []string{`<section id="s&amp;t">`, `id="footnotes:a&amp;b"`, `<li id="fn:n&amp;m"`, `href="#fnref:n&amp;m:1"`} {
+	for _, want := range []string{`<section id="s&amp;t">`, `<h2 id="footnotes:a&amp;b">Note &amp; co</h2>`, `<li id="fn:n&amp;m"`, `href="#fnref:n&amp;m:1"`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("missing %s in:\n%s", want, got)
 		}

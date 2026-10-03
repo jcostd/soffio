@@ -61,7 +61,9 @@ MARKUP
     'notes_title' mean something to soffio, and every key reaches the
     templates. A page needs a title; the rest is up to you. 'date',
     'updated' and any '*_date' hold a real date as YYYY-MM-DD, or
-    nothing. A byte order mark at the start is ignored.
+    nothing. A byte order mark at the start is ignored. The notes come
+    at the end of the page, under 'notes_title' if the text has one,
+    with no heading if not, which reads well in any language.
 
     == id | Title                     section (== to ======: h2 to h6)
     *text*                            bold

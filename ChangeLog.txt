@@ -63,6 +63,8 @@ soffio: A link to a hidden file under -s is refused.
 soffio: -n checks the copy of -s too, and writes nothing.
   A link to a directory in -s, or -o inside -s, gave exit 0 with -n
   and exit 1 in the build. A broken link in -s says where it is.
+soffio: Notes have no heading but notes_title.  (* Changes the look. *)
+  It was "Notes", in English on an Italian page.
 soffio: Note anchors are fn:x, fnref:x:1 and footnotes:<id>.
   A section fn-x and a note x had the same id; no section ID holds ':'.
 soffio: A line starting with :: is a command, or is refused.
