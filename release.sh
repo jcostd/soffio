@@ -5,8 +5,9 @@
 # release.sh: build soffio and preview with make for every system in
 # TARGETS, into dist/soffio-<VERSION>-<os>-<arch>.tar.gz, .zip for
 # windows, each holding soffio-<VERSION>-<os>-<arch>/ with the two
-# programs, README and LICENSE. How they are compiled is the Makefile's
-# business. fucina-factory takes the archives as they are.
+# programs, README, LICENSE and templates/: the built-in templates, as
+# files to start a -t of one's own from. How they are compiled is the
+# Makefile's business. fucina-factory takes the archives as they are.
 
 cd "$(dirname "$0")" || exit 1
 CWD=$(pwd)
@@ -38,10 +39,11 @@ for t in $TARGETS; do
   mkdir "$TMP/$NAME"
   make -s GOOS=$OS GOARCH=$ARCH OUT="$TMP/$NAME"
   cp README LICENSE "$TMP/$NAME"
+  cp -R cmd/soffio/templates "$TMP/$NAME/templates"
 
   cd "$TMP"
-  chmod 755 $NAME $NAME/soffio* $NAME/preview*
-  chmod 644 $NAME/README $NAME/LICENSE
+  chmod 755 $NAME $NAME/soffio* $NAME/preview* $NAME/templates
+  chmod 644 $NAME/README $NAME/LICENSE $NAME/templates/*
   if [ $OS = windows ]; then
     zip -qrX "$CWD/dist/$NAME.zip" $NAME
     echo "dist/$NAME.zip"
