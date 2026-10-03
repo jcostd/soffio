@@ -98,9 +98,9 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   the page (common prefix plus `../`), so the i18n layout needs no absolute URLs; a
   target under `static/` is a file, anything else a page and gets `.html`.
 
-- **`check.go`**: `Check(all, active, staticDir)` walks only the visibility-filtered
+- **`check.go`**: `Check(all, active, staticDirs)` walks only the visibility-filtered
   active documents, in ID order: every link and image points at an active page, one of
-  its sections, or a regular file in `staticDir`, through a valid address; every
+  its sections, or a regular file in one of `staticDirs`, through a valid address; every
   note is defined and reached from the body, maybe through other notes, as `Render`
   reaches it: a note referred to only by itself, or by unreached notes, is "never
   referenced". A link to a document in all but not active is a **privacy leak**, an
