@@ -26,7 +26,10 @@ DESCRIPTION
 
     preview serves a directory on 127.0.0.1 and opens the browser. If
     the port is taken by a preview of the same directory, it opens the
-    browser on that one and exits.
+    browser on that one and exits. The browser keeps nothing, so it
+    shows the last build; the types of a site's files are fixed, not
+    asked of the system; and no page's address goes out to a site it
+    links to, as a preview holds the private texts.
 
     It uses the Go standard library and nothing else.
 

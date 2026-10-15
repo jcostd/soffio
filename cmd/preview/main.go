@@ -12,8 +12,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -72,11 +74,48 @@ func main() {
 	}
 }
 
-// handler serves dir and labels every response with it.
+// types are the media types of what a site holds. Go asks the system
+// for them, and the system may be wrong: on Windows a registry that says
+// text/plain for .css gets the stylesheet refused. Here they are fixed.
+var types = map[string]string{
+	".html":  "text/html; charset=utf-8",
+	".css":   "text/css; charset=utf-8",
+	".js":    "text/javascript; charset=utf-8",
+	".json":  "application/json",
+	".xml":   "application/xml; charset=utf-8",
+	".txt":   "text/plain; charset=utf-8",
+	".svg":   "image/svg+xml",
+	".png":   "image/png",
+	".jpg":   "image/jpeg",
+	".jpeg":  "image/jpeg",
+	".gif":   "image/gif",
+	".webp":  "image/webp",
+	".avif":  "image/avif",
+	".ico":   "image/x-icon",
+	".woff2": "font/woff2",
+	".woff":  "font/woff",
+	".pdf":   "application/pdf",
+}
+
+// handler serves dir and labels every response with it. Nothing is
+// kept: the browser shows the last build, not one it cached before
+// compila ran again. What the files are is said, not guessed, and the
+// address of a private page never leaves for a site it links to.
 func handler(dir string) http.Handler {
 	files := http.FileServer(http.Dir(dir))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set(dirHeader, dir)
+		h := w.Header()
+		h.Set(dirHeader, dir)
+		h.Set("Cache-Control", "no-store")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "no-referrer")
+		ext := strings.ToLower(path.Ext(r.URL.Path))
+		if strings.HasSuffix(r.URL.Path, "/") {
+			ext = ".html"
+		}
+		if t, ok := types[ext]; ok {
+			h.Set("Content-Type", t)
+		}
 		files.ServeHTTP(w, r)
 	})
 }

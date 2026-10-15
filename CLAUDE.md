@@ -142,7 +142,11 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   one switch on `runtime.GOOS`, so it builds on the BSDs too).
   Every response carries a `Soffio-Preview: <abs dir>` header, so a second `preview`
   of the same dir finds the first one when the port is taken, opens the browser on
-  it, and exits 0.
+  it, and exits 0. Also `Cache-Control: no-store` (a rebuilt site is never shown from
+  the browser's cache), `X-Content-Type-Options: nosniff`, `Referrer-Policy:
+  no-referrer` (the preview holds private texts), and a `Content-Type` from the fixed
+  `types` table for a site's extensions: Go asks the system otherwise, and a Windows
+  registry may call `.css` text/plain, or a system lack `.woff2`.
 - **Messages and exit status**: errors are `file:line: message`, all of them, in a
   fixed order, with no timestamps (`log.SetFlags(0)`). Every page and site file is
   attempted, but if any fails `soffio` exits 1; bad usage exits 2. A missing page is
