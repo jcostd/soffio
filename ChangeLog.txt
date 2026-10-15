@@ -1,3 +1,10 @@
+preview: The browser keeps nothing: after a rebuild it showed the old
+  stylesheet from its cache. File types come from a fixed table, not
+  from the system: a Windows registry may call .css text/plain, and Go
+  lacks .woff2. nosniff, and no referrer: a preview holds private texts.
+release.sh: The darwin archives hold unquarantine.sh. macOS will not
+  run a downloaded program that is not notarized; sh unquarantine.sh
+  lifts the quarantine from its folder and checks that soffio runs.
 Sat Oct  3 16:03:34 UTC 2026
 soffio 3.1.0, since v3.0.0. The cover image is checked, one error per
 refused section, notes with no heading.

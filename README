@@ -177,6 +177,16 @@ LIMITS
     private stays in -o from an earlier build, so build into an empty
     directory.
 
+MACOS
+    macOS will not run a program downloaded from the internet that
+    Apple has not notarized. The darwin archives hold unquarantine.sh:
+    after unpacking, in the Terminal, in the archive's folder:
+
+        sh unquarantine.sh
+
+    It lifts the quarantine from that folder alone, gives back the
+    exec bits, and checks that soffio runs.
+
 BUILD
     Requires Go 1.26 or higher.
 

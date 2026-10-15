@@ -56,7 +56,8 @@ style. Bump `VERSION`, date the ChangeLog entry, commit "bump to vX.Y.Z",
 GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip`
 for windows), each holding the two programs as the Makefile builds them, README,
 LICENSE and `templates/` (the built-in templates as files, to start a `-t` from),
-owned by root, 755/644.
+owned by root, 755/644; the darwin ones also `unquarantine.sh`, which a Mac user runs
+with `sh` to lift the quarantine of a download from that folder.
 fucina-factory takes those archives as they are, so build them from the clean tag:
 the binaries carry the git revision, and `vcs.modified=true` if the tree was dirty.
 
