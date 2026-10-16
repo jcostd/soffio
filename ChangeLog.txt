@@ -1,3 +1,22 @@
+Fri Oct 16 18:00:00 UTC 2026
+soffio 3.2.0, since v3.1.1. Pages know the pages that link to them,
+and a header can hold a link.
+soffio: A header value -> target is a link to a page.
+  Written and checked as a link in the body: from the text's
+  directory, to a page that is there and public. The templates get the
+  ID of the page, so .Docs gives its title: artist: -> ../persone/arp.
+  A section, a file or an address out of the site is refused: a header
+  link names a page. layout and the dates never hold one.
+soffio: A page gets .Backlinks, .Docs and .ID.
+  .Backlinks are the pages that link to it, from their header or their
+  body, by ID: a link is written once and read from both ends. .Docs is
+  every page by ID, as the site files had.
+soffio: where and reverse, for templates; sortBy takes .Docs too.
+  where keeps the pages whose header key has a value: where .Backlinks
+  "layout" "opera". reverse turns a list round, lowest first after
+  sortBy.
+soffio: The built-in layout lists the pages that link to a page.
++--------------------------+
 Thu Oct 15 22:37:56 UTC 2026
 soffio 3.1.1, since v3.1.0. The preview shows the last build and says
 what its files are; a Mac can run what it downloaded.

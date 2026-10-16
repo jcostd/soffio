@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"soffio"
@@ -15,7 +16,10 @@ func TestSortBy(t *testing.T) {
 		{ID: "c", Meta: map[string]string{"event_date": "1964-01-01"}},
 		{ID: "d", Meta: map[string]string{}},
 	}
-	sorted := sortBy(docs, "event_date")
+	sorted, err := sortBy(docs, "event_date")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// highest first, then by ID; no date last
 	for i, id := range []string{"b", "a", "c", "d"} {
@@ -26,6 +30,40 @@ func TestSortBy(t *testing.T) {
 	// docs itself is not sorted
 	if docs[0].ID != "a" {
 		t.Error("sortBy changed docs")
+	}
+}
+
+func TestWhereReverse(t *testing.T) {
+	docs := map[string]*soffio.Document{
+		"c": {ID: "c", Meta: map[string]string{"layout": "opera", "artist": "it/persone/arp"}},
+		"a": {ID: "a", Meta: map[string]string{"layout": "opera"}},
+		"b": {ID: "b", Meta: map[string]string{"layout": "evento"}},
+	}
+	ids := func(docs []*soffio.Document, err error) string {
+		if err != nil {
+			return err.Error()
+		}
+		var s []string
+		for _, d := range docs {
+			s = append(s, d.ID)
+		}
+		return strings.Join(s, ",")
+	}
+	sorted, _ := sortBy(docs, "layout")
+	for _, tt := range []struct{ got, want string }{
+		// a map, as .Docs, comes by ID
+		{ids(where(docs, "layout", "opera")), "a,c"},
+		{ids(where(docs, "artist", "it/persone/arp")), "c"},
+		{ids(where(docs, "layout", "")), ""},
+		{ids(where(nil, "layout", "opera")), ""},
+		{ids(reverse(docs)), "c,b,a"},
+		{ids(sorted, nil), "a,c,b"},
+		{ids(reverse(sorted)), "b,c,a"},
+		{ids(where("x", "layout", "opera")), "string is not a list of pages"},
+	} {
+		if tt.got != tt.want {
+			t.Errorf("got %q, want %q", tt.got, tt.want)
+		}
 	}
 }
 

@@ -113,6 +113,7 @@ func main() {
 		docs:    active,
 		ids:     slices.Sorted(maps.Keys(active)),
 	}
+	s.linkBack()
 	if err := copyDir(staticDirs, filepath.Join(*outDir, "static"), *dry); err != nil {
 		log.Fatalf("soffio: %v", err)
 	}

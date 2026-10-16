@@ -3,6 +3,7 @@ package soffio
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -154,6 +155,40 @@ func TestCheckDoc(t *testing.T) {
 <stdin>:9: note "u" is never referenced`
 	if err := CheckDoc(doc); err == nil || err.Error() != want {
 		t.Errorf("got:\n%v\nwant:\n%s", err, want)
+	}
+}
+
+// a header link is checked as a body link, at its line
+func TestCheckHeaderLinks(t *testing.T) {
+	a := parse(t, "a.soffio", "a", "title: A\nby: -> b\nin: -> secret\nof: -> nope\n\n== s | S\nx")
+	a.Meta["by"], a.Meta["in"], a.Meta["of"] = "b", "secret", "nope" // as Load leaves them
+	b := parse(t, "b.soffio", "b", "\n== s | S\nx")
+	secret := parse(t, "secret.soffio", "secret", "\n== s | S\nx")
+	all := map[string]*Document{"a": a, "b": b, "secret": secret}
+	err := Check(all, map[string]*Document{"a": a, "b": b}, nil)
+	want := `a.soffio:3: link to private page "/secret"
+a.soffio:4: link to missing page "/nope"`
+	if err == nil || err.Error() != want {
+		t.Errorf("got:\n%v\nwant:\n%s", err, want)
+	}
+}
+
+func TestLinks(t *testing.T) {
+	doc := parse(t, "a.soffio", "it/a", `title: A
+by: -> x
+
+== s | S
+(b -> b) (again -> /it/b#s) _(c -> ../en/c)_ (me -> #s) (self -> a) (out -> https://example.org) (pdf -> /static/a.pdf)(*n)
+
+- (d -> d)
+
+:: img: /static/i.png | (e -> e)
+
+:: note: n | (f -> f)`)
+	doc.Meta["by"] = "it/x"
+	want := []string{"en/c", "it/b", "it/d", "it/e", "it/f", "it/x"}
+	if got := Links(doc); !slices.Equal(got, want) {
+		t.Errorf("Links = %q, want %q", got, want)
 	}
 }
 

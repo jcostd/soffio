@@ -25,7 +25,19 @@ type site struct {
 	dry     bool // -n: execute, write nothing
 	tmpl    *template.Template
 	docs    map[string]*soffio.Document
-	ids     []string // docs' keys, sorted
+	ids     []string                      // docs' keys, sorted
+	back    map[string][]*soffio.Document // the pages linking to each, by ID
+}
+
+// linkBack finds, for every page, the pages that link to it. They come
+// by ID, as s.ids is sorted.
+func (s *site) linkBack() {
+	s.back = map[string][]*soffio.Document{}
+	for _, id := range s.ids {
+		for _, to := range soffio.Links(s.docs[id]) {
+			s.back[to] = append(s.back[to], s.docs[id])
+		}
+	}
 }
 
 type alternate struct{ Lang, URL string }
@@ -64,6 +76,7 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 	}
 
 	return s.write(doc.ID+".html", layout, map[string]any{
+		"ID":         doc.ID,
 		"Title":      doc.Title,
 		"Lang":       lang,
 		"Meta":       doc.Meta,
@@ -72,6 +85,8 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 		"Permalink":  s.baseURL + "/" + doc.ID + ".html",
 		"Alternates": alternates,
 		"Children":   children,
+		"Backlinks":  s.back[doc.ID],
+		"Docs":       s.docs,
 	})
 }
 

@@ -128,6 +128,16 @@ func (p *parser) header(n int, line string) {
 			return
 		}
 		p.doc.Meta[key] = val
+	case strings.HasPrefix(val, "->") && key != "layout" && !isDateKey(key):
+		// a link to a page, as -> target in the body; Load turns the
+		// target into the page's ID, which is what templates get
+		target := strings.TrimSpace(val[2:])
+		if target == "" {
+			p.errorf(n, "%s: a link with no target", key)
+			return
+		}
+		p.doc.Meta[key] = target
+		p.doc.links = append(p.doc.links, key)
 	case isDateKey(key) && val != "":
 		if _, err := time.Parse(time.DateOnly, val); err != nil {
 			p.errorf(n, "invalid %s %q: want a real date, YYYY-MM-DD", key, val)

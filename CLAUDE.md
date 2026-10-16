@@ -91,7 +91,11 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   `id` header or the file name, under the file's directory (`it/about`). Every part
   of an ID passes `CheckID`; a text with no title is refused (an empty link in every
   list of pages); IDs differing only in case are duplicates; `static/` is no ID, it is where the
-  static files go. `Document.File` is the path for messages.
+  static files go. `Document.File` is the path for messages. A header link
+  (`key: -> target`, which `Parse` keeps in `Document.links`) is resolved here,
+  from the text's directory as a body link is, into the page's ID, which
+  `Meta[key]` then holds: a section, a file or an address out of the site is
+  refused, as a header link names a page.
 
 - **`url.go`**: `resolve` is the one place a link target is interpreted: the ID or
   static file it points to, and its `#fragment`. `Check` and `href` both go through
@@ -105,7 +109,10 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   note is defined and reached from the body, maybe through other notes, as `Render`
   reaches it: a note referred to only by itself, or by unreached notes, is "never
   referenced". A link to a document in all but not active is a **privacy leak**, an
-  error of its own. This active-vs-all model is how `-a` works; keep it. Files have no
+  error of its own. This active-vs-all model is how `-a` works; keep it. Header links are
+  checked as body links, at their header line. `Links` is the other half: the
+  IDs of the pages a document links to, header and body (notes, captions, list
+  items), once each, sorted, never itself, a file or an outside address. Files have no
   visibility: everything in -s is published, and a draft's files live in a -s that only
   the preview gets, so a public text pointing at one is a missing file. Never guess
   privacy from links (headers, CSS and templates point at files too): fail closed. `CheckDoc`
@@ -121,7 +128,9 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   visibility filter -> check -> static copy -> pages and site files. `write.go`: each page goes through its layout
   (`layout` header, else `layout.html`; a missing one is an error) with `Children` (docs under `<id>/`, by ID:
   the IDs are sorted once and the children are the run from `id/` to `id0`, two
-  binary searches), `Alternates` (the same path in each `-langs` language, only when
+  binary searches), `Backlinks` (the pages whose `Links` hold it: `linkBack`
+  turns every page's links round once, in ID order, so they come by ID), `Docs`
+  (every active page, as the site files get), `ID`, `Alternates` (the same path in each `-langs` language, only when
   the first part of the ID is one) and `Lang` (that first part, else the first of
   `-langs`). Every file is executed into a buffer and written in one call;
   html/template alone writes in small pieces; with `-n` it is executed and dropped.
@@ -132,9 +141,10 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   walks and checks the same and writes nothing, so `-n` exits as the build would.
   `Check` refuses a link to a hidden file under -s, as `copyDir` never copies one.
   `template.go` parses either `-t` or the embedded `cmd/soffio/templates/*`, never a
-  mix, and gives templates `sortBy` and `rfc822`. The embedded ones are the showcase:
+  mix, and gives templates `sortBy`, `where`, `reverse` (each takes a list of
+  pages or `.Docs`, a map, taken by ID) and `rfc822`. The embedded ones are the showcase:
   they need only a title (date and updated if there) and use `.Lang`, `.Alternates`,
-  `.Children` with `sortBy`, `rfc822`, a shared `style` partial; keep them that small. `siteFiles` in `main.go` (rss.xml,
+  `.Children` with `sortBy`, `.Backlinks`, `rfc822`, a shared `style` partial; keep them that small. `siteFiles` in `main.go` (rss.xml,
   sitemap.xml, robots.txt, 404.html, manifest.json) are each made if the template is
   there.
 
@@ -156,7 +166,8 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 ## Markup format (`.soffio`)
 
 Frontmatter (`key: value` lines) + blank line + body. Known frontmatter keys: `id`,
-`title`, `layout`, `visibility`; `date`, `updated`, `*_date` are dates;
+`title`, `layout`, `visibility`; a value `-> target` (any key but `layout` and the
+dates) is a link to a page, and templates get that page's ID; `date`, `updated`, `*_date` are dates;
 `image`, `*_image` are images, checked as `:: img:` (parse: under `/static/`; `Check`: the
 file is there, at the header line, which `Document.lines` keeps); any other key lands in `Meta` and is
 available to templates/`sortBy`; `visibility` is `public` or `private`. Body syntax: `== id | Title` (section header, level

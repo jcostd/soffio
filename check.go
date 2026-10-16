@@ -76,7 +76,11 @@ func check(doc *Document, target func(string) string) []error {
 		return cmp.Or(cmp.Compare(doc.lines[a], doc.lines[b]), cmp.Compare(a, b))
 	})
 	for _, key := range keys {
-		if isImageKey(key) && doc.Meta[key] != "" {
+		switch {
+		case slices.Contains(doc.links, key):
+			// Load made it the page's ID
+			address(doc.lines[key], "/"+doc.Meta[key])
+		case isImageKey(key) && doc.Meta[key] != "":
 			address(doc.lines[key], doc.Meta[key])
 		}
 	}
@@ -137,6 +141,51 @@ func check(doc *Document, target func(string) string) []error {
 		}
 	}
 	return errs
+}
+
+// Links returns the IDs of the pages doc links to, from its header and
+// its body, notes and captions included: each once, sorted, and
+// neither doc itself nor a file or an address out of the site.
+// Templates get them the other way round, as the pages that link to a
+// page.
+func Links(doc *Document) []string {
+	seen := map[string]bool{}
+	for _, key := range doc.links {
+		seen[doc.Meta[key]] = true
+	}
+	var walk func([]Inline)
+	walk = func(in []Inline) {
+		for _, el := range in {
+			switch v := el.(type) {
+			case Bold:
+				walk(v.Elements)
+			case Italic:
+				walk(v.Elements)
+			case Link:
+				if id, _, ok := resolve(doc.ID, v.Target); ok && !strings.HasPrefix(id, "static/") {
+					seen[id] = true
+				}
+			}
+		}
+	}
+	for _, sec := range doc.Sections {
+		for _, b := range sec.Blocks {
+			switch b := b.(type) {
+			case TextBlock:
+				walk(b.Elements)
+			case ImageBlock:
+				walk(b.Caption)
+			case NoteBlock:
+				walk(b.Elements)
+			case ListBlock:
+				for _, item := range b.Items {
+					walk(item)
+				}
+			}
+		}
+	}
+	delete(seen, doc.ID)
+	return slices.Sorted(maps.Keys(seen))
 }
 
 // checkTarget says what is wrong with target in the document from, or "".

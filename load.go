@@ -107,5 +107,29 @@ func parseFile(fsys fs.FS, name, file string) (*Document, error) {
 	if strings.HasPrefix(strings.ToLower(doc.ID), "static/") {
 		return nil, fmt.Errorf("%s: id %q: static/ is for static files", file, doc.ID)
 	}
+	// a link in the header names a page, as one in the body does, from
+	// the text's directory; the templates get the page's ID. Whether it
+	// is there is for Check to say, as for every link
+	var errs []error
+	for _, key := range doc.links {
+		id, frag, ok := resolve(doc.ID, doc.Meta[key])
+		why := ""
+		switch {
+		case !ok:
+			why = "is not a page of the site"
+		case frag != "":
+			why = "points at a section: a header link points at a page"
+		case strings.HasPrefix(id, "static/"):
+			why = "is a file: a header link points at a page"
+		}
+		if why != "" {
+			errs = append(errs, fmt.Errorf("%s:%d: %s %q %s", file, doc.lines[key], key, doc.Meta[key], why))
+			continue
+		}
+		doc.Meta[key] = id
+	}
+	if errs != nil {
+		return nil, errors.Join(errs...)
+	}
 	return doc, nil
 }

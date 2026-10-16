@@ -79,6 +79,12 @@ func TestLoadErrors(t *testing.T) {
 		{map[string]string{"a.soffio": "title:  " + body}, `a.soffio: no title`},
 		{map[string]string{"bad.soffio": "title: x\n\ntext"},
 			`bad.soffio:3: text before the first section`},
+		{map[string]string{"a.soffio": "title: A\nby: -> https://example.org/x" + body},
+			`a.soffio:2: by "https://example.org/x" is not a page of the site`},
+		{map[string]string{"a.soffio": "title: A\nby: -> b#s" + body},
+			`a.soffio:2: by "b#s" points at a section: a header link points at a page`},
+		{map[string]string{"a.soffio": "title: A\nby: -> /static/x.pdf" + body},
+			`a.soffio:2: by "/static/x.pdf" is a file: a header link points at a page`},
 	}
 	for _, tt := range tests {
 		_, err := Load(writeFiles(t, tt.files))
@@ -106,5 +112,22 @@ func TestLoadMissingDir(t *testing.T) {
 	file := filepath.Join(dir, "a.soffio")
 	if _, err := Load(file); err == nil || err.Error() != file+": not a directory" {
 		t.Errorf("Load of a file: %v", err)
+	}
+}
+
+// a header link is resolved as a body link is, from the text's
+// directory, and becomes the page's ID
+func TestLoadHeaderLinks(t *testing.T) {
+	dir := writeFiles(t, map[string]string{
+		"it/opere/centauro.soffio": "title: Centauro\nartist: -> ../persone/picasso\nplace: -> /it/luoghi/murano\nsame: -> stella" + body,
+	})
+	docs, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for key, want := range map[string]string{"artist": "it/persone/picasso", "place": "it/luoghi/murano", "same": "it/opere/stella"} {
+		if got := docs["it/opere/centauro"].Meta[key]; got != want {
+			t.Errorf("Meta[%q] = %q, want %q", key, got, want)
+		}
 	}
 }

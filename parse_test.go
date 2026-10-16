@@ -2,6 +2,7 @@ package soffio
 
 import (
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -158,6 +159,9 @@ func TestParseErrors(t *testing.T) {
 		{"\n== s | S\n\n- (x (*n) -> d)\n\n:: note: n | n", `t.soffio:4: a note inside a link`},
 		{"\n== s | S\n:: img: /static/a.png | (a (b -> c) -> d)", `t.soffio:3: a link inside a link`},
 		{"\n== s | S\n- a\n- ", `t.soffio:4: empty list item`},
+		{"title: T\nartist: ->\n", `t.soffio:2: artist: a link with no target`},
+		{"event_date: -> x\n", `invalid event_date "-> x"`},
+		{"image: -> x\n", `image "-> x" is not under /static/`},
 	}
 	for _, tt := range tests {
 		_, err := Parse("t.soffio", strings.NewReader(tt.input))
@@ -222,6 +226,22 @@ func TestParseRefusedSection(t *testing.T) {
 		_, err := Parse("t.soffio", strings.NewReader(src))
 		if err == nil || err.Error() != want {
 			t.Errorf("Parse(%q):\n%v\nwant:\n%s", src, err, want)
+		}
+	}
+}
+
+// a header value -> target is a link; layout and dates never are
+func TestParseHeaderLinks(t *testing.T) {
+	doc, err := Parse("t.soffio", strings.NewReader("title: T\nartist: -> picasso\nplace:->/it/luoghi/murano\nlayout: -> x\nnote: a -> b\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"artist", "place"}; !slices.Equal(doc.links, want) {
+		t.Errorf("links %q, want %q", doc.links, want)
+	}
+	for key, want := range map[string]string{"artist": "picasso", "place": "/it/luoghi/murano", "layout": "-> x", "note": "a -> b"} {
+		if doc.Meta[key] != want {
+			t.Errorf("Meta[%q] = %q, want %q", key, doc.Meta[key], want)
 		}
 	}
 }

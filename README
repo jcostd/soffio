@@ -67,7 +67,11 @@ MARKUP
     needs a title; the rest is up to you. 'date', 'updated' and any
     '*_date' hold a real date as YYYY-MM-DD, or nothing. 'image' and any
     '*_image' hold an image, checked as one of :: img: is (see LINKS AND
-    FILES), or nothing. A byte order mark at the start is ignored. The
+    FILES), or nothing. A value '-> target' is a link to a page, written
+    and checked as a link in the body is: 'artist: -> ../persone/arp'.
+    It points at a page, not a section or a file, and the templates get
+    the ID of that page (see TEMPLATES); 'layout' and the dates never
+    hold one. A byte order mark at the start is ignored. The
     notes come at the end of the page, with no heading, which reads
     well in any language.
 
@@ -133,10 +137,12 @@ PRIVATE TEXTS AND FILES
 TEMPLATES
     Go html/template files. A page goes through its 'layout' (post means
     post.html), or layout.html; a layout that is not there is an error.
-    A page gets .Title, .Meta, .Content, .BaseURL, .Permalink, .Lang
+    A page gets .ID, .Title, .Meta, .Content, .BaseURL, .Permalink, .Lang
     (the first directory of its ID if it is one of -langs, else the
-    first of them), .Alternates (.Lang, .URL) and .Children: the pages
-    under its ID, sorted by ID.
+    first of them), .Alternates (.Lang, .URL), .Children: the pages
+    under its ID, .Backlinks: the pages that link to it, from their
+    header or their body, and .Docs: every page, by ID. Lists of pages
+    come sorted by ID; a page in them has .ID, .Title and .Meta.
 
     rss.xml, sitemap.xml, robots.txt, 404.html and manifest.json are
     made at the site root, each if its template is there; a page with
@@ -148,18 +154,23 @@ TEMPLATES
     Without -t, soffio uses the templates built into it, and says
     nothing about it, as it says nothing when all is well: layout.html,
     404.html, rss.xml, sitemap.xml and robots.txt. They need only a
-    title: a date, or updated, is shown if a text has one, and dated
-    pages go in rss.xml. Home is index, or <lang>/index in a site with
+    title: a date, or updated, is shown if a text has one, the pages
+    that link to a page are listed under it, and dated pages go in
+    rss.xml. Home is index, or <lang>/index in a site with
     languages. The same files are in templates/ of the release
     archives, and in cmd/soffio/templates of the source: copy them
     into a directory of your own to start one for -t.
 
-    sortBy orders pages by a header key, highest first; rfc822 turns a
-    date into the form RSS wants:
+    sortBy orders pages, a list or .Docs, by a header key, highest
+    first; reverse turns them round; where keeps those whose header key
+    has a value, and a header link's value is the ID of its page; rfc822
+    turns a date into the form RSS wants:
 
         {{ range sortBy .Children "event_date" }}
           <a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>
         {{ end }}
+        {{ with index .Docs .Meta.artist }}{{ .Title }}{{ end }}
+        {{ range where .Backlinks "artist" .ID }}{{ .Title }}{{ end }}
         <pubDate>{{ rfc822 .Meta.date }}</pubDate>
 
 DIAGNOSTICS
