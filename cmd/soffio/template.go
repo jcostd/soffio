@@ -12,6 +12,7 @@ import (
 	"maps"
 	"os"
 	"slices"
+	"strings"
 	"time"
 
 	"soffio"
@@ -22,7 +23,7 @@ var embedded embed.FS
 
 var patterns = []string{"*.html", "*.xml", "*.txt", "*.json"}
 
-var funcs = template.FuncMap{"sortBy": sortBy, "where": where, "reverse": reverse, "rfc822": rfc822}
+var funcs = template.FuncMap{"sortBy": sortBy, "where": where, "under": under, "reverse": reverse, "rfc822": rfc822}
 
 // pages is the list of pages v holds: a list, as .Children and
 // .Backlinks, or a map by ID, as .Docs, which comes by ID.
@@ -66,6 +67,26 @@ func where(v any, key, value string) ([]*soffio.Document, error) {
 	var found []*soffio.Document
 	for _, d := range docs {
 		if d.Meta[key] == value {
+			found = append(found, d)
+		}
+	}
+	return found, nil
+}
+
+// under returns the pages under the ID id, as .Children are under a
+// page's: under .Docs .Lang is every page of a language. id need not be
+// a page; "" is the whole site.
+func under(v any, id string) ([]*soffio.Document, error) {
+	docs, err := pages(v)
+	if err != nil {
+		return nil, err
+	}
+	if id == "" {
+		return docs, nil
+	}
+	var found []*soffio.Document
+	for _, d := range docs {
+		if strings.HasPrefix(d.ID, id+"/") {
 			found = append(found, d)
 		}
 	}

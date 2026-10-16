@@ -11,10 +11,11 @@ soffio: A page gets .Backlinks, .Docs and .ID.
   .Backlinks are the pages that link to it, from their header or their
   body, by ID: a link is written once and read from both ends. .Docs is
   every page by ID, as the site files had.
-soffio: where and reverse, for templates; sortBy takes .Docs too.
+soffio: where, under and reverse, for templates; sortBy takes .Docs.
   where keeps the pages whose header key has a value: where .Backlinks
-  "layout" "opera". reverse turns a list round, lowest first after
-  sortBy.
+  "layout" "opera". under keeps the pages under an ID, as .Children:
+  under .Docs .Lang is a language. reverse turns a list round, lowest
+  first after sortBy.
 soffio: The built-in layout lists the pages that link to a page.
 +--------------------------+
 Thu Oct 15 22:37:56 UTC 2026

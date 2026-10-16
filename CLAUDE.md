@@ -141,8 +141,9 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   walks and checks the same and writes nothing, so `-n` exits as the build would.
   `Check` refuses a link to a hidden file under -s, as `copyDir` never copies one.
   `template.go` parses either `-t` or the embedded `cmd/soffio/templates/*`, never a
-  mix, and gives templates `sortBy`, `where`, `reverse` (each takes a list of
-  pages or `.Docs`, a map, taken by ID) and `rfc822`. The embedded ones are the showcase:
+  mix, and gives templates `sortBy`, `where`, `under` (the pages under an ID: `under .Docs
+  .Lang` is a language), `reverse` (each takes a list of pages or `.Docs`, a map,
+  taken by ID) and `rfc822`. The embedded ones are the showcase:
   they need only a title (date and updated if there) and use `.Lang`, `.Alternates`,
   `.Children` with `sortBy`, `.Backlinks`, `rfc822`, a shared `style` partial; keep them that small. `siteFiles` in `main.go` (rss.xml,
   sitemap.xml, robots.txt, 404.html, manifest.json) are each made if the template is

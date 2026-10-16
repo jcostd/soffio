@@ -163,8 +163,10 @@ TEMPLATES
 
     sortBy orders pages, a list or .Docs, by a header key, highest
     first; reverse turns them round; where keeps those whose header key
-    has a value, and a header link's value is the ID of its page; rfc822
-    turns a date into the form RSS wants:
+    has a value, and a header link's value is the ID of its page; under
+    keeps those under an ID, as .Children are under a page's, so under
+    .Docs .Lang is every page of a language; rfc822 turns a date into
+    the form RSS wants:
 
         {{ range sortBy .Children "event_date" }}
           <a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>

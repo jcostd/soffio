@@ -50,6 +50,11 @@ func TestWhereReverse(t *testing.T) {
 		return strings.Join(s, ",")
 	}
 	sorted, _ := sortBy(docs, "layout")
+	// it/ is a namespace: it itself and itx/ are not under it
+	langs := map[string]*soffio.Document{}
+	for _, id := range []string{"it", "it/a", "it/b/c", "itx/a", "en/a"} {
+		langs[id] = &soffio.Document{ID: id, Meta: map[string]string{}}
+	}
 	for _, tt := range []struct{ got, want string }{
 		// a map, as .Docs, comes by ID
 		{ids(where(docs, "layout", "opera")), "a,c"},
@@ -60,6 +65,9 @@ func TestWhereReverse(t *testing.T) {
 		{ids(sorted, nil), "a,c,b"},
 		{ids(reverse(sorted)), "b,c,a"},
 		{ids(where("x", "layout", "opera")), "string is not a list of pages"},
+		{ids(under(langs, "it")), "it/a,it/b/c"},
+		{ids(under(langs, "it/b")), "it/b/c"},
+		{ids(under(langs, "")), "en/a,it,it/a,it/b/c,itx/a"},
 	} {
 		if tt.got != tt.want {
 			t.Errorf("got %q, want %q", tt.got, tt.want)
