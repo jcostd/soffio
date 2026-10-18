@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"soffio"
 )
@@ -29,7 +30,7 @@ const preview = "http://localhost:8080"
 
 // siteFiles are made at the root of the site from the templates of the
 // same name, each if its template is there.
-var siteFiles = []string{"rss.xml", "sitemap.xml", "robots.txt", "404.html", "manifest.json"}
+var siteFiles = []string{"index.html", "rss.xml", "sitemap.xml", "robots.txt", "404.html", "manifest.json"}
 
 func main() {
 	log.SetFlags(0)
@@ -47,9 +48,10 @@ func main() {
 		return nil
 	})
 	tmplDir := flag.String("t", "", "the templates' `dir`, instead of the built-in ones")
+	today := flag.String("today", "", "the day of the build, the templates' today: `YYYY-MM-DD`")
 	version := flag.Bool("v", false, "print the version and exit")
 	flag.Usage = func() {
-		fmt.Fprint(flag.CommandLine.Output(), `usage: soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]... [-t dir] dir
+		fmt.Fprint(flag.CommandLine.Output(), `usage: soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]... [-t dir] [-today day] dir
        soffio [-n] < text.soffio > text.html
 `)
 		flag.PrintDefaults()
@@ -84,7 +86,7 @@ func main() {
 		}
 		*baseURL = preview
 	}
-	if err := checkFlags(*baseURL, *langs, staticDirs, *tmplDir, *outDir); err != nil {
+	if err := checkFlags(*baseURL, *langs, *today, staticDirs, *tmplDir, *outDir); err != nil {
 		log.Fatalf("soffio: %v", err)
 	}
 	tmpl, err := loadTemplates(*tmplDir)
@@ -106,6 +108,7 @@ func main() {
 	}
 	s := &site{
 		baseURL: *baseURL,
+		today:   *today,
 		langs:   strings.Split(*langs, ","),
 		outDir:  *outDir,
 		dry:     *dry,
@@ -113,7 +116,7 @@ func main() {
 		docs:    active,
 		ids:     slices.Sorted(maps.Keys(active)),
 	}
-	s.linkBack()
+	s.prepare()
 	if err := copyDir(staticDirs, filepath.Join(*outDir, "static"), *dry); err != nil {
 		log.Fatalf("soffio: %v", err)
 	}
@@ -173,9 +176,11 @@ func pipe(dry bool) {
 // not http(s)://host[/path], or holds what html/template would escape
 // in robots.txt or manifest.json, or ends in '/', as every address is
 // BaseURL + "/" + path; a language that can't be a directory, or is
-// twice; a static or template directory that is not there; templates
-// in -o, where the site files would be written over them.
-func checkFlags(baseURL, langs string, staticDirs []string, tmplDir, outDir string) error {
+// twice; a day that is not YYYY-MM-DD (the templates' only clock is
+// what they are told: the same flags make the same site); a static or
+// template directory that is not there; templates in -o, where the site
+// files would be written over them.
+func checkFlags(baseURL, langs, today string, staticDirs []string, tmplDir, outDir string) error {
 	u, err := url.Parse(baseURL)
 	switch {
 	case err != nil || u.Scheme != "http" && u.Scheme != "https" || u.Host == "" ||
@@ -183,6 +188,9 @@ func checkFlags(baseURL, langs string, staticDirs []string, tmplDir, outDir stri
 		return fmt.Errorf("-baseurl %q: want http(s)://host[/path]", baseURL)
 	case strings.HasSuffix(baseURL, "/"):
 		return fmt.Errorf("-baseurl %q: drop the final '/'", baseURL)
+	}
+	if _, err := time.Parse(time.DateOnly, today); today != "" && err != nil {
+		return fmt.Errorf("-today %q: want YYYY-MM-DD", today)
 	}
 	seen := map[string]bool{}
 	for l := range strings.SplitSeq(langs, ",") {

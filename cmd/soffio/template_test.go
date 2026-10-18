@@ -79,6 +79,9 @@ func TestRFC822(t *testing.T) {
 	if got, err := rfc822("2026-08-19"); err != nil || got != "Wed, 19 Aug 2026 00:00:00 +0000" {
 		t.Errorf("rfc822 = %q, %v", got, err)
 	}
+	if got, err := rfc822("1954"); err != nil || got != "Fri, 01 Jan 1954 00:00:00 +0000" {
+		t.Errorf("rfc822(1954) = %q, %v", got, err)
+	}
 	if _, err := rfc822("19/08/2026"); err == nil {
 		t.Error("rfc822 took a date that is not YYYY-MM-DD")
 	}
@@ -111,4 +114,24 @@ func TestLoadTemplates(t *testing.T) {
 		t.Error("built-in rss.xml mixed into dir's templates")
 	}
 
+}
+
+func TestPast(t *testing.T) {
+	for _, tt := range []struct {
+		date, today string
+		want        bool
+	}{
+		{"2027-03-29", "2027-03-29", false},
+		{"2027-03-29", "2027-03-30", true},
+		{"2027-03", "2027-03-31", false},
+		{"2027-03", "2027-04-01", true},
+		{"2027", "2027-12-31", false},
+		{"2026", "2027-01-01", true},
+		{"2027-03-29", "", false},
+		{"", "2027-01-01", false},
+	} {
+		if got := past(tt.date, tt.today); got != tt.want {
+			t.Errorf("past(%q, %q) = %v", tt.date, tt.today, got)
+		}
+	}
 }

@@ -1,6 +1,13 @@
 Fri Oct 16 18:00:00 UTC 2026
-soffio 3.2.0, since v3.1.1. Pages know the pages that link to them,
-and a header can hold a link.
+soffio 4.0.0, since v3.1.1. Pages know the pages that link to them,
+and a header can hold a link. A page has one name, its file's.
+soffio: The id header is refused: a text's ID is its file's name.
+  Two names for one page could only part; a translation is linked by
+  its path, which the file gives.
+soffio: .Children is gone: under .Docs .ID is the same, and one way.
+soffio: index.html is a site file, made if its template is there.
+  The root of a site with languages, whose homes are <lang>/index:
+  where / leads, for a browser and for a preview.
 soffio: A header value -> target is a link to a page.
   Written and checked as a link in the body: from the text's
   directory, to a page that is there and public. The templates get the
@@ -17,6 +24,20 @@ soffio: where, under and reverse, for templates; sortBy takes .Docs.
   under .Docs .Lang is a language. reverse turns a list round, lowest
   first after sortBy.
 soffio: The built-in layout lists the pages that link to a page.
+soffio: A date can be as precise as what is known of it.
+  YYYY-MM-DD, YYYY-MM or YYYY, in every date key: 'when: 1954' is a
+  year, not its first of January. They sort as text in time's order.
+  when and until join date, updated and *_date: the time of what a
+  text is about, and its end.
+soffio: A page in a list has .Lang; doc gives the page of an ID.
+  A template given a page, as a partial is, knows its language and
+  finds the pages its header names: doc .Meta.by, nil if none.
+soffio: -today day gives the templates today.
+  Their only clock, an input as -baseurl is: without it today is
+  empty, and the same flags make the same site.
+soffio: past date tells a template whether a date has passed.
+  As of -today, as precise as the date is written: 2027-03 lasts all
+  March. Without -today nothing has.
 +--------------------------+
 Thu Oct 15 22:37:56 UTC 2026
 soffio 3.1.1, since v3.1.0. The preview shows the last build and says

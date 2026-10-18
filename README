@@ -5,7 +5,7 @@ NAME
 
 SYNOPSIS
     soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]...
-           [-t dir] dir
+           [-t dir] [-today day] dir
     soffio [-n] < text.soffio > text.html
     preview [-d dir] [-p port] [dir]
 
@@ -57,17 +57,23 @@ OPTIONS
     -t dir      the templates; without it, the built-in ones. The two
                 are never mixed. It can't be -o: the site files would
                 be written over the templates.
+    -today day  the day of the build, YYYY-MM-DD, as the templates'
+                today: their only clock. Without it today is empty,
+                and the same flags always make the same site.
     -v          print the version and exit.
 
 MARKUP
     A text is UTF-8: a header, a blank line, and the body. The header
     is 'key: value' lines, keys of letters, digits and _, each once;
-    'id', 'title', 'layout' and 'visibility' (public or private) mean
-    something to soffio, and every key reaches the templates. A page
-    needs a title; the rest is up to you. 'date', 'updated' and any
-    '*_date' hold a real date as YYYY-MM-DD, or nothing. 'image' and any
-    '*_image' hold an image, checked as one of :: img: is (see LINKS AND
-    FILES), or nothing. A value '-> target' is a link to a page, written
+    'title', 'layout' and 'visibility' (public or private) mean
+    something to soffio, and every key reaches the templates; 'id' is
+    refused, as a text's ID is its file's name. A page needs a title; the rest is up to you. 'date' and 'updated' (the
+    text's), 'when' and 'until' (the time of what it is about, and its
+    end) and any '*_date' hold a real date, YYYY-MM-DD, or as much of
+    it as is known, YYYY-MM or YYYY, or nothing: 'when: 1954' is a year,
+    not its first of January. The three sort as text in time's order.
+    'image' and any '*_image' hold an image, checked as one of :: img:
+    is (see LINKS AND FILES), or nothing. A value '-> target' is a link to a page, written
     and checked as a link in the body is: 'artist: -> ../persone/arp'.
     It points at a page, not a section or a file, and the templates get
     the ID of that page (see TEMPLATES); 'layout' and the dates never
@@ -99,8 +105,8 @@ MARKUP
     only in case clash: they would be one file on Windows and macOS.
 
 LINKS AND FILES
-    dir/it/about.soffio with 'id: chi-siamo' is the page it/chi-siamo,
-    written as <o>/it/chi-siamo.html; without an id it is it/about.
+    dir/it/about.soffio is the page it/about, written as
+    <o>/it/about.html: a page has one name, its file's.
     Hidden files and directories, as .git or the ._ files macOS leaves,
     are skipped; a link to a directory is refused.
 
@@ -139,14 +145,17 @@ TEMPLATES
     post.html), or layout.html; a layout that is not there is an error.
     A page gets .ID, .Title, .Meta, .Content, .BaseURL, .Permalink, .Lang
     (the first directory of its ID if it is one of -langs, else the
-    first of them), .Alternates (.Lang, .URL), .Children: the pages
-    under its ID, .Backlinks: the pages that link to it, from their
+    first of them), .Alternates (.Lang, .URL), .Backlinks: the pages
+    that link to it, from their
     header or their body, and .Docs: every page, by ID. Lists of pages
-    come sorted by ID; a page in them has .ID, .Title and .Meta.
+    come sorted by ID; a page in them has .ID, .Title, .Lang and .Meta,
+    so a template given only a page knows its language.
 
-    rss.xml, sitemap.xml, robots.txt, 404.html and manifest.json are
-    made at the site root, each if its template is there; a page with
-    the same name, as 404.soffio, is an error. They get .BaseURL, .Lang
+    index.html, rss.xml, sitemap.xml, robots.txt, 404.html and
+    manifest.json are made at the site root, each if its template is
+    there; a page with the same name, as 404.soffio, is an error.
+    index.html is for a site with languages, whose homes are
+    <lang>/index: the root, where it leads. They get .BaseURL, .Lang
     (the first of -langs), .Docs (the pages by ID) and .XMLHeader.
     -baseurl holds nothing that html/template would escape, so it
     comes out as it is in them all.
@@ -164,15 +173,19 @@ TEMPLATES
     sortBy orders pages, a list or .Docs, by a header key, highest
     first; reverse turns them round; where keeps those whose header key
     has a value, and a header link's value is the ID of its page; under
-    keeps those under an ID, as .Children are under a page's, so under
-    .Docs .Lang is every page of a language; rfc822 turns a date into
-    the form RSS wants:
+    keeps those under an ID: under .Docs .ID are a page's own, under
+    .Docs .Lang every page of a language; doc gives the page of an
+    ID, or nothing, so a header link's page is doc .Meta.by; today is
+    -today, the day of the build, or nothing; past tells whether a date
+    has passed by then, as precise as it is written (2027-03 lasts all
+    March; without -today nothing has); rfc822
+    turns a date into the form RSS wants:
 
-        {{ range sortBy .Children "event_date" }}
+        {{ range sortBy (under .Docs .ID) "when" }}
           <a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>
         {{ end }}
-        {{ with index .Docs .Meta.artist }}{{ .Title }}{{ end }}
-        {{ range where .Backlinks "artist" .ID }}{{ .Title }}{{ end }}
+        {{ with doc .Meta.by }}{{ .Title }}{{ end }}
+        {{ range where .Backlinks "by" .ID }}{{ .Title }}{{ end }}
         <pubDate>{{ rfc822 .Meta.date }}</pubDate>
 
 DIAGNOSTICS

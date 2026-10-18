@@ -115,6 +115,7 @@ func TestSoffio(t *testing.T) {
 		{[]string{"-n", "src"}, 1, `missing file "/static/a.png"`}, // no -s
 		{[]string{"-n", "-t", "nope", "src"}, 1, "nope"},
 		{[]string{"-n", "-baseurl", "https://x.org/", "src"}, 1, `drop the final '/'`},
+		{[]string{"-n", "-today", "17-10-2026", "src"}, 1, `-today "17-10-2026": want YYYY-MM-DD`},
 		{[]string{"-n", "-langs", "it, en", "src"}, 1, `language " en": it contains a space`},
 		{[]string{"src", "more"}, 2, "usage: soffio"},
 		// a public site that says nowhere where it goes would point at
@@ -166,11 +167,11 @@ func testSite(t *testing.T, layouts string, docs map[string]*soffio.Document) *s
 		baseURL: "https://example.org",
 		langs:   []string{"it", "en"},
 		outDir:  t.TempDir(),
-		tmpl:    template.Must(template.New("").Parse(layouts)),
+		tmpl:    template.Must(template.New("").Funcs(funcs).Parse(layouts)),
 		docs:    docs,
 		ids:     slices.Sorted(maps.Keys(docs)),
 	}
-	s.linkBack()
+	s.prepare()
 	return s
 }
 
@@ -213,13 +214,13 @@ func TestWriteDoc(t *testing.T) {
 	}
 }
 
-func TestWriteDocAlternatesChildren(t *testing.T) {
+func TestWriteDocAlternatesUnder(t *testing.T) {
 	docs := map[string]*soffio.Document{}
 	// it/x-y and it/x0 sort just before and after it/x/...
 	for _, id := range []string{"en/x", "it/x", "it/x/c", "it/x/a", "it/x/b", "it/x-y", "it/x0", "blog/x"} {
 		docs[id] = page(id, nil)
 	}
-	s := testSite(t, `{{define "layout.html"}}{{.Lang}}|{{range .Alternates}}{{.Lang}}={{.URL}};{{end}}|{{range .Children}}{{.ID}};{{end}}{{end}}`, docs)
+	s := testSite(t, `{{define "layout.html"}}{{.Lang}}|{{range .Alternates}}{{.Lang}}={{.URL}};{{end}}|{{range under .Docs .ID}}{{.ID}};{{end}}{{end}}`, docs)
 
 	tests := []struct{ id, want string }{
 		{"it/x", "it|it=https://example.org/it/x.html;en=https://example.org/en/x.html;|it/x/a;it/x/b;it/x/c;"},
@@ -392,7 +393,7 @@ func TestCheckFlags(t *testing.T) {
 		{"https://example.org", "en", file, false},
 	}
 	for _, tt := range tests {
-		if err := checkFlags(tt.baseURL, tt.langs, []string{tt.static}, "", "public"); (err == nil) != tt.ok {
+		if err := checkFlags(tt.baseURL, tt.langs, "", []string{tt.static}, "", "public"); (err == nil) != tt.ok {
 			t.Errorf("checkFlags(%q, %q, %q) = %v", tt.baseURL, tt.langs, tt.static, err)
 		}
 	}
@@ -401,7 +402,7 @@ func TestCheckFlags(t *testing.T) {
 		filepath.Join(static, "nope"): "no such file",
 		file:                          "-t " + file + ": not a directory",
 	} {
-		if err := checkFlags("https://example.org", "en", nil, tmpl, "public"); want == "" && err != nil || !strings.Contains(fmt.Sprint(err), want) {
+		if err := checkFlags("https://example.org", "en", "", nil, tmpl, "public"); want == "" && err != nil || !strings.Contains(fmt.Sprint(err), want) {
 			t.Errorf("checkFlags -t %s: %v, want %q", tmpl, err, want)
 		}
 	}
@@ -466,5 +467,37 @@ func TestSoffioStaticOntoItself(t *testing.T) {
 	}
 	if exists(dir, "public/static/site") {
 		t.Error("-n made public/static/site")
+	}
+}
+
+func TestWriteDocToday(t *testing.T) {
+	// the templates know the day only if told, so the same flags make the
+	// same site
+	docs := map[string]*soffio.Document{"a": page("a", nil)}
+	s := testSite(t, `{{define "layout.html"}}[{{today}}]{{end}}`, docs)
+	for _, today := range []string{"", "2026-10-17"} {
+		s.today = today
+		s.prepare()
+		if err := s.writeDoc(docs["a"]); err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := os.ReadFile(filepath.Join(s.outDir, "a.html")); string(got) != "["+today+"]" {
+			t.Errorf("-today %q: got %q", today, got)
+		}
+	}
+}
+
+func TestWriteDocDocLang(t *testing.T) {
+	// a page in a list knows its language, and doc finds a page by ID:
+	// a partial needs no more than the page it is given
+	docs := map[string]*soffio.Document{
+		"it/a": page("it/a", nil), "it/a/b": page("it/a/b", nil), "en/c": page("en/c", nil), "x": page("x", nil),
+	}
+	s := testSite(t, `{{define "layout.html"}}{{range under .Docs .ID}}{{.Lang}}{{end}}|{{with doc "en/c"}}{{.Title}} {{.Lang}}{{end}}|{{with doc "nope"}}?{{end}}|{{(doc "x").Lang}}{{end}}`, docs)
+	if err := s.writeDoc(docs["it/a"]); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(s.outDir, "it/a.html")); string(got) != "it|T en/c en||it" {
+		t.Errorf("got %q", got)
 	}
 }

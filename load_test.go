@@ -30,7 +30,7 @@ const body = "\n\n== s1 | S1\nText"
 
 func TestLoad(t *testing.T) {
 	dir := writeFiles(t, map[string]string{
-		"doc1.soffio":     "id: explicit-id\ntitle: Doc 1" + body,
+		"doc1.soffio":     "title: Doc 1" + body,
 		"doc2.soffio":     "title: Doc 2" + body,
 		"sub/doc3.soffio": "title: Doc 3" + body,
 		"notes.txt":       "not a text",
@@ -44,9 +44,9 @@ func TestLoad(t *testing.T) {
 		t.Fatal(err)
 	}
 	for id, file := range map[string]string{
-		"explicit-id": "doc1.soffio",
-		"doc2":        "doc2.soffio",
-		"sub/doc3":    "sub/doc3.soffio",
+		"doc1":     "doc1.soffio",
+		"doc2":     "doc2.soffio",
+		"sub/doc3": "sub/doc3.soffio",
 	} {
 		if docs[id] == nil || docs[id].File != filepath.Join(dir, filepath.FromSlash(file)) {
 			t.Errorf("docs[%q] = %+v, want it from %s", id, docs[id], file)
@@ -62,11 +62,9 @@ func TestLoadErrors(t *testing.T) {
 		files map[string]string
 		want  string
 	}{
-		// files are read in lexical order: a is first, b the duplicate
-		{map[string]string{"a.soffio": "id: x\ntitle: A" + body, "b.soffio": "id: x\ntitle: B" + body},
-			`b.soffio: duplicate id "x", also in `},
-		{map[string]string{"a.soffio": "id: Toro\ntitle: A" + body, "b.soffio": "id: toro\ntitle: B" + body},
-			`b.soffio: id "toro" differs from "Toro" in `},
+		// files are read in lexical order: T before t
+		{map[string]string{"Toro.soffio": "title: A" + body, "toro.soffio": "title: B" + body},
+			`toro.soffio: id "toro" differs from "Toro" in `},
 		{map[string]string{"my file.soffio": "title: x" + body},
 			`my file.soffio: invalid id "my file": it contains a space`},
 		{map[string]string{"città/x.soffio": "title: x" + body},
@@ -75,7 +73,7 @@ func TestLoadErrors(t *testing.T) {
 			`id "static/x": static/ is for static files`},
 		{map[string]string{"Static/x.soffio": "title: x" + body},
 			`id "Static/x": static/ is for static files`},
-		{map[string]string{"a.soffio": "id: a" + body}, `a.soffio: no title`},
+		{map[string]string{"a.soffio": "layout: a" + body}, `a.soffio: no title`},
 		{map[string]string{"a.soffio": "title:  " + body}, `a.soffio: no title`},
 		{map[string]string{"bad.soffio": "title: x\n\ntext"},
 			`bad.soffio:3: text before the first section`},

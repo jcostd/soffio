@@ -20,7 +20,7 @@
 <time datetime="{{ . }}">{{ . }}</time>
 {{- end }}
 {{ .Content }}
-{{- with .Children }}
+{{- with under .Docs .ID }}
 <ul>
 {{- range sortBy . "date" }}
 <li><a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>{{ with .Meta.date }} <time datetime="{{ . }}">{{ . }}</time>{{ end }}</li>

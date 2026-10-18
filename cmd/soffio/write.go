@@ -20,6 +20,7 @@ import (
 // site is what the pages are made from.
 type site struct {
 	baseURL string
+	today   string // -today, "" if not given
 	langs   []string
 	outDir  string
 	dry     bool // -n: execute, write nothing
@@ -29,15 +30,29 @@ type site struct {
 	back    map[string][]*soffio.Document // the pages linking to each, by ID
 }
 
-// linkBack finds, for every page, the pages that link to it. They come
-// by ID, as s.ids is sorted.
-func (s *site) linkBack() {
+// prepare gives every page its language: the first directory of its
+// ID, if it is one of -langs, or else the first of them (IDs use '/'
+// everywhere, so no filepath: on Windows it would turn en/x into en\x).
+// It finds, for every page, the pages that link to it, by ID, as s.ids
+// is sorted; and it gives the templates doc, the page of an ID, today,
+// the day of the build or "", and past, whether a date has passed.
+func (s *site) prepare() {
 	s.back = map[string][]*soffio.Document{}
 	for _, id := range s.ids {
-		for _, to := range soffio.Links(s.docs[id]) {
-			s.back[to] = append(s.back[to], s.docs[id])
+		doc := s.docs[id]
+		doc.Lang = s.langs[0]
+		if dir, _, ok := strings.Cut(id, "/"); ok && slices.Contains(s.langs, dir) {
+			doc.Lang = dir
+		}
+		for _, to := range soffio.Links(doc) {
+			s.back[to] = append(s.back[to], doc)
 		}
 	}
+	s.tmpl.Funcs(template.FuncMap{
+		"doc":   func(id string) *soffio.Document { return s.docs[id] },
+		"today": func() string { return s.today },
+		"past":  func(date string) bool { return past(date, s.today) },
+	})
 }
 
 type alternate struct{ Lang, URL string }
@@ -52,13 +67,8 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 		return fmt.Errorf("no layout %s in the templates", layout)
 	}
 
-	// the language is the first directory of the ID, if it is one of
-	// -langs, or else the first of them. IDs use '/' everywhere, so no
-	// filepath here: on Windows it would turn en/x into en\x
-	lang := s.langs[0]
 	var alternates []alternate
-	if dir, slug, ok := strings.Cut(doc.ID, "/"); ok && slices.Contains(s.langs, dir) {
-		lang = dir
+	if dir, slug, ok := strings.Cut(doc.ID, "/"); ok && dir == doc.Lang {
 		for _, l := range s.langs {
 			if s.docs[l+"/"+slug] != nil {
 				alternates = append(alternates, alternate{l, s.baseURL + "/" + l + "/" + slug + ".html"})
@@ -66,25 +76,15 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 		}
 	}
 
-	// by ID, or a map would shuffle them on every build; sorted, the
-	// IDs under id/ are one run, from id/ to id0, as '0' follows '/'
-	var children []*soffio.Document
-	i, _ := slices.BinarySearch(s.ids, doc.ID+"/")
-	j, _ := slices.BinarySearch(s.ids, doc.ID+"0")
-	for _, id := range s.ids[i:j] {
-		children = append(children, s.docs[id])
-	}
-
 	return s.write(doc.ID+".html", layout, map[string]any{
 		"ID":         doc.ID,
 		"Title":      doc.Title,
-		"Lang":       lang,
+		"Lang":       doc.Lang,
 		"Meta":       doc.Meta,
 		"Content":    template.HTML(soffio.Render(doc)),
 		"BaseURL":    s.baseURL,
 		"Permalink":  s.baseURL + "/" + doc.ID + ".html",
 		"Alternates": alternates,
-		"Children":   children,
 		"Backlinks":  s.back[doc.ID],
 		"Docs":       s.docs,
 	})

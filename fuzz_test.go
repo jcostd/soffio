@@ -21,7 +21,7 @@ func FuzzParse(f *testing.F) {
 		"\n== s | S\n(a (b -> c) -> d) \\* <script>x</script> & \"q\"\n",
 		"\n=== t | T\n(*bold*) snake_case 2*3*4 (x -> #t) (y -> https://x.org/a_b)\n",
 		"notes_title: <N>\n\n== s | S\n(*a)\n\n:: note: a | (*b)\n\n:: note: b | (*a)\n",
-		"id: d\n\n== fn-x | S\n(*x)\n\n== footnotes-d | F\n\n:: note: x | x\n",
+		"title: d\n\n== fn-x | S\n(*x)\n\n== footnotes-d | F\n\n:: note: x | x\n",
 	} {
 		f.Add(s)
 	}

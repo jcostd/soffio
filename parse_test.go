@@ -30,8 +30,7 @@ func stripLines(doc *Document) {
 }
 
 func TestParse(t *testing.T) {
-	input := `ID: test-doc
-Title: The Title
+	input := `Title: The Title
 Layout: custom
 
 == intro | Introduction
@@ -51,10 +50,9 @@ list continuation
 
 	want := &Document{
 		File:  "t.soffio",
-		ID:    "test-doc",
 		Title: "The Title",
 		Meta:  map[string]string{"layout": "custom"},
-		lines: map[string]int{"id": 1, "title": 2, "layout": 3},
+		lines: map[string]int{"title": 1, "layout": 2},
 		Sections: []Section{
 			{
 				Level: 2,
@@ -139,15 +137,14 @@ func TestParseErrors(t *testing.T) {
 		{"\n== s | S\n- a\n-\n- c", `t.soffio:4: empty list item`},
 		{"bad header\n", `t.soffio:1: "bad header" is not key: value`},
 		{"title: a\ntitle: b\n", `t.soffio:2: duplicate header key "title"`},
-		{"id: scultura bronzo\n", `t.soffio:1: invalid id "scultura bronzo": it contains a space`},
-		{"id: città\n", `'à' is not a plain ASCII character`},
-		{"id: opere/toro\n", `'/' is not allowed`},
-		{"id: .nascosto\n", `it can't start with '.'`},
-		{"id:\n", `invalid id "": it is empty`},
+		{"id: toro\n", `t.soffio:1: id: a text's ID is its file's name: rename the file instead`},
 		{"visibility: pubic\n", `t.soffio:1: invalid visibility "pubic": want public or private`},
 		{"date: 12-03-1960\n", `t.soffio:1: invalid date "12-03-1960": want a real date, YYYY-MM-DD`},
 		{"updated: 2026-02-30\n", `invalid updated "2026-02-30"`},
-		{"event_date: 1960\n", `invalid event_date "1960"`},
+		{"event_date: 196\n", `invalid event_date "196"`},
+		{"when: 1960-13\n", `invalid when "1960-13"`},
+		{"until: 29-03-2027\n", `invalid until "29-03-2027"`},
+		{"until: -> x\n", `invalid until "-> x"`},
 		{"title: T\n== s | Title: sub\n", `t.soffio:2: invalid header key "== s | title": letters, digits and _ only`},
 		{"my-key: x\n", `invalid header key "my-key"`},
 		{"image: img/a.webp\n", `t.soffio:1: image "img/a.webp" is not under /static/`},
@@ -173,7 +170,7 @@ func TestParseErrors(t *testing.T) {
 
 func TestParseBOMAndDashes(t *testing.T) {
 	// a byte order mark is ignored; "-5" is text, "- 5" an item
-	doc, err := Parse("t.soffio", strings.NewReader("\uFEFFid: x\n\n== s | S\n-5 gradi\n\n- a\n-b goes on"))
+	doc, err := Parse("t.soffio", strings.NewReader("\uFEFFtitle: x\n\n== s | S\n-5 gradi\n\n- a\n-b goes on"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,8 +179,8 @@ func TestParseBOMAndDashes(t *testing.T) {
 		TextBlock{Elements: []Inline{PlainText{Content: "-5 gradi"}}},
 		ListBlock{Items: [][]Inline{{PlainText{Content: "a\n-b goes on"}}}},
 	}
-	if doc.ID != "x" || !reflect.DeepEqual(doc.Sections[0].Blocks, want) {
-		t.Errorf("id %q, blocks %#v", doc.ID, doc.Sections[0].Blocks)
+	if doc.Title != "x" || !reflect.DeepEqual(doc.Sections[0].Blocks, want) {
+		t.Errorf("title %q, blocks %#v", doc.Title, doc.Sections[0].Blocks)
 	}
 }
 
@@ -198,8 +195,7 @@ func TestParseExternalImage(t *testing.T) {
 }
 
 func BenchmarkParse(b *testing.B) {
-	input := `ID: bench
-Title: Bench
+	input := `Title: Bench
 
 == sec | Section
 
@@ -242,6 +238,20 @@ func TestParseHeaderLinks(t *testing.T) {
 	for key, want := range map[string]string{"artist": "picasso", "place": "/it/luoghi/murano", "layout": "-> x", "note": "a -> b"} {
 		if doc.Meta[key] != want {
 			t.Errorf("Meta[%q] = %q, want %q", key, doc.Meta[key], want)
+		}
+	}
+}
+
+func TestParseDates(t *testing.T) {
+	// a date is as precise as what is known of it
+	in := "date: 2026-10-17\nwhen: 1954\nuntil: 2027-03\nevent_date: 1912-04-22\n"
+	doc, err := Parse("t.soffio", strings.NewReader(in))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for k, want := range map[string]string{"date": "2026-10-17", "when": "1954", "until": "2027-03", "event_date": "1912-04-22"} {
+		if doc.Meta[k] != want {
+			t.Errorf("%s = %q, want %q", k, doc.Meta[k], want)
 		}
 	}
 }

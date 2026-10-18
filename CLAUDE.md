@@ -87,10 +87,10 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 
 - **`load.go`**: `Load` walks the source dir in lexical order, sequentially (parsing is
   microseconds; order makes errors reproducible), skipping hidden files and refusing
-  links to directories, and returns documents by ID: the
-  `id` header or the file name, under the file's directory (`it/about`). Every part
-  of an ID passes `CheckID`; a text with no title is refused (an empty link in every
-  list of pages); IDs differing only in case are duplicates; `static/` is no ID, it is where the
+  links to directories, and returns documents by ID: the file's path without
+  `.soffio` (`it/about`), the one name of a page (an `id` header is refused by `Parse`).
+  Every part of an ID passes `CheckID`; a text with no title is refused (an empty link
+  in every list of pages); IDs differing only in case are duplicates; `static/` is no ID, it is where the
   static files go. `Document.File` is the path for messages. A header link
   (`key: -> target`, which `Parse` keeps in `Document.links`) is resolved here,
   from the text's directory as a body link is, into the page's ID, which
@@ -126,9 +126,7 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 - **`cmd/soffio`**: flags (`checkFlags`: -baseurl is http(s)://host[/path] with
   nothing html/template would escape) and templates, configuration first, then load ->
   visibility filter -> check -> static copy -> pages and site files. `write.go`: each page goes through its layout
-  (`layout` header, else `layout.html`; a missing one is an error) with `Children` (docs under `<id>/`, by ID:
-  the IDs are sorted once and the children are the run from `id/` to `id0`, two
-  binary searches), `Backlinks` (the pages whose `Links` hold it: `linkBack`
+  (`layout` header, else `layout.html`; a missing one is an error) with `Backlinks` (the pages whose `Links` hold it: `prepare`
   turns every page's links round once, in ID order, so they come by ID), `Docs`
   (every active page, as the site files get), `ID`, `Alternates` (the same path in each `-langs` language, only when
   the first part of the ID is one) and `Lang` (that first part, else the first of
@@ -143,9 +141,13 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   `template.go` parses either `-t` or the embedded `cmd/soffio/templates/*`, never a
   mix, and gives templates `sortBy`, `where`, `under` (the pages under an ID: `under .Docs
   .Lang` is a language), `reverse` (each takes a list of pages or `.Docs`, a map,
-  taken by ID) and `rfc822`. The embedded ones are the showcase:
+  taken by ID), `doc` (the page of an ID, or nil: bound to the site's pages by
+  `site.prepare`, which also gives every page its `Lang`), `today`, `past` (a date,
+  as far as it is written, before `today`; false with no `-today`) and `rfc822` (a date, YYYY-MM-DD or less, as `ParseDate` reads one).
+  `today` is `-today` or empty: a template never reads the clock, so the output stays
+  reproducible. The embedded ones are the showcase:
   they need only a title (date and updated if there) and use `.Lang`, `.Alternates`,
-  `.Children` with `sortBy`, `.Backlinks`, `rfc822`, a shared `style` partial; keep them that small. `siteFiles` in `main.go` (rss.xml,
+  `under .Docs .ID` with `sortBy`, `.Backlinks`, `rfc822`, a shared `style` partial; keep them that small. `siteFiles` in `main.go` (index.html, rss.xml,
   sitemap.xml, robots.txt, 404.html, manifest.json) are each made if the template is
   there.
 
@@ -166,8 +168,8 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
 
 ## Markup format (`.soffio`)
 
-Frontmatter (`key: value` lines) + blank line + body. Known frontmatter keys: `id`,
-`title`, `layout`, `visibility`; a value `-> target` (any key but `layout` and the
+Frontmatter (`key: value` lines) + blank line + body. Known frontmatter keys:
+`title`, `layout`, `visibility` (`id` is refused: the file's name is the ID); a value `-> target` (any key but `layout` and the
 dates) is a link to a page, and templates get that page's ID; `date`, `updated`, `*_date` are dates;
 `image`, `*_image` are images, checked as `:: img:` (parse: under `/static/`; `Check`: the
 file is there, at the header line, which `Document.lines` keeps); any other key lands in `Meta` and is

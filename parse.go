@@ -112,11 +112,9 @@ func (p *parser) header(n int, line string) {
 
 	switch {
 	case key == "id":
-		if why := CheckID(val); why != "" {
-			p.errorf(n, "invalid id %q: %s", val, why)
-			return
-		}
-		p.doc.ID = val
+		// one name for a page: its file's
+		p.errorf(n, "id: a text's ID is its file's name: rename the file instead")
+		return
 	case key == "title":
 		p.doc.Title = val
 	case key == "visibility" && val != "public" && val != "private":
@@ -139,8 +137,8 @@ func (p *parser) header(n int, line string) {
 		p.doc.Meta[key] = target
 		p.doc.links = append(p.doc.links, key)
 	case isDateKey(key) && val != "":
-		if _, err := time.Parse(time.DateOnly, val); err != nil {
-			p.errorf(n, "invalid %s %q: want a real date, YYYY-MM-DD", key, val)
+		if _, err := ParseDate(val); err != nil {
+			p.errorf(n, "invalid %s %q: want a real date, YYYY-MM-DD, or as much of it as is known, YYYY-MM or YYYY", key, val)
 			return
 		}
 		fallthrough
@@ -159,11 +157,26 @@ func isImageKey(key string) bool {
 	return key == "image" || strings.HasSuffix(key, "_image")
 }
 
-// isDateKey reports whether a header key holds a date: "date",
-// "updated" and any "*_date". They sort pages, so a date that is not
-// YYYY-MM-DD would silently misplace one.
+// isDateKey reports whether a header key holds a date: "date" and
+// "updated", the text's; "when" and "until", the time of what it is
+// about and its end; and any "*_date". They sort pages, so a date that
+// is not one would silently misplace one.
 func isDateKey(key string) bool {
-	return key == "date" || key == "updated" || strings.HasSuffix(key, "_date")
+	return key == "date" || key == "updated" || key == "when" || key == "until" ||
+		strings.HasSuffix(key, "_date")
+}
+
+// ParseDate reads a date as a header holds it: YYYY-MM-DD, or as much
+// of it as is known, YYYY-MM or YYYY, which is its first day. The three
+// sort as text in the order of time, the shorter first.
+func ParseDate(s string) (time.Time, error) {
+	switch len(s) {
+	case 4:
+		return time.Parse("2006", s)
+	case 7:
+		return time.Parse("2006-01", s)
+	}
+	return time.Parse(time.DateOnly, s)
 }
 
 // idForbidden are the ASCII characters an ID can't hold: path separators

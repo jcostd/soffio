@@ -8,6 +8,7 @@ package soffio
 type Document struct {
 	File     string // where it comes from, for messages
 	ID       string
+	Lang     string // its language, set by who knows the languages
 	Title    string
 	Meta     map[string]string
 	Sections []Section

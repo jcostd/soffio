@@ -58,16 +58,15 @@ func Load(dir string) (map[string]*Document, error) {
 			errs = append(errs, err)
 			return nil
 		}
+		// one file per path, so two IDs differ at least in case; that is
+		// one file on Windows and macOS
 		key := strings.ToLower(doc.ID)
-		switch other := folded[key]; {
-		case other == nil:
-			folded[key] = doc
-			docs[doc.ID] = doc
-		case other.ID == doc.ID:
-			errs = append(errs, fmt.Errorf("%s: duplicate id %q, also in %s", doc.File, doc.ID, other.File))
-		default:
+		if other := folded[key]; other != nil {
 			errs = append(errs, fmt.Errorf("%s: id %q differs from %q in %s only in case", doc.File, doc.ID, other.ID, other.File))
+			return nil
 		}
+		folded[key] = doc
+		docs[doc.ID] = doc
 		return nil
 	})
 	if err != nil {
@@ -92,10 +91,7 @@ func parseFile(fsys fs.FS, name, file string) (*Document, error) {
 	if doc.Title == "" {
 		return nil, fmt.Errorf("%s: no title", file)
 	}
-	if doc.ID == "" {
-		doc.ID = strings.TrimSuffix(path.Base(name), ".soffio")
-	}
-	doc.ID = path.Join(path.Dir(name), doc.ID)
+	doc.ID = strings.TrimSuffix(name, ".soffio")
 	// the directories and the file name are part of the ID too
 	for part := range strings.SplitSeq(doc.ID, "/") {
 		if why := CheckID(part); why != "" {

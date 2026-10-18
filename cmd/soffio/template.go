@@ -23,10 +23,24 @@ var embedded embed.FS
 
 var patterns = []string{"*.html", "*.xml", "*.txt", "*.json"}
 
-var funcs = template.FuncMap{"sortBy": sortBy, "where": where, "under": under, "reverse": reverse, "rfc822": rfc822}
+// doc, the page of an ID, today, the day of the build, and past:
+// site.prepare binds them to the site
+var funcs = template.FuncMap{"sortBy": sortBy, "where": where, "under": under, "reverse": reverse, "rfc822": rfc822,
+	"doc": func(string) *soffio.Document { return nil }, "today": func() string { return "" },
+	"past": func(string) bool { return false }}
 
-// pages is the list of pages v holds: a list, as .Children and
-// .Backlinks, or a map by ID, as .Docs, which comes by ID.
+// past reports whether date, as precise as it is written, has passed by
+// today: 2027-03 has not on 2027-03-31, 2027 not until 2028. Nothing has
+// passed on a day not given, as nothing is known of it.
+func past(date, today string) bool {
+	if today == "" || date == "" || len(date) > len(today) {
+		return false
+	}
+	return today[:len(date)] > date
+}
+
+// pages is the list of pages v holds: a list, as .Backlinks, or a map
+// by ID, as .Docs, which comes by ID.
 func pages(v any) ([]*soffio.Document, error) {
 	switch v := v.(type) {
 	case []*soffio.Document:
@@ -73,9 +87,9 @@ func where(v any, key, value string) ([]*soffio.Document, error) {
 	return found, nil
 }
 
-// under returns the pages under the ID id, as .Children are under a
-// page's: under .Docs .Lang is every page of a language. id need not be
-// a page; "" is the whole site.
+// under returns the pages under the ID id: under .Docs .ID are a page's
+// own, under .Docs .Lang every page of a language. id need not be a
+// page; "" is the whole site.
 func under(v any, id string) ([]*soffio.Document, error) {
 	docs, err := pages(v)
 	if err != nil {
@@ -105,10 +119,10 @@ func reverse(v any) ([]*soffio.Document, error) {
 	return r, nil
 }
 
-// rfc822 turns a YYYY-MM-DD date into the form RSS wants. It is HTML,
-// or html/template would write its '+' as &#43;.
+// rfc822 turns a date, YYYY-MM-DD or less, into the form RSS wants. It
+// is HTML, or html/template would write its '+' as &#43;.
 func rfc822(date string) (template.HTML, error) {
-	t, err := time.Parse(time.DateOnly, date)
+	t, err := soffio.ParseDate(date)
 	if err != nil {
 		return "", err
 	}
