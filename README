@@ -74,7 +74,7 @@ MARKUP
     not its first of January. The three sort as text in time's order.
     'image' and any '*_image' hold an image, checked as one of :: img:
     is (see LINKS AND FILES), or nothing. A value '-> target' is a link to a page, written
-    and checked as a link in the body is: 'artist: -> ../persone/arp'.
+    and checked as a link in the body is: 'by: -> ../persone/arp'.
     It points at a page, not a section or a file, and the templates get
     the ID of that page (see TEMPLATES); 'layout' and the dates never
     hold one. A byte order mark at the start is ignored. The
