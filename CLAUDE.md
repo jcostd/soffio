@@ -39,7 +39,7 @@ choice of behaviour, what a site is about) is never added.
 
 ## Commands
 
-The Makefile is the one place that says how soffio and preview are compiled: static
+The Makefile is the one place that says how soffio is compiled: static
 (`CGO_ENABLED=0`), for the baseline CPU of each family whatever the environment says
 (`GOAMD64=v1`, `GOARM64=v8.0`, `GOARM=6`, `GO386=sse2`), `-trimpath`, `-s -w`; go
 stamps the version from the tag (`go version -m soffio`). release.sh calls it; don't
@@ -48,7 +48,7 @@ if `cmd/soffio/default.pgo` exists, from profile-guided optimization; never
 `-gcflags=-B`.
 
 ```
-make                                     # soffio and preview for here, in the repo root
+make                                     # soffio for here, in the repo root
 make GOOS=windows GOARCH=amd64 OUT=dir   # for another system, into dir
 make test                                # go vet, then every test, with its coverage
 ./release.sh                             # the release archives, see Release
@@ -83,7 +83,7 @@ static dir copied to `<o>/static` (repeatable: the drafts' files go in one only 
 preview gets, as everything in `-s` is published), `-t` the templates instead of the
 built-in ones, `-today` the templates' day. Pipe mode, with no dir:
 `soffio [-n] < text.soffio > text.html` (`-n` only checks; any other flag is refused,
-exit 2). `preview [-p port] [dir]` serves dir, `public` if none. No version flag.
+exit 2). No server: any static one serves the site. No version flag.
 The README is the man page.
 
 ## Release
@@ -92,7 +92,7 @@ Every change worth knowing gets a line in `ChangeLog.txt`, newest first, Slackwa
 style. Bump `VERSION`, date the ChangeLog entry, commit "bump to vX.Y.Z",
 `git tag -a vX.Y.Z`, `./release.sh`, and upload what it made in `dist/` to the
 GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip`
-for windows), each holding the two programs as the Makefile builds them, README,
+for windows), each holding soffio as the Makefile builds it, README,
 LICENSE and `templates/` (the built-in templates as files, to start a `-t` from),
 owned by root, 755/644; the darwin ones also `unquarantine.sh`, which a Mac user runs
 with `sh` to lift the quarantine of a download from that folder (it checks soffio
@@ -203,16 +203,6 @@ package, `soffio`, at the module root; package `site` is the command, which
   it at any address, so it is never a text), are made at the root, with `ID` (the name without its extension: what
   a template makes has an ID, where it goes), `BaseURL`, `Docs`, `XMLHeader`.
 
-- **`cmd/preview`**: a static file server (`http.FileServer`) over a dir, `public` if
-  none, that opens the default browser (`open` on macOS, `start` on Windows, else
-  `xdg-open`: `browsers`, a table by `runtime.GOOS`, so it builds on the BSDs too).
-  Every response carries a `Soffio-Preview: <abs dir>` header, so a second `preview`
-  of the same dir finds the first one when the port is taken, opens the browser on
-  it, and exits 0. Also `Cache-Control: no-store` (a rebuilt site is never shown from
-  the browser's cache), `X-Content-Type-Options: nosniff`, `Referrer-Policy:
-  no-referrer` (the preview holds private texts), and a `Content-Type` from the fixed
-  `types` table for a site's extensions: Go asks the system otherwise, and a Windows
-  registry may call `.css` text/plain, or a system lack `.woff2`.
 - **Messages and exit status**: errors are `file:line: message`, all of them, in a
   fixed order, with no timestamps (`log.SetFlags(0)`); about the command, its name
   first. Every page and site file is attempted, but if any fails the command exits 1;

@@ -7,7 +7,6 @@ SYNOPSIS
     soffio [-a] [-n] [-baseurl url] [-o dir] [-s dir]... [-t dir]
            [-today day] dir
     soffio [-n] < text.soffio > text.html
-    preview [-p port] [dir]
 
 DESCRIPTION
     Soffio turns the .soffio texts under dir into a static site in -o,
@@ -23,14 +22,6 @@ DESCRIPTION
     HTML fragment on standard output. Alone, a text can only check its
     notes and its links to its own sections; -n checks it and prints
     nothing, and the flags about a site are refused.
-
-    preview serves a directory, public if none is named, on 127.0.0.1,
-    and opens the browser. If the port is taken by a preview of the same
-    directory, it opens the browser on that one and exits. The browser
-    keeps nothing, so it shows the last build; the types of a site's
-    files are fixed, not asked of the system; and no page's address
-    goes out to a site it links to, as a preview holds the private
-    texts.
 
     Soffio knows its markup, links and files, and nothing of what a
     site is about: what a site wants more is a program of its own (see
@@ -113,7 +104,7 @@ LINKS AND FILES
     soffio writes, of links and images, are relative: they work under
     any base, even from the disk. Those a template writes are its own:
     the built-in ones start from .BaseURL, or without it from the root,
-    which a server gives, as preview does.
+    which any static server gives.
 
     An image is a file under /static/, or an address out of the site.
     One of the files of -s gets its width and height, read from the
@@ -239,8 +230,8 @@ MACOS
 BUILD
     Requires Go 1.26 or higher.
 
-    make                       soffio and preview: static, for the
-                               baseline CPU, stripped
+    make                       soffio: static, for the baseline CPU,
+                               stripped
     make GOOS=os GOARCH=arch OUT=dir   the same for another system
     make test                  go vet, then the tests and their
                                coverage, 100% of the statements
