@@ -98,7 +98,6 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 	}
 	return s.write(doc.ID+".html", layout, map[string]any{
 		"ID":        doc.ID,
-		"Title":     doc.Title,
 		"Meta":      doc.Meta,
 		"Content":   template.HTML(soffio.Render(doc)),
 		"BaseURL":   s.baseURL,

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"unicode/utf8"
 )
@@ -110,11 +111,9 @@ func (p *parser) header(n int, line string) {
 	p.doc.Lines[key] = n
 
 	switch {
-	case key == "title":
-		p.doc.Title = val
 	case key == "visibility" && val != "public" && val != "private":
 		p.errorf(n, "invalid visibility %q: want public or private", val)
-	case strings.HasPrefix(val, "->") && key != "layout" && key != "visibility":
+	case strings.HasPrefix(val, "->") && !slices.Contains(words, key):
 		// a link to a page, as -> target in the body; Load turns the
 		// target into the page's ID, which is what templates get
 		target := strings.TrimSpace(val[2:])
@@ -128,6 +127,9 @@ func (p *parser) header(n int, line string) {
 		p.doc.Meta[key] = val
 	}
 }
+
+// words are the header keys soffio reads: a word each, never a link.
+var words = []string{"title", "layout", "visibility"}
 
 func isKeyRune(r rune) bool {
 	return 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '_'

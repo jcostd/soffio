@@ -232,7 +232,9 @@ func testSite(t *testing.T, layouts string, docs map[string]*soffio.Document) *s
 }
 
 func page(id string, meta map[string]string) *soffio.Document {
-	return &soffio.Document{ID: id, Title: "T " + id, Meta: meta, Sections: []soffio.Section{
+	m := map[string]string{"title": "T " + id}
+	maps.Copy(m, meta)
+	return &soffio.Document{ID: id, Meta: m, Sections: []soffio.Section{
 		{Level: 2, ID: "s", Title: "S", Blocks: []soffio.Block{
 			soffio.TextBlock{Elements: []soffio.Inline{soffio.PlainText{Content: "Hello"}}},
 		}},
@@ -245,8 +247,8 @@ func TestWriteDoc(t *testing.T) {
 		"b": page("b", map[string]string{"layout": "post"}),
 		"c": page("c", map[string]string{"layout": "postt"}),
 	}
-	s := testSite(t, `{{define "layout.html"}}<title>{{.Title}}</title>{{.Content}}{{end}}`+
-		`{{define "post.html"}}post {{.Title}}{{end}}`, docs)
+	s := testSite(t, `{{define "layout.html"}}<title>{{.Meta.title}}</title>{{.Content}}{{end}}`+
+		`{{define "post.html"}}post {{.Meta.title}}{{end}}`, docs)
 
 	for id, want := range map[string]string{
 		"a": "<title>T a</title><section id=\"s\">\n<h2>S</h2>\n<p>Hello</p>\n</section>\n",
@@ -288,8 +290,8 @@ func TestWriteDocBacklinks(t *testing.T) {
 	docs := map[string]*soffio.Document{
 		"it/b":   page("it/b", nil),
 		"it/c":   page("it/c", nil),
-		"it/a":   {ID: "it/a", Title: "A", Meta: map[string]string{}, Sections: link("b")},
-		"it/z":   {ID: "it/z", Title: "Z", Meta: map[string]string{}, Sections: link("/it/b#s")},
+		"it/a":   {ID: "it/a", Meta: map[string]string{"title": "A"}, Sections: link("b")},
+		"it/z":   {ID: "it/z", Meta: map[string]string{"title": "Z"}, Sections: link("/it/b#s")},
 		"it/hdr": parseDoc(t, "it/hdr", "title: H\nartist: -> c\n\n== s | S\n(b -> b)"),
 	}
 	s := testSite(t, `{{define "layout.html"}}{{.ID}}|{{range .Backlinks}}{{.ID}};{{end}}|{{len .Docs}}{{end}}`, docs)
@@ -521,7 +523,7 @@ func TestWriteDocDoc(t *testing.T) {
 	// doc finds a page by ID: a partial needs no more than the page it
 	// is given
 	docs := map[string]*soffio.Document{"it/a": page("it/a", nil), "en/c": page("en/c", nil)}
-	s := testSite(t, `{{define "layout.html"}}{{with doc "en/c"}}{{.Title}}{{end}}|{{with doc "nope"}}?{{end}}{{end}}`, docs)
+	s := testSite(t, `{{define "layout.html"}}{{with doc "en/c"}}{{.Meta.title}}{{end}}|{{with doc "nope"}}?{{end}}{{end}}`, docs)
 	if err := s.writeDoc(docs["it/a"]); err != nil {
 		t.Fatal(err)
 	}
@@ -536,7 +538,7 @@ func TestMainExtended(t *testing.T) {
 	dir := writeFiles(t, map[string]string{
 		"src/a.soffio":     "title: A\n\n== s | S\nx",
 		"bad/bad.soffio":   "title: B\n\n== s | S\nx",
-		"tmpl/layout.html": "{{ shout .Title }}",
+		"tmpl/layout.html": "{{ shout .Meta.title }}",
 	})
 	if code, stderr := run(t, "ext", dir, "-t", "tmpl", "src"); code != 0 {
 		t.Fatalf("exit %d: %s", code, stderr)
@@ -563,7 +565,7 @@ func TestWriteDocSizes(t *testing.T) {
 	img := func(path string) soffio.Section {
 		return soffio.Section{Level: 2, ID: path[len(path)-5 : len(path)-4], Title: "S", Blocks: []soffio.Block{soffio.ImageBlock{Path: path}}}
 	}
-	docs := map[string]*soffio.Document{"x": {ID: "x", Title: "X", Meta: map[string]string{"image": "/static/a.png"},
+	docs := map[string]*soffio.Document{"x": {ID: "x", Meta: map[string]string{"title": "X", "image": "/static/a.png"},
 		Sections: []soffio.Section{img("/static/a.png"), img("/static/b.svg"), img("https://example.org/c.png")}}}
 	s := testSite(t, `{{define "layout.html"}}{{with size .Meta.image}}{{.Width}}x{{.Height}}{{end}}|{{with size "/static/b.svg"}}?{{end}}|{{.Content}}{{end}}`, docs)
 	s.static = []string{static}

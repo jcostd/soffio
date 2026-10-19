@@ -64,7 +64,8 @@ MARKUP
     A text is UTF-8: a header, a blank line, and the body. The header
     is 'key: value' lines, keys of letters, digits and _, each once.
     Three keys mean something to soffio: 'title', which a page needs;
-    'layout'; and 'visibility', public or private. Two values do,
+    'layout'; and 'visibility', public or private: each a word, never a
+    link. Two values do,
     whatever their key: '-> target' is a link to a page, written and
     checked as a link in the body is ('by: -> ../persone/arp'), and the
     templates get the ID of that page; a value under /static/ is a
@@ -139,11 +140,11 @@ PRIVATE TEXTS AND FILES
 TEMPLATES
     Go html/template files. A page goes through its 'layout' (post means
     post.html), or layout.html; a layout that is not there is an error.
-    A page gets .ID, .Title, .Meta (its header; a key it doesn't have is
-    "", as one it has empty), .Content, .BaseURL, .Backlinks, the pages
+    A page gets .ID, .Meta (its header, title too: .Meta.title; a key it
+    doesn't have is "", as one it has empty), .Content, .BaseURL, .Backlinks, the pages
     that link to it, from their header or their body, by ID, and .Docs,
     every page, by ID: range .Docs goes through them in that order. A
-    page among others has .ID, .Title and .Meta.
+    page among others has .ID and .Meta.
 
     index.html, 404.html, robots.txt and sitemap.xml are made at the
     site root, each if its template is there; a page with the same
@@ -160,8 +161,8 @@ TEMPLATES
                       images of the texts, or nothing
     today             -today, the day of the build, or nothing
 
-        {{ with doc .Meta.by }}<a href="/{{ .ID }}.html">{{ .Title }}</a>{{ end }}
-        {{ range .Backlinks }}{{ .Title }}{{ end }}
+        {{ with doc .Meta.by }}<a href="/{{ .ID }}.html">{{ .Meta.title }}</a>{{ end }}
+        {{ range .Backlinks }}{{ .Meta.title }}{{ end }}
         <img src="{{ .Meta.image }}"{{ with size .Meta.image }}
           width="{{ .Width }}" height="{{ .Height }}"{{ end }}>
 

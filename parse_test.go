@@ -52,8 +52,7 @@ list continuation
 
 	want := &Document{
 		File:  "t.soffio",
-		Title: "The Title",
-		Meta:  map[string]string{"layout": "custom"},
+		Meta:  map[string]string{"title": "The Title", "layout": "custom"},
 		Lines: map[string]int{"title": 1, "layout": 2},
 		Sections: []Section{
 			{
@@ -172,8 +171,8 @@ func TestParseBOMAndDashes(t *testing.T) {
 		TextBlock{Elements: []Inline{PlainText{Content: "-5 gradi"}}},
 		ListBlock{Items: [][]Inline{{PlainText{Content: "a\n-b goes on"}}}},
 	}
-	if doc.Title != "x" || !reflect.DeepEqual(doc.Sections[0].Blocks, want) {
-		t.Errorf("title %q, blocks %#v", doc.Title, doc.Sections[0].Blocks)
+	if doc.Meta["title"] != "x" || !reflect.DeepEqual(doc.Sections[0].Blocks, want) {
+		t.Errorf("title %q, blocks %#v", doc.Meta["title"], doc.Sections[0].Blocks)
 	}
 }
 
@@ -221,14 +220,14 @@ func TestParseRefusedSection(t *testing.T) {
 
 // a header value -> target is a link; layout and dates never are
 func TestParseHeaderLinks(t *testing.T) {
-	doc, err := Parse("t.soffio", strings.NewReader("title: T\nartist: -> picasso\nplace:->/it/luoghi/murano\nlayout: -> x\nnote: a -> b\n"))
+	doc, err := Parse("t.soffio", strings.NewReader("title: -> T\nartist: -> picasso\nplace:->/it/luoghi/murano\nlayout: -> x\nnote: a -> b\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := []string{"artist", "place"}; !slices.Equal(doc.HeaderLinks, want) {
 		t.Errorf("links %q, want %q", doc.HeaderLinks, want)
 	}
-	for key, want := range map[string]string{"artist": "picasso", "place": "/it/luoghi/murano", "layout": "-> x", "note": "a -> b"} {
+	for key, want := range map[string]string{"artist": "picasso", "place": "/it/luoghi/murano", "title": "-> T", "layout": "-> x", "note": "a -> b"} {
 		if doc.Meta[key] != want {
 			t.Errorf("Meta[%q] = %q, want %q", key, doc.Meta[key], want)
 		}

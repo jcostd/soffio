@@ -7,8 +7,7 @@ import (
 
 func TestRender_BlocksAndInlines(t *testing.T) {
 	doc := &Document{
-		ID:    "doc-id",
-		Title: "Document Title",
+		ID: "doc-id",
 		Sections: []Section{
 			{
 				ID:    "sec1",
@@ -224,8 +223,7 @@ func TestRenderEscapesIDs(t *testing.T) {
 
 func BenchmarkRender(b *testing.B) {
 	doc := &Document{
-		ID:    "bench",
-		Title: "Bench",
+		ID: "bench",
 		Sections: []Section{
 			{
 				Level: 2,

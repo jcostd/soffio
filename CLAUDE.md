@@ -85,7 +85,7 @@ Pipeline: parse -> load -> check -> render -> site assembly. The language is one
 package, `soffio`, at the module root; package `site` is the command, which
 `cmd/soffio` runs with nothing added and a site's own program with its functions.
 
-- **`doc.go`**: the document tree. `Document` (File, ID, Title, Meta, `[]Section`),
+- **`doc.go`**: the document tree. `Document` (File, ID, Meta, `[]Section`),
   `Section` (level, ID, title, `[]Block`), blocks (`TextBlock`, `ImageBlock` with its
   width and height when known, `NoteBlock`, `ListBlock`, each with the line it starts
   at) and inlines (`PlainText`, `Bold`, `Italic`, `Link`, `FootnoteRef`). Pure data.
@@ -93,8 +93,8 @@ package, `soffio`, at the module root; package `site` is the command, which
 - **`parse.go`**: no state machine. The header is `key: value` lines up to the first
   blank line: keys of `[a-z0-9_]` (a template reads `.Meta.key`), each once. soffio
   reads three keys, `title`, `layout`, `visibility` (public or private), and two kinds
-  of value, whatever the key: `-> target`, a link (not in `layout` or `visibility`),
-  kept in `Document.links`, and a value under `/static/`, a file, which `Check`
+  of value, whatever the key: `-> target`, a link (never in those three, `words`:
+  each is a word), its key in `Document.HeaderLinks`, and a value under `/static/`, a file, which `Check`
   checks. Every other value is a word, as written: no key has a type it does not
   need (dates, images, ids are the site's). The body is cut into blocks at blank
   lines, and before every `==` section line and `::` command line (`::img:` is
@@ -156,7 +156,7 @@ package, `soffio`, at the module root; package `site` is the command, which
   soffio's functions and the site's (one of soffio's names is refused), load ->
   visibility filter -> `Check` -> the site's `check` -> static copy -> pages and site
   files. `write.go`: each page goes through its layout (`layout` header, else
-  `layout.html`; a missing one is an error) with `ID`, `Title`, `Meta`, `Content`,
+  `layout.html`; a missing one is an error) with `ID`, `Meta`, `Content`,
   `BaseURL`, `Backlinks` (the pages whose `Links` hold it: `prepare` turns every
   page's links round once, in ID order, so they come by ID) and `Docs` (every active
   page, as the site files get). Every file is executed into a buffer and written in

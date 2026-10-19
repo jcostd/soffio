@@ -8,8 +8,7 @@ package soffio
 type Document struct {
 	File     string // where it comes from, for messages
 	ID       string
-	Title    string
-	Meta     map[string]string
+	Meta     map[string]string // the header, every key of it, title too
 	Sections []Section
 	Lines    map[string]int // header key to its line, for messages
 	// HeaderLinks are the header keys that hold a link, in order:

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{{ .Title }}</title>
+<title>{{ .Meta.title }}</title>
 {{- with .BaseURL }}
 <link rel="canonical" href="{{ . }}/{{ $.ID }}.html">
 {{- end }}
@@ -12,7 +12,7 @@
 <body>
 <nav><a href="{{ .BaseURL }}/index.html">home</a></nav>
 <main>
-<h1>{{ .Title }}</h1>
+<h1>{{ .Meta.title }}</h1>
 {{- with or .Meta.updated .Meta.date }}
 <time datetime="{{ . }}">{{ . }}</time>
 {{- end }}
@@ -20,13 +20,13 @@
 {{- if eq .ID "index" }}
 <ul>
 {{- range .Docs }}{{ if ne .ID "index" }}
-<li><a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>{{ with .Meta.date }} <time datetime="{{ . }}">{{ . }}</time>{{ end }}</li>
+<li><a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Meta.title }}</a>{{ with .Meta.date }} <time datetime="{{ . }}">{{ . }}</time>{{ end }}</li>
 {{- end }}{{ end }}
 </ul>
 {{- end }}
 {{- with .Backlinks }}
 <p>←
-{{- range $i, $p := . }}{{ if $i }},{{ end }} <a href="{{ $.BaseURL }}/{{ $p.ID }}.html">{{ $p.Title }}</a>{{ end }}</p>
+{{- range $i, $p := . }}{{ if $i }},{{ end }} <a href="{{ $.BaseURL }}/{{ $p.ID }}.html">{{ $p.Meta.title }}</a>{{ end }}</p>
 {{- end }}
 </main>
 <footer>Made with <a href="https://github.com/jcostd/soffio">Soffio</a>.</footer>
