@@ -103,6 +103,9 @@ func TestSoffio(t *testing.T) {
 		"badtmpl/x.html":     "{{ if }}",
 		"badsite/x.html":     "x",
 		"badsite/robots.txt": `{{ template "none" }}`,
+		"named/layout.html":  "x",
+		"named/404.html":     "{{ .ID }}",
+		"named/sitemap.xml":  "{{ .ID }}",
 	})
 
 	if code, stderr := soffioRun(t, dir, "-baseurl", "https://example.org", "-s", "static", "src"); code != 0 {
@@ -128,6 +131,15 @@ func TestSoffio(t *testing.T) {
 	} {
 		if got, _ := os.ReadFile(filepath.Join(dir, file)); !strings.Contains(string(got), want) {
 			t.Errorf("%s has no %s", file, want)
+		}
+	}
+	// a site file's ID is its name, without its extension
+	if code, stderr := soffioRun(t, dir, "-s", "static", "-t", "named", "-o", "named-out", "src"); code != 0 {
+		t.Errorf("named: exit %d: %s", code, stderr)
+	}
+	for file, want := range map[string]string{"404.html": "404", "sitemap.xml": "sitemap"} {
+		if got, _ := os.ReadFile(filepath.Join(dir, "named-out", file)); string(got) != want {
+			t.Errorf("%s: %q, want %q", file, got, want)
 		}
 	}
 	if code, stderr := soffioRun(t, dir, "-n", "-s", "static", "-o", "none", "src"); code != 0 || exists(dir, "none") {

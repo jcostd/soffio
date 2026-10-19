@@ -147,8 +147,9 @@ TEMPLATES
 
     index.html, 404.html, robots.txt and sitemap.xml are made at the
     site root, each if its template is there; a page with the same
-    name, as 404.soffio, is an error. They get .BaseURL, .Docs and
-    .XMLHeader. -baseurl holds nothing that html/template would escape,
+    name, as 404.soffio, is an error. They get .ID, their name without
+    its extension (404, sitemap), as a page's is where it goes, and
+    .BaseURL, .Docs and .XMLHeader. -baseurl holds nothing that html/template would escape,
     so it comes out as it is in them all.
 
     The functions are what only soffio knows:

@@ -178,7 +178,8 @@ package, `soffio`, at the module root; package `site` is the command, which
   the showcase: they need only a title (lang, date and updated if there), list every
   page on the home and the backlinks under each, share a `style` partial; keep them
   that small. `siteFiles` (index.html, 404.html, robots.txt, sitemap.xml) are each
-  made if the template is there.
+  made if the template is there, with `ID` (the name without its extension: what
+  a template makes has an ID, where it goes), `BaseURL`, `Docs`, `XMLHeader`.
 
 - **`cmd/preview`**: a static file server (`http.FileServer`) over a dir, `public` if
   none, that opens the default browser (`open` on macOS, `start` on Windows, else

@@ -17,6 +17,7 @@ import (
 	"maps"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -136,6 +137,7 @@ func Main(funcs template.FuncMap, check func(docs map[string]*soffio.Document) e
 			errs = append(errs, fmt.Errorf("%s: page %s is the site file %s too", active[id].File, id, f))
 			continue
 		}
+		data["ID"] = strings.TrimSuffix(f, path.Ext(f))
 		if err := s.write(f, f, data); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %s: %w", name, f, err))
 		}
