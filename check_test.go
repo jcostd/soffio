@@ -219,14 +219,14 @@ func BenchmarkCheck(b *testing.B) {
 	}
 }
 
-// image and *_image hold an image, as the theme shows it: checked as
-// :: img: is, at their line; empty is no image.
-func TestCheckHeaderImages(t *testing.T) {
+// a header value under /static/ is a file, whatever its key, checked
+// as :: img: is, at its line; any other is a word
+func TestCheckHeaderFiles(t *testing.T) {
 	static := t.TempDir()
 	if err := os.WriteFile(filepath.Join(static, "a.webp"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a := parse(t, "a.soffio", "a", "title: A\nimage: /static/a.webp\ncover_image: /static/b.webp\nsocial_image: https://example.org/s.webp\nicon_image:\n\n== s | S\nx")
+	a := parse(t, "a.soffio", "a", "title: A\nimage: /static/a.webp\ncover: /static/b.webp\nsocial: https://example.org/s.webp\nicon:\nnote: img/c.webp\n\n== s | S\nx")
 	docs := map[string]*Document{"a": a}
 	err := Check(docs, docs, []string{static})
 	if want := `a.soffio:3: missing file "/static/b.webp"`; err == nil || err.Error() != want {

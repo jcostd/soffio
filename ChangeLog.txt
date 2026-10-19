@@ -1,33 +1,49 @@
 (not yet released)
-soffio 5.0.0, since v4.0.0. The templates say what they mean: the
-functions a list of pages wants, and the size of every image. edges
-prints a site's graph for the rules a site has of its own. Every
-package is tested to the last statement.
-soffio: sortBy is sortDown; reverse is gone.
-  The two sorts are named by their way, and put the pages without the
-  key last both: sortDown . "date" is the newest first. reverse turned
-  sortBy round for the oldest first, which sortUp says.
-soffio: sortUp, without, except, group, bySize, current, for templates.
-  sortUp orders lowest first, those without the key last: the oldest
-  first and the undated after.
-  without keeps the pages whose key is none of the values, and where,
-  now, one of them. except drops pages by ID. group makes a list per
-  value of a key, in the order of its first page; bySize puts the
-  smaller groups first. current keeps the pages whose date at a key
-  has not passed: current .Docs "until" are the news.
-soffio: parent and fields, for templates.
-  parent is the ID above, it/persone of it/persone/arp; fields the
-  words of a string, for a list a template writes: range fields "a b".
+soffio 5.0.0, since v4.0.0. Soffio is cut to the bone: its markup,
+its links, its files, and nothing of what a site is about. What a site
+wants more is a program of its own, which package site makes: soffio
+with the functions and the checks it adds. The same flags make the same
+site, every package is tested to the last statement.
+soffio: The module is github.com/jcostd/soffio/v5.
+  A path go can fetch, with its major version, as Go wants: a site's
+  own program requires it.
+soffio: package site is the command; Main(funcs, check) extends it.
+  cmd/soffio is site.Main(nil, nil). A site's program adds functions
+  for its templates and a check of its texts, run once soffio's have
+  passed, and has soffio's flags, checks and output: a function of
+  soffio's can't be taken. Messages are named as the program is run.
+soffio: The templates' functions are doc, size and today.
+  What only soffio knows: the page of an ID, an image's size, the day
+  of the build. sortBy, where, under, reverse, past and rfc822 are
+  gone: a site's lists are its own, and its program's functions.
+soffio: Languages are gone: -langs, .Lang, .Alternates.
+  A language is a word of the site's, as the first directory of its
+  IDs; its program says it. .Permalink is gone too: it is
+  .BaseURL/.ID.html.
+soffio: A header is words, but for title, layout and visibility.
+  No key has a type soffio does not need: date, updated, when, until
+  and *_date are not checked as dates, image and *_image not as images,
+  and id is a key as any other. Two values mean something whatever
+  their key: -> target, a link, and a value under /static/, a file,
+  checked as an image is.
+soffio: -baseurl is .BaseURL, empty if not given.
+  No default that depends on another flag, no refusal of a public
+  site without it: what is asked for is what is made. An address made
+  of an empty .BaseURL starts at the root.
+soffio: -v is gone: go version -m soffio says which it is.
+soffio: rss.xml and manifest.json are no site files.
+  The site files are index.html, 404.html, robots.txt and sitemap.xml.
+  The built-in templates have no feed; their home lists every page,
+  by ID, and robots.txt names the sitemap if there is a -baseurl.
 soffio: An image has its width and height.
   Read from its file in -s (jpeg, png, gif), in the texts as size gives
   them to templates: the browser keeps an image's place before it
   comes, and the page doesn't jump.
 soffio: A header key a page doesn't have is "" to the templates.
-  As one it has empty, so .Meta.by is a string to a function either way.
-edges: A third program: a site's pages and links, a line each.
-  Read as soffio reads them, for awk and grep: a site's own rules of
-  what links to what no longer need a second reader of the markup.
-  It checks nothing; soffio -n does.
+  As one it has empty, as Go's zero value: .Meta.by is a string to a
+  function either way.
+preview: preview [-p port] [dir]: -d is gone, the dir is named once.
+  The browser it opens is a table by system.
 +--------------------------+
 Sun Oct 18 19:31:49 UTC 2026
 soffio 4.0.0, since v3.1.1. Pages know the pages that link to them,

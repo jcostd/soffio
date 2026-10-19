@@ -93,10 +93,10 @@ func TestPreview(t *testing.T) {
 		want string
 	}{
 		{browser(t), []string{"a", "b"}, 2, "usage: preview"},
-		{browser(t), []string{"-d", filepath.Join(dir, "nope")}, 1, "nope: no such file or directory"},
+		{browser(t), []string{filepath.Join(dir, "nope")}, 1, "nope: no such file or directory"},
 		{browser(t), []string{file}, 1, "index.html: not a directory"},
 		{browser(t), []string{"-p", ours, dir}, 0, "preview: already serving " + dir},
-		{t.TempDir(), []string{"-p", ours, "-d", dir}, 0, `preview: exec: "xdg-open": executable file not found in $PATH`},
+		{t.TempDir(), []string{"-p", ours, dir}, 0, `preview: exec: "xdg-open": executable file not found in $PATH`},
 		{browser(t), []string{"-p", theirs, dir}, 1, "address already in use"},
 	} {
 		code, stderr := preview(t, tt.path, tt.args...)

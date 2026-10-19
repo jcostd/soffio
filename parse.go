@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"strings"
-	"time"
 	"unicode/utf8"
 )
 
@@ -111,22 +110,11 @@ func (p *parser) header(n int, line string) {
 	p.doc.lines[key] = n
 
 	switch {
-	case key == "id":
-		// one name for a page: its file's
-		p.errorf(n, "id: a text's ID is its file's name: rename the file instead")
-		return
 	case key == "title":
 		p.doc.Title = val
 	case key == "visibility" && val != "public" && val != "private":
 		p.errorf(n, "invalid visibility %q: want public or private", val)
-	case isImageKey(key) && val != "":
-		// as for :: img:, an image of the site is a static file
-		if _, _, ok := resolve("", val); ok && !strings.HasPrefix(val, "/static/") {
-			p.errorf(n, "%s %q is not under /static/", key, val)
-			return
-		}
-		p.doc.Meta[key] = val
-	case strings.HasPrefix(val, "->") && key != "layout" && !isDateKey(key):
+	case strings.HasPrefix(val, "->") && key != "layout" && key != "visibility":
 		// a link to a page, as -> target in the body; Load turns the
 		// target into the page's ID, which is what templates get
 		target := strings.TrimSpace(val[2:])
@@ -136,12 +124,6 @@ func (p *parser) header(n int, line string) {
 		}
 		p.doc.Meta[key] = target
 		p.doc.links = append(p.doc.links, key)
-	case isDateKey(key) && val != "":
-		if _, err := ParseDate(val); err != nil {
-			p.errorf(n, "invalid %s %q: want a real date, YYYY-MM-DD, or as much of it as is known, YYYY-MM or YYYY", key, val)
-			return
-		}
-		fallthrough
 	default:
 		p.doc.Meta[key] = val
 	}
@@ -149,34 +131,6 @@ func (p *parser) header(n int, line string) {
 
 func isKeyRune(r rune) bool {
 	return 'a' <= r && r <= 'z' || '0' <= r && r <= '9' || r == '_'
-}
-
-// isImageKey reports whether a header key holds an image: "image" and
-// any "*_image". A template shows it, so it is checked as :: img: is.
-func isImageKey(key string) bool {
-	return key == "image" || strings.HasSuffix(key, "_image")
-}
-
-// isDateKey reports whether a header key holds a date: "date" and
-// "updated", the text's; "when" and "until", the time of what it is
-// about and its end; and any "*_date". They sort pages, so a date that
-// is not one would silently misplace one.
-func isDateKey(key string) bool {
-	return key == "date" || key == "updated" || key == "when" || key == "until" ||
-		strings.HasSuffix(key, "_date")
-}
-
-// ParseDate reads a date as a header holds it: YYYY-MM-DD, or as much
-// of it as is known, YYYY-MM or YYYY, which is its first day. The three
-// sort as text in the order of time, the shorter first.
-func ParseDate(s string) (time.Time, error) {
-	switch len(s) {
-	case 4:
-		return time.Parse("2006", s)
-	case 7:
-		return time.Parse("2006-01", s)
-	}
-	return time.Parse(time.DateOnly, s)
 }
 
 // idForbidden are the ASCII characters an ID can't hold: path separators

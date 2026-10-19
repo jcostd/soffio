@@ -14,8 +14,8 @@ import (
 )
 
 // Load parses every .soffio file under dir, but hidden ones, into
-// documents by ID: the id header, or else the file name, under the
-// file's directory, as in it/about. Files are read in lexical order, so the errors come in the
+// documents by ID: the file's path under dir, without .soffio, as
+// it/about. Files are read in lexical order, so the errors come in the
 // same order every time.
 func Load(dir string) (map[string]*Document, error) {
 	docs := map[string]*Document{}

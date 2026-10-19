@@ -140,18 +140,9 @@ func TestParseErrors(t *testing.T) {
 		{"bad header\n", `t.soffio:1: "bad header" is not key: value`},
 		{": x\n", `t.soffio:1: empty header key`},
 		{"title: a\ntitle: b\n", `t.soffio:2: duplicate header key "title"`},
-		{"id: toro\n", `t.soffio:1: id: a text's ID is its file's name: rename the file instead`},
 		{"visibility: pubic\n", `t.soffio:1: invalid visibility "pubic": want public or private`},
-		{"date: 12-03-1960\n", `t.soffio:1: invalid date "12-03-1960": want a real date, YYYY-MM-DD`},
-		{"updated: 2026-02-30\n", `invalid updated "2026-02-30"`},
-		{"event_date: 196\n", `invalid event_date "196"`},
-		{"when: 1960-13\n", `invalid when "1960-13"`},
-		{"until: 29-03-2027\n", `invalid until "29-03-2027"`},
-		{"until: -> x\n", `invalid until "-> x"`},
 		{"title: T\n== s | Title: sub\n", `t.soffio:2: invalid header key "== s | title": letters, digits and _ only`},
 		{"my-key: x\n", `invalid header key "my-key"`},
-		{"image: img/a.webp\n", `t.soffio:1: image "img/a.webp" is not under /static/`},
-		{"title: T\ncover_image: /img/a.webp\n", `t.soffio:2: cover_image "/img/a.webp" is not under /static/`},
 		{"title: x\xff\n", `t.soffio:1: invalid UTF-8: save the file as UTF-8`},
 		{"\n== s | S\n(a (b -> c) -> d)", `t.soffio:3: a link inside a link`},
 		{"\n== s | S\n(*a (b -> c)* -> d)", `t.soffio:3: a link inside a link`},
@@ -160,8 +151,7 @@ func TestParseErrors(t *testing.T) {
 		{"\n== s | S\n:: img: /static/a.png | (a (b -> c) -> d)", `t.soffio:3: a link inside a link`},
 		{"\n== s | S\n- a\n- ", `t.soffio:4: empty list item`},
 		{"title: T\nartist: ->\n", `t.soffio:2: artist: a link with no target`},
-		{"event_date: -> x\n", `invalid event_date "-> x"`},
-		{"image: -> x\n", `image "-> x" is not under /static/`},
+		{"visibility: -> x\n", `t.soffio:1: invalid visibility "-> x": want public or private`},
 	}
 	for _, tt := range tests {
 		_, err := Parse("t.soffio", strings.NewReader(tt.input))
@@ -245,17 +235,22 @@ func TestParseHeaderLinks(t *testing.T) {
 	}
 }
 
-func TestParseDates(t *testing.T) {
-	// a date is as precise as what is known of it
-	in := "date: 2026-10-17\nwhen: 1954\nuntil: 2027-03\nevent_date: 1912-04-22\n"
+// a header means nothing to soffio but its title, layout and
+// visibility, its links and its files: a date, an id, an image are the
+// site's words, held as written
+func TestParseHeaderOpaque(t *testing.T) {
+	in := "title: T\nid: toro\ndate: 12-03-1960\nimage: img/a.webp\nuntil: -> x\n"
 	doc, err := Parse("t.soffio", strings.NewReader(in))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for k, want := range map[string]string{"date": "2026-10-17", "when": "1954", "until": "2027-03", "event_date": "1912-04-22"} {
+	for k, want := range map[string]string{"id": "toro", "date": "12-03-1960", "image": "img/a.webp", "until": "x"} {
 		if doc.Meta[k] != want {
 			t.Errorf("%s = %q, want %q", k, doc.Meta[k], want)
 		}
+	}
+	if want := []string{"until"}; !slices.Equal(doc.links, want) {
+		t.Errorf("links %q, want %q", doc.links, want)
 	}
 }
 

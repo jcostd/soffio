@@ -1,7 +1,8 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Command preview serves the public directory and opens it in the browser.
+// Command preview serves a directory, public if none is named, and
+// opens it in the browser.
 package main
 
 import (
@@ -25,24 +26,23 @@ const dirHeader = "Soffio-Preview"
 
 func main() {
 	log.SetFlags(0)
-	dir := flag.String("d", "public", "directory to serve")
-	port := flag.String("p", "8080", "port to listen on")
-
+	port := flag.String("p", "8080", "the `port` to listen on")
 	flag.Usage = func() {
-		fmt.Fprint(flag.CommandLine.Output(), "usage: preview [-d dir] [-p port] [dir]\n")
+		fmt.Fprint(flag.CommandLine.Output(), "usage: preview [-p port] [dir]\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
+	dir := "public"
 	switch flag.NArg() {
 	case 0:
 	case 1:
-		*dir = flag.Arg(0)
+		dir = flag.Arg(0)
 	default:
 		flag.Usage()
 		os.Exit(2)
 	}
 
-	absDir, err := filepath.Abs(*dir)
+	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		log.Fatalf("preview: %v", err)
 	}
@@ -50,7 +50,7 @@ func main() {
 	if fi, err := os.Stat(absDir); err != nil {
 		log.Fatalf("preview: %v", err)
 	} else if !fi.IsDir() {
-		log.Fatalf("preview: %s: not a directory", *dir)
+		log.Fatalf("preview: %s: not a directory", dir)
 	}
 
 	addr := "127.0.0.1:" + *port
@@ -61,13 +61,13 @@ func main() {
 		// the port is taken: if it is a preview of this same directory,
 		// it already serves the fresh build, so just show it again
 		if servesDir(url, absDir) {
-			log.Printf("preview: already serving %s at %s", *dir, url)
+			log.Printf("preview: already serving %s at %s", dir, url)
 			openBrowser(url)
 			return
 		}
 		log.Fatalf("preview: %v", err)
 	}
-	log.Printf("preview: serving %s at %s; Ctrl+C stops it", *dir, url)
+	log.Printf("preview: serving %s at %s; Ctrl+C stops it", dir, url)
 	openBrowser(url)
 	log.Fatalf("preview: %v", http.Serve(listener, handler(absDir)))
 }

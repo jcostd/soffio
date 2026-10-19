@@ -15,9 +15,9 @@ import (
 	"strings"
 )
 
-// Check verifies the active documents: every link and image points at
-// an active page, one of its sections or a file in one of staticDirs,
-// and every
+// Check verifies the active documents: every link, image and header
+// value under /static/ points at an active page, one of its sections or
+// a file in one of staticDirs, and every
 // note is both defined and referenced. A link to a document of all
 // that is not active is a privacy leak: the public site would point
 // at a private page.
@@ -71,7 +71,8 @@ func check(doc *Document, target func(string) string) []error {
 			}
 		}
 	}
-	// the images of the header, in their order
+	// the header's links and files, in its order: a value under
+	// /static/ is a file, whatever its key
 	keys := slices.SortedFunc(maps.Keys(doc.Meta), func(a, b string) int {
 		return cmp.Or(cmp.Compare(doc.lines[a], doc.lines[b]), cmp.Compare(a, b))
 	})
@@ -80,7 +81,7 @@ func check(doc *Document, target func(string) string) []error {
 		case slices.Contains(doc.links, key):
 			// Load made it the page's ID
 			address(doc.lines[key], "/"+doc.Meta[key])
-		case isImageKey(key) && doc.Meta[key] != "":
+		case strings.HasPrefix(doc.Meta[key], "/static/"):
 			address(doc.lines[key], doc.Meta[key])
 		}
 	}

@@ -4,11 +4,10 @@ NAME
     soffio - a minimalist, strict static site generator
 
 SYNOPSIS
-    soffio [-a] [-n] [-baseurl url] [-langs l,...] [-o dir] [-s dir]...
-           [-t dir] [-today day] dir
+    soffio [-a] [-n] [-baseurl url] [-o dir] [-s dir]... [-t dir]
+           [-today day] dir
     soffio [-n] < text.soffio > text.html
-    preview [-d dir] [-p port] [dir]
-    edges [-a] dir
+    preview [-p port] [dir]
 
 DESCRIPTION
     Soffio turns the .soffio texts under dir into a static site in -o,
@@ -25,29 +24,17 @@ DESCRIPTION
     notes and its links to its own sections; -n checks it and prints
     nothing, and the flags about a site are refused.
 
-    preview serves a directory on 127.0.0.1 and opens the browser. If
-    the port is taken by a preview of the same directory, it opens the
-    browser on that one and exits. The browser keeps nothing, so it
-    shows the last build; the types of a site's files are fixed, not
-    asked of the system; and no page's address goes out to a site it
-    links to, as a preview holds the private texts.
+    preview serves a directory, public if none is named, on 127.0.0.1,
+    and opens the browser. If the port is taken by a preview of the same
+    directory, it opens the browser on that one and exits. The browser
+    keeps nothing, so it shows the last build; the types of a site's
+    files are fixed, not asked of the system; and no page's address
+    goes out to a site it links to, as a preview holds the private
+    texts.
 
-    edges prints the pages under dir and the links between them, read
-    as soffio reads them, a line each, sorted by ID: a page is its ID
-    and its layout, - if none; a link is the ID of its page, the header
-    key that holds it, or - for the body, and the ID of the page it
-    leads to, once. -a takes the private texts too. It checks nothing,
-    as soffio -n does that: it is for the rules a site has of its own,
-    which then are a few lines of awk, not a second reader of the
-    markup:
-
-        it/opere/centauro work
-        it/opere/centauro by it/persone/picasso
-        it/storia/vita - it/opere/centauro
-
-        edges site | awk '$3 == "it/persone/picasso"'   # who links here
-
-    It uses the Go standard library and nothing else.
+    Soffio knows its markup, links and files, and nothing of what a
+    site is about: what a site wants more is a program of its own (see
+    EXTENDING). It uses the Go standard library and nothing else.
 
 OPTIONS
     -a          all texts: the private ones too, as for a preview with
@@ -56,14 +43,10 @@ OPTIONS
     -n          check everything, templates and the copy of -s
                 included, and write nothing, as sh -n.
     -baseurl url
-                the site's address, for canonical links, hreflang,
-                feeds and sitemaps; without a final '/'. The public
-                site needs it: without it, it would point at
-                localhost. With -a or -n it is http://localhost:8080,
-                where preview serves, if not given.
-    -langs l,...
-                the languages: it/about and en/about are each other's
-                alternates if it and en are listed. Default en.
+                the site's address, http(s)://host[/path], without a
+                final '/': the templates get it as .BaseURL, for what
+                needs a full address. Without it .BaseURL is empty, and
+                an address made of it starts at the root.
     -o dir      the output directory. Default public.
     -s dir      the static files, copied to <o>/static, but hidden
                 ones: a link to one is an error. -s again adds a
@@ -76,26 +59,20 @@ OPTIONS
     -today day  the day of the build, YYYY-MM-DD, as the templates'
                 today: their only clock. Without it today is empty,
                 and the same flags always make the same site.
-    -v          print the version and exit.
 
 MARKUP
     A text is UTF-8: a header, a blank line, and the body. The header
-    is 'key: value' lines, keys of letters, digits and _, each once;
-    'title', 'layout' and 'visibility' (public or private) mean
-    something to soffio, and every key reaches the templates; 'id' is
-    refused, as a text's ID is its file's name. A page needs a title; the rest is up to you. 'date' and 'updated' (the
-    text's), 'when' and 'until' (the time of what it is about, and its
-    end) and any '*_date' hold a real date, YYYY-MM-DD, or as much of
-    it as is known, YYYY-MM or YYYY, or nothing: 'when: 1954' is a year,
-    not its first of January. The three sort as text in time's order.
-    'image' and any '*_image' hold an image, checked as one of :: img:
-    is (see LINKS AND FILES), or nothing. A value '-> target' is a link to a page, written
-    and checked as a link in the body is: 'by: -> ../persone/arp'.
-    It points at a page, not a section or a file, and the templates get
-    the ID of that page (see TEMPLATES); 'layout' and the dates never
-    hold one. A byte order mark at the start is ignored. The
-    notes come at the end of the page, with no heading, which reads
-    well in any language.
+    is 'key: value' lines, keys of letters, digits and _, each once.
+    Three keys mean something to soffio: 'title', which a page needs;
+    'layout'; and 'visibility', public or private. Two values do,
+    whatever their key: '-> target' is a link to a page, written and
+    checked as a link in the body is ('by: -> ../persone/arp'), and the
+    templates get the ID of that page; a value under /static/ is a
+    file, checked as an image is (see LINKS AND FILES). Every other
+    value is a word, as written, for the templates: a date, a name, a
+    kind are the site's, not soffio's. A byte order mark at the start
+    is ignored. The notes come at the end of the page, with no heading,
+    which reads well in any language.
 
     == id | Title                     section (== to ======: h2 to h6)
     *text*                            bold
@@ -115,10 +92,10 @@ MARKUP
     ref. A backslash makes the next character plain. Section titles are
     plain text.
 
-    IDs, of texts, their directories, sections, notes and languages,
-    are printable ASCII: no spaces, no accents, none of
-    / \ : * ? " < > | # % ( ), no leading dot. Text IDs that differ
-    only in case clash: they would be one file on Windows and macOS.
+    IDs, of texts, their directories, sections and notes, are printable
+    ASCII: no spaces, no accents, none of / \ : * ? " < > | # % ( ),
+    no leading dot. Text IDs that differ only in case clash: they would
+    be one file on Windows and macOS.
 
 LINKS AND FILES
     dir/it/about.soffio is the page it/about, written as
@@ -162,85 +139,63 @@ PRIVATE TEXTS AND FILES
 TEMPLATES
     Go html/template files. A page goes through its 'layout' (post means
     post.html), or layout.html; a layout that is not there is an error.
-    A page gets .ID, .Title, .Meta, .Content, .BaseURL, .Permalink, .Lang
-    (the first directory of its ID if it is one of -langs, else the
-    first of them), .Alternates (.Lang, .URL), .Backlinks: the pages
-    that link to it, from their
-    header or their body, and .Docs: every page, by ID. Lists of pages
-    come sorted by ID; a page in them has .ID, .Title, .Lang and .Meta,
-    so a template given only a page knows its language.
+    A page gets .ID, .Title, .Meta (its header; a key it doesn't have is
+    "", as one it has empty), .Content, .BaseURL, .Backlinks, the pages
+    that link to it, from their header or their body, by ID, and .Docs,
+    every page, by ID: range .Docs goes through them in that order. A
+    page among others has .ID, .Title and .Meta.
 
-    index.html, rss.xml, sitemap.xml, robots.txt, 404.html and
-    manifest.json are made at the site root, each if its template is
-    there; a page with the same name, as 404.soffio, is an error.
-    index.html is for a site with languages, whose homes are
-    <lang>/index: the root, where it leads. They get .BaseURL, .Lang
-    (the first of -langs), .Docs (the pages by ID) and .XMLHeader.
-    -baseurl holds nothing that html/template would escape, so it
-    comes out as it is in them all.
+    index.html, 404.html, robots.txt and sitemap.xml are made at the
+    site root, each if its template is there; a page with the same
+    name, as 404.soffio, is an error. They get .BaseURL, .Docs and
+    .XMLHeader. -baseurl holds nothing that html/template would escape,
+    so it comes out as it is in them all.
 
-    Without -t, soffio uses the templates built into it, and says
-    nothing about it, as it says nothing when all is well: layout.html,
-    404.html, rss.xml, sitemap.xml and robots.txt. They need only a
-    title: a date, or updated, is shown if a text has one, the pages
-    that link to a page are listed under it, and dated pages go in
-    rss.xml. Home is index, or <lang>/index in a site with
-    languages. The same files are in templates/ of the release
-    archives, and in cmd/soffio/templates of the source: copy them
-    into a directory of your own to start one for -t.
-
-    A header key a page doesn't have is "", as one it has empty.
-
-    The functions take pages, a list or .Docs, and give a list:
-
-    sortDown l key    by a header key, highest first, then by ID;
-                      those without it last: the newest first
-    sortUp l key      lowest first, then by ID; those without it last:
-                      the oldest first, the undated after
-    where l key v...  those whose header key is one of the values; a
-                      header link's value is the ID of its page
-    without l key v...
-                      those whose header key is none of them
-    except l id...    all but the pages of the IDs
-    under l id        those under an ID: under .Docs .ID are a page's
-                      own, under .Docs .Lang every page of a language
-    current l key     those whose date at the key is there and has not
-                      passed, as past says: current l "until"
-    group l key       a list for each value of the key, in the order
-                      of its first page; a page without it is in none
-    bySize groups     the groups, the smaller first, as they were
-                      among those of one size
-
-    and the others:
+    The functions are what only soffio knows:
 
     doc id            the page of an ID, or nothing: a header link's
                       page is doc .Meta.by
-    parent id         the ID above: it/persone of it/persone/arp
-    fields s          the words of s: range fields "a b c"
     size path         an image's .Width and .Height, as for the
                       images of the texts, or nothing
     today             -today, the day of the build, or nothing
-    past date         whether a date has passed by then, as precise as
-                      it is written (2027-03 lasts all March; without
-                      -today nothing has)
-    rfc822 date       the date in the form RSS wants
 
-        {{ range sortDown (under .Docs .ID) "when" }}
-          <a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>
-        {{ end }}
-        {{ with doc .Meta.by }}{{ .Title }}{{ end }}
-        {{ range group (sortUp .Backlinks "when") "kind" }}
-          <h2>{{ (index . 0).Meta.kind }}</h2>
-          {{ range . }}{{ .Title }}{{ end }}
-        {{ end }}
+        {{ with doc .Meta.by }}<a href="/{{ .ID }}.html">{{ .Title }}</a>{{ end }}
+        {{ range .Backlinks }}{{ .Title }}{{ end }}
         <img src="{{ .Meta.image }}"{{ with size .Meta.image }}
           width="{{ .Width }}" height="{{ .Height }}"{{ end }}>
-        <pubDate>{{ rfc822 .Meta.date }}</pubDate>
+
+    Without -t, soffio uses the templates built into it, and says
+    nothing about it, as it says nothing when all is well: layout.html,
+    404.html, robots.txt and sitemap.xml. They need only a title: the
+    header's lang is the page's language if there is one, its updated
+    or date is shown if there is one, the home, index, lists every
+    page, and the pages that link to a page are listed under it. Pages
+    come by ID, so a name says where one goes: 2026-10-19-soffio.
+    The same files are in templates/ of the release archives, and in
+    site/templates of the source: copy them into a directory of your own
+    to start one for -t.
+
+EXTENDING
+    What a site wants more, functions for its lists or rules for its
+    texts, is its own program: package site is soffio, and its Main
+    takes the templates' functions to add and a check of the texts, run
+    once soffio has found nothing wrong with them. soffio is
+
+        func main() { site.Main(nil, nil) }
+
+    and a site's
+
+        func main() { site.Main(template.FuncMap{"sortUp": sortUp}, check) }
+
+    has soffio's flags, checks and output, and its own. A function of
+    soffio's can't be taken. What a site's own tools read, the texts as
+    soffio reads them, is package soffio: Load, Links, LinkKeys.
 
 DIAGNOSTICS
     Errors are file:line: message, one per line, all of them, in the
-    same order every time. Exit status 0 if the site was written (or,
-    with -n, would be), 1 if anything was wrong, 2 for bad usage.
+    same order every time; about the command, its name: message. Exit
+    status 0 if the site was written (or, with -n, would be), 1 if
+    anything was wrong, 2 for bad usage.
 
 LIMITS
     No code blocks, tables, ordered or nested lists, raw HTML or h1 in
@@ -250,7 +205,8 @@ LIMITS
     _see (here -> a_) now_ the italic ends at a_ and the link is lost;
     escape it, a\_. Soffio never deletes: a page that is gone or became
     private stays in -o from an earlier build, so build into an empty
-    directory.
+    directory. It has no version flag: go version -m soffio says which
+    it is, and the name of its archive.
 
 MACOS
     macOS will not run a program downloaded from the internet that
@@ -265,10 +221,11 @@ MACOS
 BUILD
     Requires Go 1.26 or higher.
 
-    make                       soffio, preview and edges: static, for the
+    make                       soffio and preview: static, for the
                                baseline CPU, stripped
     make GOOS=os GOARCH=arch OUT=dir   the same for another system
-    make test                  go vet and the tests
+    make test                  go vet, then the tests and their
+                               coverage, 100% of the statements
     ./release.sh               the release archives, one per system,
                                from a clean tag
 

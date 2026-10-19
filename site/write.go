@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package main
+package site
 
 import (
 	"bytes"
@@ -15,17 +15,15 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 
-	"soffio"
+	"github.com/jcostd/soffio/v5"
 )
 
 // site is what the pages are made from.
 type site struct {
 	baseURL string
 	today   string // -today, "" if not given
-	langs   []string
 	outDir  string
 	dry     bool // -n: execute, write nothing
 	tmpl    *template.Template
@@ -36,20 +34,13 @@ type site struct {
 	sizes   map[string]*imageSize         // size's answers, by path
 }
 
-// prepare gives every page its language: the first directory of its
-// ID, if it is one of -langs, or else the first of them (IDs use '/'
-// everywhere, so no filepath: on Windows it would turn en/x into en\x).
-// It finds, for every page, the pages that link to it, by ID, as s.ids
-// is sorted, and the size of every image of its text.
+// prepare finds, for every page, the pages that link to it, by ID, as
+// s.ids is sorted, and the size of every image of its text.
 func (s *site) prepare() {
 	s.back = map[string][]*soffio.Document{}
 	s.sizes = map[string]*imageSize{}
 	for _, id := range s.ids {
 		doc := s.docs[id]
-		doc.Lang = s.langs[0]
-		if dir, _, ok := strings.Cut(id, "/"); ok && slices.Contains(s.langs, dir) {
-			doc.Lang = dir
-		}
 		for _, to := range soffio.Links(doc) {
 			s.back[to] = append(s.back[to], doc)
 		}
@@ -96,8 +87,6 @@ func (s *site) size(path string) *imageSize {
 	return sz
 }
 
-type alternate struct{ Lang, URL string }
-
 // writeDoc renders doc through its layout into <outDir>/<id>.html.
 func (s *site) writeDoc(doc *soffio.Document) error {
 	layout := "layout.html"
@@ -107,27 +96,14 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 	if s.tmpl.Lookup(layout) == nil {
 		return fmt.Errorf("no layout %s in the templates", layout)
 	}
-
-	var alternates []alternate
-	if dir, slug, ok := strings.Cut(doc.ID, "/"); ok && dir == doc.Lang {
-		for _, l := range s.langs {
-			if s.docs[l+"/"+slug] != nil {
-				alternates = append(alternates, alternate{l, s.baseURL + "/" + l + "/" + slug + ".html"})
-			}
-		}
-	}
-
 	return s.write(doc.ID+".html", layout, map[string]any{
-		"ID":         doc.ID,
-		"Title":      doc.Title,
-		"Lang":       doc.Lang,
-		"Meta":       doc.Meta,
-		"Content":    template.HTML(soffio.Render(doc)),
-		"BaseURL":    s.baseURL,
-		"Permalink":  s.baseURL + "/" + doc.ID + ".html",
-		"Alternates": alternates,
-		"Backlinks":  s.back[doc.ID],
-		"Docs":       s.docs,
+		"ID":        doc.ID,
+		"Title":     doc.Title,
+		"Meta":      doc.Meta,
+		"Content":   template.HTML(soffio.Render(doc)),
+		"BaseURL":   s.baseURL,
+		"Backlinks": s.back[doc.ID],
+		"Docs":      s.docs,
 	})
 }
 

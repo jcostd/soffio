@@ -21,7 +21,7 @@ fi
 chmod 755 soffio preview
 xattr -dr com.apple.quarantine . 2> /dev/null
 
-if ./soffio -v > /dev/null 2>&1; then
+if ./soffio -n < /dev/null > /dev/null 2>&1; then
   echo "unquarantine.sh: soffio and preview can run"
 else
   echo "unquarantine.sh: macOS still blocks soffio. In System Settings," >&2
