@@ -177,8 +177,8 @@ package, `soffio`, at the module root; package `site` is the command, which
   `ImageBlock` of a text its size, which `Render` writes. The embedded templates are
   the showcase: they need only a title (lang, date and updated if there), list every
   page on the home, share a `style` partial; keep them
-  that small. `siteFiles` (index.html, 404.html, robots.txt, sitemap.xml) are each
-  made if the template is there, with `ID` (the name without its extension: what
+  that small. `siteFiles`, every `.xml` and `.txt` template and `404.html` (a server gives
+  it at any address, so it is never a text), are made at the root, with `ID` (the name without its extension: what
   a template makes has an ID, where it goes), `BaseURL`, `Docs`, `XMLHeader`.
 
 - **`cmd/preview`**: a static file server (`http.FileServer`) over a dir, `public` if

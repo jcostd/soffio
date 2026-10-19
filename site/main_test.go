@@ -106,6 +106,9 @@ func TestSoffio(t *testing.T) {
 		"named/layout.html":  "x",
 		"named/404.html":     "{{ .ID }}",
 		"named/sitemap.xml":  "{{ .ID }}",
+		"named/feed.xml":     "{{ .ID }}",
+		"named/humans.txt":   "{{ .ID }}",
+		"named/index.html":   "a layout, not a site file",
 	})
 
 	if code, stderr := soffioRun(t, dir, "-baseurl", "https://example.org", "-s", "static", "src"); code != 0 {
@@ -133,11 +136,12 @@ func TestSoffio(t *testing.T) {
 			t.Errorf("%s has no %s", file, want)
 		}
 	}
-	// a site file's ID is its name, without its extension
+	// every .xml and .txt template is a site file, and 404.html; its ID
+	// is its name, without its extension. index.html is the text index
 	if code, stderr := soffioRun(t, dir, "-s", "static", "-t", "named", "-o", "named-out", "src"); code != 0 {
 		t.Errorf("named: exit %d: %s", code, stderr)
 	}
-	for file, want := range map[string]string{"404.html": "404", "sitemap.xml": "sitemap"} {
+	for file, want := range map[string]string{"404.html": "404", "sitemap.xml": "sitemap", "feed.xml": "feed", "humans.txt": "humans", "index.html": "x"} {
 		if got, _ := os.ReadFile(filepath.Join(dir, "named-out", file)); string(got) != want {
 			t.Errorf("%s: %q, want %q", file, got, want)
 		}

@@ -145,12 +145,15 @@ TEMPLATES
     .Docs goes through them in that order. A page among others has .ID
     and .Meta.
 
-    index.html, 404.html, robots.txt and sitemap.xml are made at the
-    site root, each if its template is there; a page with the same
-    name, as 404.soffio, is an error. They get .ID, their name without
-    its extension (404, sitemap), as a page's is where it goes, and
-    .BaseURL, .Docs and .XMLHeader. -baseurl holds nothing that html/template would escape,
-    so it comes out as it is in them all.
+    Every .xml and .txt template, as robots.txt, sitemap.xml or a
+    feed, is a site file, made at the site root under its name; so is
+    404.html, which a server gives at any address: a text, whose
+    addresses are relative, can't be it, and 404.soffio is an error.
+    The other .html templates are layouts and partials. A site file
+    gets .ID, its name without its extension (404, sitemap), as a
+    page's is where it goes, and .BaseURL, .Docs and .XMLHeader.
+    -baseurl holds nothing that html/template would escape, so it comes
+    out as it is in them all.
 
     The functions are what only soffio knows:
 

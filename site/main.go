@@ -26,10 +26,6 @@ import (
 	"github.com/jcostd/soffio/v5"
 )
 
-// siteFiles are made at the root of the site from the templates of the
-// same name, each if its template is there.
-var siteFiles = []string{"index.html", "404.html", "robots.txt", "sitemap.xml"}
-
 // Main is the command, named as it was run. funcs are added to the
 // templates' functions, and check is given the texts to build once
 // soffio has found nothing wrong with them: what it returns is wrong
@@ -128,10 +124,7 @@ func Main(funcs template.FuncMap, check func(docs map[string]*soffio.Document) e
 		"Docs":      active,
 		"XMLHeader": template.HTML(`<?xml version="1.0" encoding="UTF-8"?>` + "\n"),
 	}
-	for _, f := range siteFiles {
-		if tmpl.Lookup(f) == nil {
-			continue
-		}
+	for _, f := range siteFiles(tmpl) {
 		// 404.soffio would be written, then overwritten
 		if id, ok := strings.CutSuffix(f, ".html"); ok && active[id] != nil {
 			errs = append(errs, fmt.Errorf("%s: page %s is the site file %s too", active[id].File, id, f))
@@ -145,6 +138,21 @@ func Main(funcs template.FuncMap, check func(docs map[string]*soffio.Document) e
 	if err := errors.Join(errs...); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// siteFiles are the templates made at the root of the site, by name:
+// every .xml and .txt one, robots.txt, sitemap.xml, a feed, and
+// 404.html, which a server gives at any address: a text can't be it,
+// as its addresses are relative to where it is.
+func siteFiles(tmpl *template.Template) []string {
+	var files []string
+	for _, t := range tmpl.Templates() {
+		if f := t.Name(); f == "404.html" || path.Ext(f) == ".xml" || path.Ext(f) == ".txt" {
+			files = append(files, f)
+		}
+	}
+	slices.Sort(files)
+	return files
 }
 
 // pipe turns the text on standard input into HTML on standard output,
