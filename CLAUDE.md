@@ -20,7 +20,7 @@ needs it and whether only soffio can do it; if not, it belongs to the site's pro
 ## The contract
 
 Soffio is to a site what Lua's core is to its host: mechanisms, never policies. Since
-1.0.0 it is fixed; it changes to fix what is wrong, not to do more. A site extends it
+5.0.0 it is fixed; it changes to fix what is wrong, not to do more. A site extends it
 in four ways, and no other:
 
 1. functions for its templates, `Main`'s `funcs`, never with one of soffio's
@@ -72,8 +72,8 @@ with a function and a check), and the tests run it as the command, whose coverag
 read-only, what can't be read a file of mode 0. The empty `isBlock` and `isInline`
 methods have no statements to cover.
 
-Requires Go 1.26+ (see `go.mod`). The module is `github.com/jcostd/soffio`, v1: what it
-exports is the contract, and a change that broke it would be a new path, /v2, as Go
+Requires Go 1.26+ (see `go.mod`). The module is `github.com/jcostd/soffio/v5`: what it
+exports is the contract, and a change that broke it would be a new path, /v6, as Go
 wants: it is not made.
 
 Generator mode: `soffio [-a] [-n] [-baseurl url] [-o dir] [-s dir]... [-t dir] [-today day] dir`
@@ -99,12 +99,11 @@ owned by root, 755/644; the darwin ones also `unquarantine.sh`, which a Mac user
 with `sh` to lift the quarantine of a download from that folder (it checks soffio
 runs with `soffio -n < /dev/null`). Build them from the clean tag: the binaries carry
 the git revision, and `vcs.modified=true` if the tree was dirty. A site's own command
-(fucina-engine) requires the tagged module, so tag and push before releasing it. `go.mod`
-retracts v0.0.5, v1.0.0 and v1.1.0 to v1.2.4: the old numbering, which the Go proxy
-and checksum database keep for good, deleted tags or not (so a deleted tag's number
-is never used again). v1.2.3 and v1.2.4 are retractions only, with no archives; the
-first soffio numbered anew is v1.0.1, the next v1.0.2, never a v1.1.x or v1.2.x, and
-the retract block stays in `go.mod`. A new retraction needs a version above v1.2.4.
+(fucina-engine) requires the tagged module, so tag and push before releasing it. One
+number for one thing: the tag, the release, `VERSION`, the ChangeLog and the module's
+major say the same. A version, once the Go proxy has seen it, is its for good, tag
+deleted or not, so a number is never used twice: the path without /v5 holds the old
+numbering, whose module was `soffio`, and is not used.
 
 ## Architecture
 

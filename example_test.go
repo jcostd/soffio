@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jcostd/soffio"
+	"github.com/jcostd/soffio/v5"
 )
 
 const text = `title: Il toro

@@ -6,6 +6,6 @@
 // soffio.Main, with nothing added.
 package main
 
-import "github.com/jcostd/soffio"
+import "github.com/jcostd/soffio/v5"
 
 func main() { soffio.Main(nil, nil) }

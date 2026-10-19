@@ -1,21 +1,16 @@
-Mon Oct 19 21:31:18 UTC 2026
-soffio 1.0.1, since v4.0.0, numbered anew: the first soffio whose core
-is fixed. Soffio is cut to the bone: its markup, its links, its files,
-and nothing of what a site is about, as Lua's core is to its host.
-What a site wants more is a program of its own, which soffio.Main
-makes: soffio with the functions and the checks it adds. The same flags
-make the same site, every package is tested to the last statement.
-soffio: 1.0.1, as 1.0.0 is the old soffio's for good.
-  proxy.golang.org and the checksum database keep what they once saw,
-  tags deleted or not: v0.0.5, v1.0.0 and v1.1.0 to v1.2.2 of the old
-  numbering, whose module was soffio. go.mod retracts them, and v1.2.3
-  and v1.2.4, which are retractions only, with no archives; @latest is
-  1.0.1. The next soffio is 1.0.2.
-soffio: The module is github.com/jcostd/soffio, v1.
-  A path go can fetch, as a site's own program requires it. What it
-  exports is the contract: a site extends soffio with functions, a
-  check, templates and programs of its own on package soffio, and
-  soffio changes to fix what is wrong, not to do more.
+Mon Oct 19 21:40:25 UTC 2026
+soffio 5.0.0, since v4.0.0: the first soffio whose core is fixed.
+Soffio is cut to the bone: its markup, its links, its files, and
+nothing of what a site is about, as Lua's core is to its host. What a
+site wants more is a program of its own, which soffio.Main makes:
+soffio with the functions and the checks it adds. The same flags make
+the same site, every package is tested to the last statement.
+soffio: The module is github.com/jcostd/soffio/v5.
+  A path go can fetch, with its major version, as Go wants: a site's
+  own program requires it. What it exports is the contract: a site
+  extends soffio with functions, a check, templates and programs of
+  its own on package soffio, and soffio changes to fix what is wrong,
+  not to do more.
 soffio: One package, soffio: the language and the command, Main.
   cmd/soffio is soffio.Main(nil, nil); Main(funcs, check) extends it.
   A site's program adds functions for its templates and a check of its
@@ -99,8 +94,6 @@ soffio: An image has its width and height.
 soffio: A header key a page doesn't have is "" to the templates.
   As one it has empty, as Go's zero value: .Meta.by is a string to a
   function either way.
-+--------------------------+
-The entries below are of soffio before it was numbered anew, at 1.0.0.
 +--------------------------+
 Sun Oct 18 19:31:49 UTC 2026
 soffio 4.0.0, since v3.1.1. Pages know the pages that link to them,

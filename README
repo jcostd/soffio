@@ -219,7 +219,7 @@ EXTENDING
     header key is and HeaderLinks which hold a link, and Links the
     pages it links to; the pages that link to one are Links read the
     other way. Parse, Check and Render are there too: go doc
-    github.com/jcostd/soffio says the rest, with examples.
+    github.com/jcostd/soffio/v5 says the rest, with examples.
 
     The markup and what a header means are not extended.
 
@@ -238,7 +238,7 @@ EXTENDING
             "strings"
             "time"
 
-            "github.com/jcostd/soffio"
+            "github.com/jcostd/soffio/v5"
         )
 
         func check(docs map[string]*soffio.Document) error {
@@ -333,7 +333,7 @@ BUILD
     ChangeLog.txt says what changed, newest first.
 
 SEE ALSO
-    go doc github.com/jcostd/soffio, the package and its examples;
+    go doc github.com/jcostd/soffio/v5, the package and its examples;
     https://pkg.go.dev/html/template, the templates;
     https://www.sitemaps.org/protocol.html, sitemaps as text;
     https://www.w3.org/TR/dpub-aria-1.1/, the roles of the notes;
