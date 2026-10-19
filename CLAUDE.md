@@ -13,7 +13,7 @@ filter (stdin `.soffio` -> stdout HTML).
 
 It knows its markup, its links and its files, and nothing of what a site is about: no
 languages, no dates, no lists. What a site wants more is a program of its own that calls
-`site.Main(funcs, check)` (the Fucina's is `fucina-engine`, in Fossil at
+`soffio.Main(funcs, check)` (the Fucina's is `fucina-engine`, in Fossil at
 `~/fossils/fucina-engine.fossil`). Before adding anything here, ask whether every site
 needs it and whether only soffio can do it; if not, it belongs to the site's program.
 
@@ -23,7 +23,7 @@ Soffio is to a site what Lua's core is to its host: mechanisms, never policies. 
 1.0.0 it is fixed; it changes to fix what is wrong, not to do more. A site extends it
 in four ways, and no other:
 
-1. functions for its templates, `site.Main`'s `funcs`, never with one of soffio's
+1. functions for its templates, `Main`'s `funcs`, never with one of soffio's
    names (`doc`, `size`, `today`);
 2. a `check` of its texts, which reads them and changes none, its errors
    `file:line: message` from `Document.Lines`, said after soffio's, all at once;
@@ -102,9 +102,10 @@ the git revision, and `vcs.modified=true` if the tree was dirty. A site's own co
 
 ## Architecture
 
-Pipeline: parse -> load -> check -> render -> site assembly. The language is one
-package, `soffio`, at the module root; package `site` is the command, which
-`cmd/soffio` runs with nothing added and a site's own program with its functions.
+Pipeline: parse -> load -> check -> render -> site assembly. One package, `soffio`, at
+the module root: the language and the command, `Main`, which `cmd/soffio` runs with
+nothing added and a site's own program with its functions. No server: any static one
+serves a site (the Fucina's writers have fucina-engine's `preview`).
 
 - **`doc.go`**: the document tree. `Document` (File, ID, Meta, `[]Section`),
   `Section` (level, ID, title, `[]Block`), blocks (`TextBlock`, `ImageBlock` with its
@@ -156,14 +157,15 @@ package, `soffio`, at the module root; package `site` is the command, which
   unreached notes, is "never referenced". A link to a document in all but not active
   is a **privacy leak**, an error of its own. This active-vs-all model is how `-a`
   works; keep it. Header links and files are checked at their header line. `Links`
-  is the other half: the IDs of the pages a document links to, header and body
-  (notes, captions, list items), once each, sorted, never itself, a file or an
-  outside address. A `Document` is plain data for a site's own program too:
+  is the other half, read off the same walk (`check` with a target that only
+  collects): the IDs of the pages a document links to, header and body (notes,
+  captions, list items), once each, sorted, never itself, a file or an outside
+  address. A `Document` is plain data for a site's own program too:
   `Lines` (each header key's line, for its messages) and `HeaderLinks` (the keys
   that hold a link) are fields, not accessors. Files have no visibility: everything in -s is published, and a draft's
   files live in a -s that only the preview gets, so a public text pointing at one is
   a missing file. Never guess privacy from links (headers, CSS and templates point
-  at files too): fail closed. `CheckDoc` is what pipe mode can check alone: notes and
+  at files too): fail closed. `checkDoc` is what pipe mode can check alone: notes and
   `#section` links.
 
 - **`html.go`**: `Render` returns one document as an HTML fragment, knowing nothing of
@@ -171,37 +173,40 @@ package, `soffio`, at the module root; package `site` is the command, which
   first reference, with no heading (none reads well in any language). Their anchors are
   `fn:x` and `fnref:x:n`: no section ID holds ':', so they never clash with one.
 
-- **`site`**: `Main(funcs, check)` is the command, named as it was run (`os.Args[0]`
-  up to its first dot): flags (`checkFlags`: a -baseurl, if given, is
+- **`main.go`**: `Main(funcs, check)` is the command, named as it was run
+  (`os.Args[0]` up to its first dot): flags (`checkFlags`: a -baseurl, if given, is
   http(s)://host[/path] with nothing html/template would escape), templates with
   soffio's functions and the site's (one of soffio's names is refused), load ->
   visibility filter -> `Check` and the site's `check` (it reads, never changes; its
-  errors after soffio's, all at once) -> static copy -> pages and site
-  files. `write.go`: each page goes through its layout (`layout` header, else
-  `layout.html`; a missing one is an error) with `ID`, `Meta`, `Content`,
-  `BaseURL` and `Docs` (every active page, as the site files get): the pages that
-  link to a page are `Links` read the other way, a site's function. Every file is executed into a buffer and written in
-  one call; html/template alone writes in small pieces; with `-n` it is executed and
-  dropped. `copyDir` copies every -s into `<o>/static`, refusing a path in two of them
-  or twice in letter case only (one address, two files), and refuses, by
-  `os.SameFile`, to copy a file onto itself (it would come out empty) when a -s and
-  `<o>/static` overlap, however the paths are spelled; with `-n` it walks and checks
-  the same and writes nothing, so `-n` exits as the build would. `Check` refuses a
-  link to a hidden file under -s, as `copyDir` never copies one.
-  `template.go` parses either `-t` or the embedded `site/templates/*`, never a mix,
-  with `missingkey=zero` (a header key a page lacks is "", as in Go, so a function
-  given `.Meta.by` gets a string), and gives templates soffio's three functions, what
-  only it knows: `doc` (the page of an ID, or nil), `size` (an image's width and
-  height, read once per path from its file in a `-s` by `image.DecodeConfig`: jpeg,
-  png, gif; or nil) and `today` (`-today` or empty: a template never reads the clock,
-  so the output stays reproducible). `site.funcs` makes them before the templates are
-  parsed; they ask the site, whose pages come later. `prepare` also gives every
-  `ImageBlock` of a text its size, which `Render` writes. The embedded templates are
-  the showcase: they need only a title (lang, date and updated if there), list every
-  page on the home, share a `style` partial; keep them
-  that small. `siteFiles`, every `.xml` and `.txt` template and `404.html` (a server gives
-  it at any address, so it is never a text), are made at the root, with `ID` (the name without its extension: what
-  a template makes has an ID, where it goes), `BaseURL`, `Docs`, `XMLHeader`.
+  errors after soffio's, all at once) -> static copy -> pages and site files.
+  `siteFiles`, every `.xml` and `.txt` template and `404.html` (a server gives it at
+  any address, so it is never a text), are made at the root, with `ID` (the name
+  without its extension: what a template makes has an ID, where it goes), `BaseURL`,
+  `Docs`, `XMLHeader`. `pipe` is the filter.
+
+- **`write.go`**: each page goes through its layout (`layout` header, else
+  `layout.html`; a missing one is an error) with `ID`, `Meta`, `Content`, `BaseURL`
+  and `Docs` (every active page, as the site files get): the pages that link to a
+  page are `Links` read the other way, a site's function. Every file is executed
+  into a buffer and written in one call; html/template alone writes in small
+  pieces; with `-n` it is executed and dropped. `copyDir` copies every -s into
+  `<o>/static`, refusing a path in two of them or twice in letter case only (one
+  address, two files), and refuses, by `os.SameFile`, to copy a file onto itself (it
+  would come out empty) when a -s and `<o>/static` overlap, however the paths are
+  spelled; with `-n` it walks and checks the same and writes nothing, so `-n` exits
+  as the build would. `Check` refuses a link to a hidden file under -s, as `copyDir`
+  never copies one. `loadTemplates` parses either `-t` or the embedded
+  `templates/*`, never a mix, with `missingkey=zero` (a header key a page lacks is
+  "", as in Go, so a function given `.Meta.by` gets a string); `funcs` gives
+  templates soffio's three functions, what only it knows: `doc` (the page of an
+  ID, or nil), `size` (an image's `image.Config`, its Width and Height, read once
+  per path from its file in a `-s` by `image.DecodeConfig`: jpeg, png, gif; or nil)
+  and `today` (`-today` or empty: a template never reads the clock, so the output
+  stays reproducible). They are made before the templates are parsed, and ask the
+  site, whose pages come later. `prepare` gives every `ImageBlock` of a text its
+  size, which `Render` writes. The embedded templates are the showcase: they need
+  only a title (lang, date and updated if there), list every page on the home,
+  share a `style` partial; keep them that small.
 
 - **Messages and exit status**: errors are `file:line: message`, all of them, in a
   fixed order, with no timestamps (`log.SetFlags(0)`); about the command, its name

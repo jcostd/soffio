@@ -2,7 +2,7 @@
 soffio 1.0.0, since v4.0.0, numbered anew: the first soffio whose core
 is fixed. Soffio is cut to the bone: its markup, its links, its files,
 and nothing of what a site is about, as Lua's core is to its host.
-What a site wants more is a program of its own, which package site
+What a site wants more is a program of its own, which soffio.Main
 makes: soffio with the functions and the checks it adds. The same flags
 make the same site, every package is tested to the last statement.
 soffio: The module is github.com/jcostd/soffio, v1.
@@ -10,12 +10,12 @@ soffio: The module is github.com/jcostd/soffio, v1.
   exports is the contract: a site extends soffio with functions, a
   check, templates and programs of its own on package soffio, and
   soffio changes to fix what is wrong, not to do more.
-soffio: package site is the command; Main(funcs, check) extends it.
-  cmd/soffio is site.Main(nil, nil). A site's program adds functions
-  for its templates and a check of its texts, whose errors come after
-  soffio's, all at once, and has soffio's flags, checks and output: a
-  function of soffio's can't be taken. Messages are named as the
-  program is run.
+soffio: One package, soffio: the language and the command, Main.
+  cmd/soffio is soffio.Main(nil, nil); Main(funcs, check) extends it.
+  A site's program adds functions for its templates and a check of its
+  texts, whose errors come after soffio's, all at once, and has
+  soffio's flags, checks and output: a function of soffio's can't be
+  taken. Messages are named as the program is run.
 soffio: The templates' functions are doc, size and today.
   What only soffio knows: the page of an ID, an image's size, the day
   of the build. sortBy, where, under, reverse, past and rfc822 are
@@ -51,7 +51,7 @@ soffio: A site file is every .xml and .txt template, and 404.html.
   built-in templates have no feed; their home lists every page, by ID,
   robots.txt names the sitemap and the sitemap lists the pages if there
   is a -baseurl, as a sitemap's addresses are full.
-site: .Backlinks is gone.
+soffio: .Backlinks is gone.
   The pages that link to a page are Links read the other way: a site's
   function, not every site's.
 soffio: Render writes no policy and no word.
@@ -59,10 +59,16 @@ soffio: Render writes no policy and no word.
   opens. A note's way back is role=doc-backlink, with no aria-label in
   English on a page in any language; its item is a plain li, as
   DPUB-ARIA 1.1 deprecates doc-endnote.
-site: soffio's errors and the site's check's come at once.
+soffio: soffio's errors and the site's check's come at once.
   All of them, soffio's first, as one build; the check reads the texts
   and changes none.
-soffio: CheckID is checkID: no one else calls it.
+soffio: CheckID and CheckDoc are soffio's own: no one else calls them.
+soffio: An image's size is image.Config, the standard library's.
+  .Width and .Height, as before.
+preview: Gone from soffio.
+  A server is not soffio's job: any static one serves a site, and the
+  Fucina's writers have theirs in fucina-engine.
+soffio: Links reads the targets of check's walk: one walk of a text.
 soffio: An image has its width and height.
   Read from its file in -s (jpeg, png, gif), in the texts as size gives
   them to templates: the browser keeps an image's place before it
@@ -70,8 +76,6 @@ soffio: An image has its width and height.
 soffio: A header key a page doesn't have is "" to the templates.
   As one it has empty, as Go's zero value: .Meta.by is a string to a
   function either way.
-preview: preview [-p port] [dir]: -d is gone, the dir is named once.
-  The browser it opens is a table by system.
 +--------------------------+
 The entries below are of soffio before it was numbered anew, at 1.0.0.
 +--------------------------+

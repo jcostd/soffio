@@ -168,7 +168,7 @@ TEMPLATES
     page. Pages come by ID, so a name says where one goes:
     2026-10-19-soffio.
     The same files are in templates/ of the release archives, and in
-    site/templates of the source: copy them into a directory of your own
+    templates/ of the source: copy them into a directory of your own
     to start one for -t.
 
 EXTENDING
@@ -177,15 +177,15 @@ EXTENDING
 
     1. Functions for its templates, and 2. a check of its texts, which
     reads them and changes none: what it finds is said after what
-    soffio finds, all of it at once. Both go to Main of package site,
-    which is soffio:
+    soffio finds, all of it at once. Both go to Main of package soffio,
+    which is the command:
 
-        func main() { site.Main(nil, nil) }
+        func main() { soffio.Main(nil, nil) }
 
     and a site's program, with soffio's flags, checks and output, and
     its own:
 
-        func main() { site.Main(template.FuncMap{"sortUp": sortUp}, check) }
+        func main() { soffio.Main(template.FuncMap{"sortUp": sortUp}, check) }
 
     A function of soffio's can't be taken.
 
