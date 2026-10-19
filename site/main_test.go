@@ -15,7 +15,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jcostd/soffio/v5"
+	"github.com/jcostd/soffio"
 )
 
 // TestMain lets the test binary be the command, for the tests that run

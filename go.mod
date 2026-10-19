@@ -1,3 +1,3 @@
-module github.com/jcostd/soffio/v5
+module github.com/jcostd/soffio
 
 go 1.26

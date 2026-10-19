@@ -143,9 +143,9 @@ TEMPLATES
     Go html/template files. A page goes through its 'layout' (post means
     post.html), or layout.html; a layout that is not there is an error.
     A page gets .ID, .Meta (its header, title too: .Meta.title; a key it
-    doesn't have is "", as one it has empty), .Content, .BaseURL and .Docs, every page, by ID: range
-    .Docs goes through them in that order. A page among others has .ID
-    and .Meta.
+    doesn't have is "", as one it has empty), .Content, .BaseURL and
+    .Docs, every page, by ID: range .Docs goes through them in that
+    order. A page among others has .ID and .Meta.
 
     Every .xml and .txt template, as robots.txt, sitemap.xml or a
     feed, is a site file, made at the site root under its name; so is
@@ -174,30 +174,40 @@ TEMPLATES
     404.html, robots.txt and sitemap.xml. They need only a title: the
     header's lang is the page's language if there is one, its updated
     or date is shown if there is one, and the home, index, lists every
-    page. Pages
-    come by ID, so a name says where one goes: 2026-10-19-soffio.
+    page. Pages come by ID, so a name says where one goes:
+    2026-10-19-soffio.
     The same files are in templates/ of the release archives, and in
     site/templates of the source: copy them into a directory of your own
     to start one for -t.
 
 EXTENDING
-    What a site wants more, functions for its lists or rules for its
-    texts, is its own program: package site is soffio, and its Main
-    takes the templates' functions to add and a check of the texts,
-    which reads them and changes none: what it finds is said after
-    what soffio finds, all of it at once. soffio is
+    Soffio is to a site what Lua's core is to its host: it gives the
+    mechanisms, the site says the rest, in four ways and no other.
+
+    1. Functions for its templates, and 2. a check of its texts, which
+    reads them and changes none: what it finds is said after what
+    soffio finds, all of it at once. Both go to Main of package site,
+    which is soffio:
 
         func main() { site.Main(nil, nil) }
 
-    and a site's
+    and a site's program, with soffio's flags, checks and output, and
+    its own:
 
         func main() { site.Main(template.FuncMap{"sortUp": sortUp}, check) }
 
-    has soffio's flags, checks and output, and its own. A function of
-    soffio's can't be taken. What a site's own tools read, the texts as
-    soffio reads them, is package soffio: Load gives every Document,
-    whose Lines say where each header key is and HeaderLinks which hold
-    a link, and Links the pages it links to.
+    A function of soffio's can't be taken.
+
+    3. Its templates: a site file is a template, so a feed is one more
+    file, not one more soffio.
+
+    4. Programs of its own on package soffio, which reads the texts as
+    soffio does: Load gives every Document, whose Lines say where each
+    header key is and HeaderLinks which hold a link, and Links the
+    pages it links to; the pages that link to one are Links read the
+    other way.
+
+    The markup and what a header means are not extended.
 
 DIAGNOSTICS
     Errors are file:line: message, one per line, all of them, in the

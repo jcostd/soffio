@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jcostd/soffio/v5"
+	"github.com/jcostd/soffio"
 )
 
 // site is what the pages are made from.

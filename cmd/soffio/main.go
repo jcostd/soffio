@@ -6,6 +6,6 @@
 // package site, with nothing added.
 package main
 
-import "github.com/jcostd/soffio/v5/site"
+import "github.com/jcostd/soffio/site"
 
 func main() { site.Main(nil, nil) }

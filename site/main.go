@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jcostd/soffio/v5"
+	"github.com/jcostd/soffio"
 )
 
 // Main is the command, named as it was run. funcs are added to the

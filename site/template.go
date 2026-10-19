@@ -9,7 +9,7 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/jcostd/soffio/v5"
+	"github.com/jcostd/soffio"
 )
 
 //go:embed templates

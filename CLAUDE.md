@@ -17,6 +17,26 @@ languages, no dates, no lists. What a site wants more is a program of its own th
 `~/fossils/fucina-engine.fossil`). Before adding anything here, ask whether every site
 needs it and whether only soffio can do it; if not, it belongs to the site's program.
 
+## The contract
+
+Soffio is to a site what Lua's core is to its host: mechanisms, never policies. Since
+1.0.0 it is fixed; it changes to fix what is wrong, not to do more. A site extends it
+in four ways, and no other:
+
+1. functions for its templates, `site.Main`'s `funcs`, never with one of soffio's
+   names (`doc`, `size`, `today`);
+2. a `check` of its texts, which reads them and changes none, its errors
+   `file:line: message` from `Document.Lines`, said after soffio's, all at once;
+3. its templates: a layout per page, partials, and its site files, every `.xml` and
+   `.txt` template and `404.html`;
+4. programs of its own on package `soffio` (`Load`, `Check`, `Links`, `Parse`,
+   `Render`), as fucina-engine's `rete`.
+
+The markup and what the header means (three keys, `title layout visibility`, words;
+two values, `-> target` and `/static/...`) are not extended. A need none of the four
+meets is a mechanism soffio lacks, and is discussed as one; a policy (a word, a
+choice of behaviour, what a site is about) is never added.
+
 ## Commands
 
 The Makefile is the one place that says how soffio and preview are compiled: static
@@ -51,8 +71,9 @@ with a function and a check), and the tests run it as the command, whose coverag
 read-only, what can't be read a file of mode 0. The empty `isBlock` and `isInline`
 methods have no statements to cover.
 
-Requires Go 1.26+ (see `go.mod`). The module is `github.com/jcostd/soffio/v5`: a new
-major version changes the path, as Go wants.
+Requires Go 1.26+ (see `go.mod`). The module is `github.com/jcostd/soffio`, v1: what it
+exports is the contract, and a change that broke it would be a new path, /v2, as Go
+wants: it is not made.
 
 Generator mode: `soffio [-a] [-n] [-baseurl url] [-o dir] [-s dir]... [-t dir] [-today day] dir`
 reads the `.soffio` texts under dir and writes a site to `-o` (default `public`): `-a`
