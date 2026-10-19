@@ -199,8 +199,11 @@ serves a site (the Fucina's writers have fucina-engine's `preview`).
   "", as in Go, so a function given `.Meta.by` gets a string); `funcs` gives
   templates soffio's four functions, what only it knows: `doc` (the page of an
   ID, or nil), `href` (url.go's: a target, as a text writes it, from a page,
-  relative, so a template's addresses are as the texts'), `size` (an image's `image.Config`, its Width and Height, read once
-  per path from its file in a `-s` by `image.DecodeConfig`: jpeg, png, gif; or nil)
+  relative, so a template's addresses are as the texts'), `size` (an image's `image.Config`, its Width and
+  Height, read once per path from its file in a `-s`: `image.go`'s `imageConfig`
+  reads a WebP's from its first 30 bytes, VP8, VP8L or VP8X, as the standard library
+  has no WebP and soffio takes no module; jpeg, png and gif by `image.DecodeConfig`;
+  or nil)
   and `today` (`-today` or empty: a template never reads the clock, so the output
   stays reproducible). They are made before the templates are parsed, and ask the
   site, whose pages come later. `prepare` gives every `ImageBlock` of a text its

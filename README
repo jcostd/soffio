@@ -108,8 +108,8 @@ LINKS AND FILES
 
     An image is a file under /static/, or an address out of the site.
     One of the files of -s gets its width and height, read from the
-    file (jpeg, png, gif), so the browser keeps its place before it
-    comes, whatever its shape.
+    file (jpeg, png, gif, webp), so the browser keeps its place before
+    it comes, whatever its shape.
 
 THE HTML
     A text becomes an HTML fragment, .Content, that says what it is
@@ -301,8 +301,8 @@ LIMITS
     or 404 of its own, and no server. It knows no dates, languages or
     orders but its IDs': a site that wants them is a program of its own
     (see EXTENDING). The links of the texts are checked; those a
-    template writes are the template's. An image of a kind the standard
-    library doesn't read, as svg or webp, gets no size.
+    template writes are the template's. An svg or avif image gets no
+    size.
 
     Soffio never deletes: a page that is gone or became private stays
     in -o from an earlier build, so build into an empty directory. It
@@ -337,6 +337,8 @@ SEE ALSO
     https://pkg.go.dev/html/template, the templates;
     https://www.sitemaps.org/protocol.html, sitemaps as text;
     https://www.w3.org/TR/dpub-aria-1.1/, the roles of the notes;
+    https://developers.google.com/speed/webp/docs/riff_container,
+    where a WebP says its size;
     https://developer.mozilla.org/docs/Web/HTML, the elements soffio
     writes; ChangeLog.txt, what changed and why.
 

@@ -10,9 +10,6 @@ import (
 	"fmt"
 	"html/template"
 	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -54,7 +51,7 @@ func (s *site) prepare() {
 // as its Width and Height: with it the browser keeps the image's place
 // before it comes. It is read from its file in the -s dirs, once, and
 // only as far as its size; nil for an address out of the site, or a
-// kind the standard library doesn't read (svg, webp).
+// kind soffio doesn't read (svg, avif).
 func (s *site) size(path string) *image.Config {
 	if sz, ok := s.sizes[path]; ok {
 		return sz
@@ -66,7 +63,7 @@ func (s *site) size(path string) *image.Config {
 			if err != nil {
 				continue
 			}
-			if c, _, err := image.DecodeConfig(f); err == nil {
+			if c, err := imageConfig(f); err == nil {
 				sz = &c
 			}
 			f.Close()

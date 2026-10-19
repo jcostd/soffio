@@ -78,6 +78,10 @@ soffio: soffio's errors and the site's check's come at once.
 soffio: CheckID and CheckDoc are soffio's own: no one else calls them.
 soffio: An image's size is image.Config, the standard library's.
   .Width and .Height, as before.
+soffio: A WebP has its size too.
+  Read from its first 30 bytes, lossy, lossless or extended, as the
+  standard library has no WebP and soffio takes no module for it: 40
+  lines in place of a dependency. jpeg, png and gif as before.
 preview: Gone from soffio.
   A server is not soffio's job: any static one serves a site, and the
   Fucina's writers have theirs in fucina-engine.
