@@ -11,17 +11,21 @@
 </head>
 <body>
 {{- if ne .ID "index" }}{{ with doc "index" }}
-<nav><a href="{{ $.BaseURL }}/index.html">{{ .Meta.title }}</a></nav>
+<nav><a href="{{ href $.ID "/index" }}">{{ .Meta.title }}</a></nav>
 {{- end }}{{ end }}
 <main>
+<article>
 <h1>{{ .Meta.title }}</h1>
-{{ .Content }}
+{{ .Content -}}
+</article>
 {{- if eq .ID "index" }}
+<nav>
 <ul>
 {{- range .Docs }}{{ if ne .ID "index" }}
-<li><a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Meta.title }}</a></li>
+<li><a href="{{ href $.ID (print "/" .ID) }}">{{ .Meta.title }}</a></li>
 {{- end }}{{ end }}
 </ul>
+</nav>
 {{- end }}
 </main>
 </body>
@@ -30,7 +34,7 @@
 <style>
 body{max-width:65ch;margin:2rem auto;padding:0 1rem;font:1.1rem/1.6 serif;color:#222;background:#fff}
 a{color:#06c}
-nav{font:.9rem sans-serif}
+body>nav{font:.9rem sans-serif}
 img{max-width:100%;height:auto}
 figure{margin:1.5rem 0}
 figcaption,section[role=doc-endnotes]{font-size:.9rem}

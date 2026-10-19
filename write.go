@@ -179,11 +179,14 @@ func copyTree(src, dst string, top fs.FileInfo, dry bool, seen map[string]string
 var embedded embed.FS
 
 // funcs are soffio's functions for the templates, what only it knows:
-// doc, the page of an ID, or nil; size, an image's, or nil; today, the
-// day of the build, or "". What a site wants more, Main adds.
+// doc, the page of an ID, or nil; href, the address of a target, as a
+// text writes it, from a page, relative as in the texts; size, an
+// image's, or nil; today, the day of the build, or "". What a site
+// wants more, Main adds.
 func (s *site) funcs() template.FuncMap {
 	return template.FuncMap{
 		"doc":   func(id string) *Document { return s.docs[id] },
+		"href":  href,
 		"size":  s.size,
 		"today": func() string { return s.today },
 	}

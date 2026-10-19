@@ -76,6 +76,7 @@ func TestSoffio(t *testing.T) {
 	dir := writeFiles(t, map[string]string{
 		"src/index.soffio":    "title: Home\n\n== s | S\n(about -> about)",
 		"src/about.soffio":    "title: About\n\n== s | S\n:: img: /static/a.png | A",
+		"src/it/deep.soffio":  "title: Deep\n\n== s | S\nx",
 		"src/draft.soffio":    "title: Draft\nvisibility: private\n\n== s | S\nx",
 		"static/a.png":        "png",
 		"broken/x.soffio":     "title: X\n\n== s | S\n(gone -> nope)",
@@ -107,16 +108,20 @@ func TestSoffio(t *testing.T) {
 	}
 	for file, want := range map[string]string{
 		"public/index.html": `<link rel="canonical" href="https://example.org/index.html">`,
-		"all/index.html":    `<li><a href="/about.html">About</a></li>`, // no -baseurl, from the root
-		"public/about.html": `<nav><a href="https://example.org/index.html">Home</a></nav>`,
+		"all/index.html":    `<li><a href="about.html">About</a></li>`,
+		"public/about.html": `<nav><a href="index.html">Home</a></nav>`,
+		// addresses are relative, -baseurl or not: the site works from the disk
+		"public/it/deep.html": `<nav><a href="../index.html">Home</a></nav>`,
+		"public/index.html#2": `<li><a href="it/deep.html">Deep</a></li>`,
 	} {
+		file, _, _ = strings.Cut(file, "#")
 		if got, _ := os.ReadFile(filepath.Join(dir, file)); !strings.Contains(string(got), want) {
 			t.Errorf("%s has no %s", file, want)
 		}
 	}
 	// the home leads nowhere: it is where the others lead
-	if got, _ := os.ReadFile(filepath.Join(dir, "public/index.html")); strings.Contains(string(got), "<nav>") {
-		t.Error("index.html has a nav")
+	if got, _ := os.ReadFile(filepath.Join(dir, "public/index.html")); strings.Contains(string(got), "<nav><a") {
+		t.Error("index.html leads to itself")
 	}
 	// soffio makes pages, a text each, and nothing else: the templates
 	// are the .html files of -t
@@ -130,7 +135,7 @@ func TestSoffio(t *testing.T) {
 		}
 		return nil
 	})
-	if want := []string{"about.html", "index.html", "a.png"}; !slices.Equal(made, want) { // static/ comes after
+	if want := []string{"about.html", "index.html", "deep.html", "a.png"}; !slices.Equal(made, want) { // static/ comes after
 		t.Errorf("made %q, want %q", made, want)
 	}
 	if code, stderr := soffioRun(t, dir, "-n", "-s", "static", "-o", "none", "src"); code != 0 || exists(dir, "none") {
