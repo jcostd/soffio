@@ -1,6 +1,7 @@
 # Artifacts from local build and release
 /soffio
 /preview
+/edges
 /dist/
 /public/
 

@@ -188,6 +188,12 @@ func Links(doc *Document) []string {
 	return slices.Sorted(maps.Keys(seen))
 }
 
+// LinkKeys returns the header keys of doc that hold a link, in the
+// header's order: Meta holds, for each, the ID of its page.
+func LinkKeys(doc *Document) []string {
+	return slices.Clone(doc.links)
+}
+
 // checkTarget says what is wrong with target in the document from, or "".
 func checkTarget(all, active map[string]*Document, staticDirs []string, from, target string) string {
 	id, frag, ok := resolve(from, target)

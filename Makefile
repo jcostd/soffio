@@ -1,7 +1,7 @@
 # Copyright (C) 2026 Jacopo Costantini
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# The one way soffio and preview are built, here and by release.sh:
+# The one way soffio, preview and edges are built, here and by release.sh:
 #   - static, with no cgo: no libc to match, they run on any system of
 #     their kind;
 #   - for the baseline CPU of each family (amd64 v1, arm64 v8.0, arm 6,
@@ -12,7 +12,7 @@
 #   - optimized by the compiler at full, as go always does, and also from
 #     cmd/soffio/default.pgo when that profile is there.
 #
-#   make                                     soffio and preview, for here
+#   make                                     soffio, preview and edges, for here
 #   make GOOS=windows GOARCH=amd64 OUT=dir   for another system, into dir
 #   make test                                go vet and the tests
 
@@ -25,7 +25,7 @@ all:
 	CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) \
 	GOAMD64=v1 GOARM64=v8.0 GOARM=6 GO386=sse2 \
 	go build -trimpath -ldflags '-s -w -X main.Version=$(VERSION)' \
-		-o $(OUT)/ ./cmd/soffio ./cmd/preview
+		-o $(OUT)/ ./cmd/soffio ./cmd/preview ./cmd/edges
 
 test:
 	go vet ./...

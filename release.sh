@@ -2,9 +2,9 @@
 # Copyright (C) 2026 Jacopo Costantini
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# release.sh: build soffio and preview with make for every system in
+# release.sh: build soffio, preview and edges with make for every system in
 # TARGETS, into dist/soffio-<VERSION>-<os>-<arch>.tar.gz, .zip for
-# windows, each holding soffio-<VERSION>-<os>-<arch>/ with the two
+# windows, each holding soffio-<VERSION>-<os>-<arch>/ with the three
 # programs, README, LICENSE and templates/: the built-in templates, as
 # files to start a -t of one's own from; for darwin also unquarantine.sh,
 # as macOS will not run what was downloaded. How they are compiled is
@@ -43,7 +43,7 @@ for t in $TARGETS; do
   cp -R cmd/soffio/templates "$TMP/$NAME/templates"
 
   cd "$TMP"
-  chmod 755 $NAME $NAME/soffio* $NAME/preview* $NAME/templates
+  chmod 755 $NAME $NAME/soffio* $NAME/preview* $NAME/edges* $NAME/templates
   chmod 644 $NAME/README $NAME/LICENSE $NAME/templates/*
   if [ $OS = darwin ]; then
     cp "$CWD/unquarantine.sh" $NAME
