@@ -26,8 +26,8 @@ soffio: Languages are gone: -langs, .Lang, .Alternates.
   .BaseURL/.ID.html.
 soffio: The header is Meta, all of it, title too: .Title is gone.
   title, layout and visibility, the keys soffio reads, are in Meta as
-  any other, and are words, never links: .Meta.title, and a site's
-  function sorts by it as by any key.
+  any other, and are words, never links or files: .Meta.title, and a
+  site's function sorts by it as by any key.
 soffio: A header is words, but for title, layout and visibility.
   No key has a type soffio does not need: date, updated, when, until
   and *_date are not checked as dates, image and *_image not as images,

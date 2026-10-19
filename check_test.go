@@ -213,7 +213,7 @@ func TestCheckHeaderFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(static, "a.webp"), nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	a := parse(t, "a.soffio", "a", "title: A\nimage: /static/a.webp\ncover: /static/b.webp\nsocial: https://example.org/s.webp\nicon:\nnote: img/c.webp\n\n== s | S\nx")
+	a := parse(t, "a.soffio", "a", "title: A\nimage: /static/a.webp\ncover: /static/b.webp\nsocial: https://example.org/s.webp\nicon:\nnote: img/c.webp\nlayout: /static/w\n\n== s | S\nx")
 	docs := map[string]*Document{"a": a}
 	err := Check(docs, docs, []string{static})
 	if want := `a.soffio:3: missing file "/static/b.webp"`; err == nil || err.Error() != want {

@@ -72,7 +72,7 @@ func check(doc *Document, target func(string) string) []error {
 		}
 	}
 	// the header's links and files, in its order: a value under
-	// /static/ is a file, whatever its key
+	// /static/ is a file, whatever its key but soffio's words
 	keys := slices.SortedFunc(maps.Keys(doc.Meta), func(a, b string) int {
 		return cmp.Or(cmp.Compare(doc.Lines[a], doc.Lines[b]), cmp.Compare(a, b))
 	})
@@ -81,7 +81,7 @@ func check(doc *Document, target func(string) string) []error {
 		case slices.Contains(doc.HeaderLinks, key):
 			// Load made it the page's ID
 			address(doc.Lines[key], "/"+doc.Meta[key])
-		case strings.HasPrefix(doc.Meta[key], "/static/"):
+		case strings.HasPrefix(doc.Meta[key], "/static/") && !slices.Contains(words, key):
 			address(doc.Lines[key], doc.Meta[key])
 		}
 	}
@@ -146,9 +146,8 @@ func check(doc *Document, target func(string) string) []error {
 
 // Links returns the IDs of the pages doc links to, from its header and
 // its body, notes and captions included: each once, sorted, and
-// neither doc itself nor a file or an address out of the site.
-// Templates get them the other way round, as the pages that link to a
-// page.
+// neither doc itself nor a file or an address out of the site. Read
+// the other way round, they are the pages that link to a page.
 func Links(doc *Document) []string {
 	seen := map[string]bool{}
 	for _, key := range doc.HeaderLinks {

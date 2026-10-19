@@ -113,10 +113,10 @@ package, `soffio`, at the module root; package `site` is the command, which
 
 - **`parse.go`**: no state machine. The header is `key: value` lines up to the first
   blank line: keys of `[a-z0-9_]` (a template reads `.Meta.key`), each once. soffio
-  reads three keys, `title`, `layout`, `visibility` (public or private), and two kinds
-  of value, whatever the key: `-> target`, a link (never in those three, `words`:
-  each is a word), its key in `Document.HeaderLinks`, and a value under `/static/`, a file, which `Check`
-  checks. Every other value is a word, as written: no key has a type it does not
+  reads three keys, `title`, `layout`, `visibility` (public or private), `words`, each
+  a word, never a link or a file, and two kinds of value in any other key: `-> target`,
+  a link, its key in `Document.HeaderLinks`, and a value under `/static/`, a file,
+  which `Check` checks. Every other value is a word, as written: no key has a type it does not
   need (dates, images, ids are the site's). The body is cut into blocks at blank
   lines, and before every `==` section line and `::` command line (`::img:` is
   refused, not text); then a block's first line says what it is (command, `- ` list,
