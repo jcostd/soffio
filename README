@@ -10,7 +10,9 @@ SYNOPSIS
 
 DESCRIPTION
     Soffio turns the .soffio texts under dir into a static site in -o,
-    one page per text, keeping the directory tree. Before it writes
+    one HTML page per text, keeping the directory tree, and nothing
+    else: a sitemap, a robots.txt, a feed are made of the pages, by
+    whatever serves them. Before it writes
     anything it checks the whole site: every link points at a page, a
     section or a file that is there; every note is defined and
     referenced; no public page points at a private one. If a text is
@@ -45,8 +47,8 @@ OPTIONS
                 -s a link or image under /static/ is an error. None
                 can overlap <o>/static.
     -t dir      the templates; without it, the built-in ones. The two
-                are never mixed. It can't be -o: the site files would
-                be written over the templates.
+                are never mixed. It can't be -o: the pages would be
+                written over the templates.
     -today day  the day of the build, YYYY-MM-DD, as the templates'
                 today: their only clock. Without it today is empty,
                 and the same flags always make the same site.
@@ -82,7 +84,10 @@ MARKUP
     2*3*4 stay as they are. (*x) is a note only if x is a valid ID, so
     (*bold*) is bold in parentheses. A link can't hold a link or a note
     ref. A backslash makes the next character plain. Section titles are
-    plain text.
+    plain text. A heading skips no level: the title is the h1, the
+    first section ==, and each one at most one level below the one
+    before; a section holds the ones of the levels below it, so the
+    page's outline is in its HTML.
 
     IDs, of texts, their directories, sections and notes, are printable
     ASCII: no spaces, no accents, none of / \ : * ? " < > | # % ( ),
@@ -138,15 +143,10 @@ TEMPLATES
     .Docs, every page, by ID: range .Docs goes through them in that
     order. A page among others has .ID and .Meta.
 
-    Every .xml and .txt template, as robots.txt, sitemap.xml or a
-    feed, is a site file, made at the site root under its name; so is
-    404.html, which a server gives at any address: a text, whose
-    addresses are relative, can't be it, and 404.soffio is an error.
-    The other .html templates are layouts and partials. A site file
-    gets .ID, its name without its extension (404, sitemap), as a
-    page's is where it goes, and .BaseURL, .Docs and .XMLHeader.
-    -baseurl holds nothing that html/template would escape, so it comes
-    out as it is in them all.
+    The templates are the .html files of the directory: layouts and
+    partials. Every page is a text: a 404 page too, 404.soffio, which
+    a server gives at any address, so its layout's links start from
+    the root.
 
     The functions are what only soffio knows:
 
@@ -160,16 +160,14 @@ TEMPLATES
         <img src="{{ .Meta.image }}"{{ with size .Meta.image }}
           width="{{ .Width }}" height="{{ .Height }}"{{ end }}>
 
-    Without -t, soffio uses the templates built into it, and says
-    nothing about it, as it says nothing when all is well: layout.html,
-    404.html, robots.txt and sitemap.xml. They need only a title: the
-    header's lang is the page's language if there is one, its updated
-    or date is shown if there is one, and the home, index, lists every
-    page. Pages come by ID, so a name says where one goes:
-    2026-10-19-soffio.
-    The same files are in templates/ of the release archives, and in
-    templates/ of the source: copy them into a directory of your own
-    to start one for -t.
+    Without -t, soffio uses the template built into it, layout.html,
+    and says nothing about it, as it says nothing when all is well. It
+    needs only a title, and has no word of its own: the header's lang
+    is the page's language if there is one, a page leads to the home,
+    index, by its title, and the home lists every page. Pages come by
+    ID, so a name says where one goes: 2026-10-19-soffio. The same file
+    is in templates/ of the release archives and of the source: copy it
+    into a directory of your own to start one for -t.
 
 EXTENDING
     Soffio is to a site what Lua's core is to its host: it gives the
@@ -189,8 +187,8 @@ EXTENDING
 
     A function of soffio's can't be taken.
 
-    3. Its templates: a site file is a template, so a feed is one more
-    file, not one more soffio.
+    3. Its templates: every page is a text through a layout of the
+    site's.
 
     4. Programs of its own on package soffio, which reads the texts as
     soffio does: Load gives every Document, whose Lines say where each

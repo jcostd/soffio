@@ -43,14 +43,19 @@ soffio: -baseurl is .BaseURL, empty if not given.
   site without it: what is asked for is what is made. An address made
   of an empty .BaseURL starts at the root.
 soffio: -v is gone: go version -m soffio says which it is.
-soffio: A site file is every .xml and .txt template, and 404.html.
-  robots.txt, sitemap.xml, a feed: a site adds one with a template, not
-  with a new soffio. 404.html, as a server gives it at any address,
-  can't be a text. index.html is no longer one: the root is a text, as
-  any page. rss.xml and manifest.json are gone from soffio. The
-  built-in templates have no feed; their home lists every page, by ID,
-  robots.txt names the sitemap and the sitemap lists the pages if there
-  is a -baseurl, as a sitemap's addresses are full.
+soffio: Soffio makes HTML pages, a text each, and nothing else.
+  No site files: index.html, 404.html, robots.txt, sitemap.xml, rss.xml
+  and manifest.json are gone, and .XMLHeader with them. A home and a
+  404 page are texts, index.soffio and 404.soffio; a sitemap and a
+  robots.txt are made of the pages by what serves them. The templates
+  are the .html files of -t, as html/template writes HTML; -baseurl
+  needs no longer hold only what it would not escape.
+soffio: The built-in template is layout.html, with no word of its own.
+  A page leads to the home by its title; no date, no footer.
+soffio: A heading skips no level, and a section holds those below it.
+  The first section is ==, each next at most one level below the one
+  before: the outline of a page is in its <section>s, not only in its
+  headings.
 soffio: .Backlinks is gone.
   The pages that link to a page are Links read the other way: a site's
   function, not every site's.

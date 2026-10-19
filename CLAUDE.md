@@ -27,8 +27,9 @@ in four ways, and no other:
    names (`doc`, `size`, `today`);
 2. a `check` of its texts, which reads them and changes none, its errors
    `file:line: message` from `Document.Lines`, said after soffio's, all at once;
-3. its templates: a layout per page, partials, and its site files, every `.xml` and
-   `.txt` template and `404.html`;
+3. its templates, the `.html` files of `-t`: a layout per page, and partials; soffio
+   makes HTML pages, a text each, and nothing else (a sitemap, robots.txt, a 404
+   are a server's, or a text: `404.soffio`);
 4. programs of its own on package `soffio` (`Load`, `Check`, `Links`, `Parse`,
    `Render`), as fucina-engine's `rete`.
 
@@ -121,7 +122,8 @@ serves a site (the Fucina's writers have fucina-engine's `preview`).
   need (dates, images, ids are the site's). The body is cut into blocks at blank
   lines, and before every `==` section line and `::` command line (`::img:` is
   refused, not text); then a block's first line says what it is (command, `- ` list,
-  or text). A leading BOM is dropped, invalid UTF-8 refused.
+  or text). A heading skips no level: the first section is `==`, each next at most one
+  level below the one before. A leading BOM is dropped, invalid UTF-8 refused.
   `inline.go` scans inline markup by byte (every marker is ASCII): a `*` or `_` opens
   only at the start of a word and closes only at its end; `(*id)` is a note only when
   `id` is a valid ID; `(label -> target)` is a link, and a link or note inside a
@@ -169,24 +171,21 @@ serves a site (the Fucina's writers have fucina-engine's `preview`).
   `#section` links.
 
 - **`html.go`**: `Render` returns one document as an HTML fragment, knowing nothing of
-  the corpus. Note refs are numbered as met and the endnotes come last, in order of
+  the corpus. A `<section>` holds those of the levels below it (the fuzz test checks
+  the nesting and each heading's level against it). Note refs are numbered as met and the endnotes come last, in order of
   first reference, with no heading (none reads well in any language). Their anchors are
   `fn:x` and `fnref:x:n`: no section ID holds ':', so they never clash with one.
 
 - **`main.go`**: `Main(funcs, check)` is the command, named as it was run
   (`os.Args[0]` up to its first dot): flags (`checkFlags`: a -baseurl, if given, is
-  http(s)://host[/path] with nothing html/template would escape), templates with
+  http(s)://host[/path], no final '/'), templates with
   soffio's functions and the site's (one of soffio's names is refused), load ->
   visibility filter -> `Check` and the site's `check` (it reads, never changes; its
-  errors after soffio's, all at once) -> static copy -> pages and site files.
-  `siteFiles`, every `.xml` and `.txt` template and `404.html` (a server gives it at
-  any address, so it is never a text), are made at the root, with `ID` (the name
-  without its extension: what a template makes has an ID, where it goes), `BaseURL`,
-  `Docs`, `XMLHeader`. `pipe` is the filter.
+  errors after soffio's, all at once) -> static copy -> pages. `pipe` is the filter.
 
 - **`write.go`**: each page goes through its layout (`layout` header, else
   `layout.html`; a missing one is an error) with `ID`, `Meta`, `Content`, `BaseURL`
-  and `Docs` (every active page, as the site files get): the pages that link to a
+  and `Docs` (every active page): the pages that link to a
   page are `Links` read the other way, a site's function. Every file is executed
   into a buffer and written in one call; html/template alone writes in small
   pieces; with `-n` it is executed and dropped. `copyDir` copies every -s into
@@ -204,13 +203,13 @@ serves a site (the Fucina's writers have fucina-engine's `preview`).
   and `today` (`-today` or empty: a template never reads the clock, so the output
   stays reproducible). They are made before the templates are parsed, and ask the
   site, whose pages come later. `prepare` gives every `ImageBlock` of a text its
-  size, which `Render` writes. The embedded templates are the showcase: they need
-  only a title (lang, date and updated if there), list every page on the home,
-  share a `style` partial; keep them that small.
+  size, which `Render` writes. The embedded `layout.html` is the showcase: it
+  needs only a title (and lang if there), has no word of its own (its nav is the
+  home's title), lists every page on the home; keep it that small.
 
 - **Messages and exit status**: errors are `file:line: message`, all of them, in a
   fixed order, with no timestamps (`log.SetFlags(0)`); about the command, its name
-  first. Every page and site file is attempted, but if any fails the command exits 1;
+  first. Every page is attempted, but if any fails the command exits 1;
   bad usage exits 2. A missing page is a broken site. No warnings, no defaults that
   depend on other flags, no second way to say one thing.
 
