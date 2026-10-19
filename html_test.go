@@ -34,6 +34,12 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 						Path:    "/static/img/test.jpg",
 						Caption: []Inline{PlainText{Content: "Caption"}},
 					},
+					// its size, when who has the file knows it
+					ImageBlock{
+						Path:    "/static/img/sized.jpg",
+						Caption: []Inline{PlainText{Content: "Sized"}},
+						Width:   150, Height: 200,
+					},
 				},
 			},
 		},
@@ -51,6 +57,7 @@ func TestRender_BlocksAndInlines(t *testing.T) {
 		`</ul>`,
 		`<figure>`,
 		`<img src="static/img/test.jpg" alt="Caption" loading="lazy">`,
+		`<img src="static/img/sized.jpg" alt="Sized" width="150" height="200" loading="lazy">`,
 		`<figcaption>Caption</figcaption>`,
 		`</figure>`,
 		`</section>`,

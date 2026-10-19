@@ -72,8 +72,11 @@ func (r *renderer) block(b Block) {
 		}
 		r.w.WriteString("</ul>\n")
 	case ImageBlock:
-		fmt.Fprintf(&r.w, "<figure>\n\t<img src=\"%s\" alt=\"%s\" loading=\"lazy\">\n\t<figcaption>",
-			html.EscapeString(href(r.id, v.Path)), html.EscapeString(plainText(v.Caption)))
+		fmt.Fprintf(&r.w, "<figure>\n\t<img src=\"%s\" alt=\"%s\"", html.EscapeString(href(r.id, v.Path)), html.EscapeString(plainText(v.Caption)))
+		if v.Width > 0 && v.Height > 0 {
+			fmt.Fprintf(&r.w, " width=\"%d\" height=\"%d\"", v.Width, v.Height)
+		}
+		r.w.WriteString(" loading=\"lazy\">\n\t<figcaption>")
 		r.inlines(v.Caption)
 		r.w.WriteString("</figcaption>\n</figure>\n")
 	case NoteBlock:

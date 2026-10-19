@@ -115,6 +115,7 @@ func main() {
 		tmpl:    tmpl,
 		docs:    active,
 		ids:     slices.Sorted(maps.Keys(active)),
+		static:  staticDirs,
 	}
 	s.prepare()
 	if err := copyDir(staticDirs, filepath.Join(*outDir, "static"), *dry); err != nil {

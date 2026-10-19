@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"html/template"
+	"image"
+	imagepng "image/png"
 	"maps"
 	"os"
 	"os/exec"
@@ -499,5 +502,33 @@ func TestWriteDocDocLang(t *testing.T) {
 	}
 	if got, _ := os.ReadFile(filepath.Join(s.outDir, "it/a.html")); string(got) != "it|T en/c en||it" {
 		t.Errorf("got %q", got)
+	}
+}
+
+// an image gets its size from its file, in the text and through size:
+// none for a file Go can't read or an address out of the site
+func TestWriteDocSizes(t *testing.T) {
+	var png bytes.Buffer
+	if err := imagepng.Encode(&png, image.NewGray(image.Rect(0, 0, 3, 2))); err != nil {
+		t.Fatal(err)
+	}
+	static := writeFiles(t, map[string]string{"a.png": png.String(), "b.svg": "<svg/>"})
+	img := func(path string) soffio.Section {
+		return soffio.Section{Level: 2, ID: path[len(path)-5 : len(path)-4], Title: "S", Blocks: []soffio.Block{soffio.ImageBlock{Path: path}}}
+	}
+	docs := map[string]*soffio.Document{"x": {ID: "x", Title: "X", Meta: map[string]string{"image": "/static/a.png"},
+		Sections: []soffio.Section{img("/static/a.png"), img("/static/b.svg"), img("https://example.org/c.png")}}}
+	s := testSite(t, `{{define "layout.html"}}{{with size .Meta.image}}{{.Width}}x{{.Height}}{{end}}|{{with size "/static/b.svg"}}?{{end}}|{{.Content}}{{end}}`, docs)
+	s.static = []string{static}
+	s.prepare()
+	if err := s.writeDoc(docs["x"]); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := os.ReadFile(filepath.Join(s.outDir, "x.html"))
+	for _, want := range []string{"3x2||", `src="static/a.png" alt="" width="3" height="2" loading="lazy"`,
+		`src="static/b.svg" alt="" loading="lazy"`, `src="https://example.org/c.png" alt="" loading="lazy"`} {
+		if !strings.Contains(string(got), want) {
+			t.Errorf("no %q in %q", want, got)
+		}
 	}
 }

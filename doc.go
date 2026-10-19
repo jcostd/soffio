@@ -34,9 +34,10 @@ type (
 		Elements []Inline
 	}
 	ImageBlock struct {
-		Line    int
-		Path    string
-		Caption []Inline
+		Line          int
+		Path          string
+		Caption       []Inline
+		Width, Height int // in pixels, 0 if not known: who has the file says
 	}
 	NoteBlock struct {
 		Line     int

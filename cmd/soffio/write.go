@@ -8,6 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -28,16 +32,21 @@ type site struct {
 	docs    map[string]*soffio.Document
 	ids     []string                      // docs' keys, sorted
 	back    map[string][]*soffio.Document // the pages linking to each, by ID
+	static  []string                      // the -s dirs
+	sizes   map[string]*imageSize         // size's answers, by path
 }
 
 // prepare gives every page its language: the first directory of its
 // ID, if it is one of -langs, or else the first of them (IDs use '/'
 // everywhere, so no filepath: on Windows it would turn en/x into en\x).
 // It finds, for every page, the pages that link to it, by ID, as s.ids
-// is sorted; and it gives the templates doc, the page of an ID, today,
-// the day of the build or "", and past, whether a date has passed.
+// is sorted, and the size of every image of its text; and it gives the
+// templates doc, the page of an ID, today, the day of the build or "",
+// past, whether a date has passed, current, the pages whose date has
+// not, and size, an image's.
 func (s *site) prepare() {
 	s.back = map[string][]*soffio.Document{}
+	s.sizes = map[string]*imageSize{}
 	for _, id := range s.ids {
 		doc := s.docs[id]
 		doc.Lang = s.langs[0]
@@ -47,12 +56,54 @@ func (s *site) prepare() {
 		for _, to := range soffio.Links(doc) {
 			s.back[to] = append(s.back[to], doc)
 		}
+		for i := range doc.Sections {
+			for j, b := range doc.Sections[i].Blocks {
+				if img, ok := b.(soffio.ImageBlock); ok {
+					if sz := s.size(img.Path); sz != nil {
+						img.Width, img.Height = sz.Width, sz.Height
+						doc.Sections[i].Blocks[j] = img
+					}
+				}
+			}
+		}
 	}
 	s.tmpl.Funcs(template.FuncMap{
-		"doc":   func(id string) *soffio.Document { return s.docs[id] },
-		"today": func() string { return s.today },
-		"past":  func(date string) bool { return past(date, s.today) },
+		"doc":     func(id string) *soffio.Document { return s.docs[id] },
+		"today":   func() string { return s.today },
+		"past":    func(date string) bool { return past(date, s.today) },
+		"current": func(v any, key string) ([]*soffio.Document, error) { return current(v, key, s.today) },
+		"size":    s.size,
 	})
+}
+
+// imageSize is an image's, in pixels: with it the browser keeps the
+// image's place before it comes.
+type imageSize struct{ Width, Height int }
+
+// size returns the size of the image at path, /static/..., from its
+// file in the -s dirs, or nil: an address out of the site, or a kind
+// the standard library doesn't read (svg, webp). Each file is read
+// once, and only as far as its size.
+func (s *site) size(path string) *imageSize {
+	if sz, ok := s.sizes[path]; ok {
+		return sz
+	}
+	var sz *imageSize
+	if file, ok := strings.CutPrefix(path, "/static/"); ok {
+		for _, dir := range s.static {
+			f, err := os.Open(filepath.Join(dir, filepath.FromSlash(file)))
+			if err != nil {
+				continue
+			}
+			if c, _, err := image.DecodeConfig(f); err == nil {
+				sz = &imageSize{c.Width, c.Height}
+			}
+			f.Close()
+			break
+		}
+	}
+	s.sizes[path] = sz
+	return sz
 }
 
 type alternate struct{ Lang, URL string }

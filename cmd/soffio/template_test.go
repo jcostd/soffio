@@ -135,3 +135,92 @@ func TestPast(t *testing.T) {
 		}
 	}
 }
+
+// the functions that take pages apart: sortUp, where and without with
+// more values, except, group, bySize, parent, current
+func TestSortUpGroup(t *testing.T) {
+	docs := map[string]*soffio.Document{}
+	for id, meta := range map[string]string{
+		"a": "1990 testimony", "b": "1955 testimony", "c": " book", "d": "1990 book",
+		"e": " friend", "f": " artist", "g": " artist", "h": " ", "w": "1960 work",
+	} {
+		when, kind, _ := strings.Cut(meta, " ")
+		m := map[string]string{}
+		if when != "" {
+			m["when"] = when
+		}
+		if kind != "" && kind != "work" {
+			m["kind"] = kind
+		}
+		if kind == "work" {
+			m["layout"] = "work"
+		}
+		docs[id] = &soffio.Document{ID: id, Meta: m}
+	}
+	ids := func(docs []*soffio.Document) string {
+		var s []string
+		for _, d := range docs {
+			s = append(s, d.ID)
+		}
+		return strings.Join(s, ",")
+	}
+	groups := func(gs [][]*soffio.Document) string {
+		var s []string
+		for _, g := range gs {
+			s = append(s, ids(g))
+		}
+		return strings.Join(s, "|")
+	}
+	must := func(docs []*soffio.Document, err error) []*soffio.Document {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		return docs
+	}
+	up := must(sortUp(docs, "when"))
+	g, err := group(up, "kind")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct{ got, want string }{
+		// oldest first, one year by ID, the undated last, by ID
+		{ids(up), "b,w,a,d,c,e,f,g,h"},
+		{ids(must(where(docs, "kind", "book", "friend"))), "c,d,e"},
+		{ids(must(without(docs, "kind", "artist", ""))), "a,b,c,d,e"},
+		{ids(must(except(docs, "a", "w", "nope"))), "b,c,d,e,f,g,h"},
+		{ids(must(except(docs))), "a,b,c,d,e,f,g,h,w"},
+		// by the first page of each, as the list runs; h and w have no kind
+		{groups(g), "b,a|d,c|e|f,g"},
+		{groups(bySize(g)), "e|b,a|d,c|f,g"},
+		{ids(must(current(docs, "when", "1990-06-01"))), "a,d"},
+		{ids(must(current(docs, "when", ""))), "a,b,d,w"},
+	} {
+		if tt.got != tt.want {
+			t.Errorf("got %q, want %q", tt.got, tt.want)
+		}
+	}
+	if g, err := group("x", "kind"); g != nil || err == nil {
+		t.Error("group took a string")
+	}
+	for id, want := range map[string]string{"it/persone/arp": "it/persone", "it": "", "": ""} {
+		if got := parent(id); got != want {
+			t.Errorf("parent(%q) = %q, want %q", id, got, want)
+		}
+	}
+}
+
+// a key a header doesn't hold is "" to the templates, so a function
+// given it gets a string
+func TestLoadTemplatesMissingKey(t *testing.T) {
+	dir := writeFiles(t, map[string]string{"layout.html": `[{{.Meta.by}}]{{len (except .Docs .Meta.by)}}`})
+	tmpl, err := loadTemplates(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var b strings.Builder
+	data := map[string]any{"Meta": map[string]string{}, "Docs": []*soffio.Document{{ID: "a"}}}
+	if err := tmpl.ExecuteTemplate(&b, "layout.html", data); err != nil || b.String() != "[]1" {
+		t.Errorf("got %q, %v", b.String(), err)
+	}
+}
