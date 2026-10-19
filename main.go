@@ -154,7 +154,7 @@ func siteFiles(tmpl *template.Template) []string {
 func pipe(name string, dry bool) {
 	doc, err := Parse("<stdin>", os.Stdin)
 	if err == nil {
-		err = CheckDoc(doc)
+		err = checkDoc(doc)
 	}
 	if err != nil {
 		log.Fatal(err)

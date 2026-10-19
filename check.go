@@ -31,9 +31,9 @@ func Check(all, active map[string]*Document, staticDirs []string) error {
 	return errors.Join(errs...)
 }
 
-// CheckDoc verifies what doc can say alone: its notes and its links to
+// checkDoc verifies what doc can say alone: its notes and its links to
 // its own sections. Pipe mode knows no other page and no files.
-func CheckDoc(doc *Document) error {
+func checkDoc(doc *Document) error {
 	return errors.Join(check(doc, func(target string) string {
 		if sec, ok := strings.CutPrefix(target, "#"); ok && !hasSection(doc, sec) {
 			return "link to missing section"
@@ -145,45 +145,18 @@ func check(doc *Document, target func(string) string) []error {
 }
 
 // Links returns the IDs of the pages doc links to, from its header and
-// its body, notes and captions included: each once, sorted, and
-// neither doc itself nor a file or an address out of the site. Read
-// the other way round, they are the pages that link to a page.
+// its body, captions and notes included, as check walks them: each
+// once, sorted, and neither doc itself nor a file or an address out of
+// the site. Read the other way round, they are the pages that link to
+// a page.
 func Links(doc *Document) []string {
 	seen := map[string]bool{}
-	for _, key := range doc.HeaderLinks {
-		seen[doc.Meta[key]] = true
-	}
-	var walk func([]Inline)
-	walk = func(in []Inline) {
-		for _, el := range in {
-			switch v := el.(type) {
-			case Bold:
-				walk(v.Elements)
-			case Italic:
-				walk(v.Elements)
-			case Link:
-				if id, _, ok := resolve(doc.ID, v.Target); ok && !strings.HasPrefix(id, "static/") {
-					seen[id] = true
-				}
-			}
+	check(doc, func(target string) string {
+		if id, _, ok := resolve(doc.ID, target); ok && !strings.HasPrefix(id, "static/") {
+			seen[id] = true
 		}
-	}
-	for _, sec := range doc.Sections {
-		for _, b := range sec.Blocks {
-			switch b := b.(type) {
-			case TextBlock:
-				walk(b.Elements)
-			case ImageBlock:
-				walk(b.Caption)
-			case NoteBlock:
-				walk(b.Elements)
-			case ListBlock:
-				for _, item := range b.Items {
-					walk(item)
-				}
-			}
-		}
-	}
+		return ""
+	})
 	delete(seen, doc.ID)
 	return slices.Sorted(maps.Keys(seen))
 }

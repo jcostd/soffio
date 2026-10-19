@@ -135,7 +135,7 @@ func TestCheckNotesAndAddresses(t *testing.T) {
 a.soffio:9: note "self" is never referenced
 a.soffio:11: note "c" is never referenced
 a.soffio:13: note "d" is never referenced`
-	if err := CheckDoc(doc); err == nil || err.Error() != want {
+	if err := checkDoc(doc); err == nil || err.Error() != want {
 		t.Errorf("got:\n%v\nwant:\n%s", err, want)
 	}
 }
@@ -153,7 +153,7 @@ func TestCheckDoc(t *testing.T) {
 	want := `<stdin>:3: link to missing section "#nope"
 <stdin>:3: note "m" is not defined
 <stdin>:9: note "u" is never referenced`
-	if err := CheckDoc(doc); err == nil || err.Error() != want {
+	if err := checkDoc(doc); err == nil || err.Error() != want {
 		t.Errorf("got:\n%v\nwant:\n%s", err, want)
 	}
 }

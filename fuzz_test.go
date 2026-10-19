@@ -30,7 +30,7 @@ func FuzzParse(f *testing.F) {
 		if err != nil {
 			return
 		}
-		_ = CheckDoc(doc)
+		_ = checkDoc(doc)
 		out := Render(doc)
 
 		depth := 0
