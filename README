@@ -9,13 +9,12 @@ SYNOPSIS
     soffio [-n] < text.soffio > text.html
 
 DESCRIPTION
-    Soffio turns the .soffio texts under dir into a static site in -o,
+    Soffio turns the .soffio texts under dir into a static site in -o:
     one HTML page per text, keeping the directory tree, and nothing
-    else: a sitemap, a robots.txt, a feed are made of the pages, by
-    whatever serves them. Before it writes
-    anything it checks the whole site: every link points at a page, a
-    section or a file that is there; every note is defined and
-    referenced; no public page points at a private one. If a text is
+    else. Before it writes anything it checks the whole site: every
+    link points at a page, a section or a file that is there; every
+    note is defined and referenced; no public page points at a private
+    one. If a text is
     wrong it says where, file:line, writes nothing and exits 1; a page
     whose template fails is reported too, and soffio exits 1. It has no
     warnings: what is worth saying is worth fixing.
@@ -62,11 +61,9 @@ MARKUP
     '-> target' is a link to a page, written and checked as a link in
     the body is ('by: -> ../persone/arp'), and the templates get the ID
     of that page; a value under /static/ is a file, checked as an image
-    is (see LINKS AND FILES). Every other
-    value is a word, as written, for the templates: a date, a name, a
-    kind are the site's, not soffio's. A byte order mark at the start
-    is ignored. The notes come at the end of the page, with no heading,
-    which reads well in any language.
+    is (see LINKS AND FILES). Every other value is a word, as written,
+    for the templates: a date, a name, a kind are the site's, not
+    soffio's. A byte order mark at the start is ignored.
 
     == id | Title                     section (== to ======: h2 to h6)
     *text*                            bold
@@ -106,15 +103,36 @@ LINKS AND FILES
     another page or, alone, of this one. A target under /static/ is a
     file in -s; anything else is a page. A target is cleaned, so .. can't
     climb out of the site, and must be a valid address. The addresses
-    soffio writes, of links and images, are relative: they work under
-    any base, even from the disk. Those a template writes are its own:
-    the built-in ones start from .BaseURL, or without it from the root,
-    which any static server gives.
+    soffio writes are relative, so a site works under any base, even
+    from the disk: a template writes them with href, as the texts do.
 
     An image is a file under /static/, or an address out of the site.
     One of the files of -s gets its width and height, read from the
     file (jpeg, png, gif), so the browser keeps its place before it
-    comes.
+    comes, whatever its shape.
+
+THE HTML
+    A text becomes an HTML fragment, .Content, that says what it is
+    and holds no word of soffio's own, so it reads well in any
+    language:
+
+    == id | Title       <section id="id"><h2>Title</h2> ... </section>,
+                        holding the sections of the levels below it
+    a paragraph         <p>
+    *text*  _text_      <strong>  <em>
+    (label -> target)   <a href="...">, relative; nothing more: where
+                        a link opens is the reader's
+    - text              <ul><li>
+    :: img:             <figure><img alt width height loading=lazy>
+                        <figcaption>: the caption is the alt too
+    (*id)               <sup><a role="doc-noteref">1</a></sup>, numbered
+                        in the order the notes are first referred to
+    :: note:            at the end, <section role="doc-endnotes"><ol>,
+                        each <li> with a way back, <a
+                        role="doc-backlink">↩</a>, and no heading
+
+    The page around it, <html lang>, <title>, the h1, <main> and the
+    rest, is the template's.
 
 PRIVATE TEXTS AND FILES
     A text with 'visibility: private' is a draft: without -a it is not
@@ -146,25 +164,31 @@ TEMPLATES
     The templates are the .html files of the directory: layouts and
     partials. Every page is a text: a 404 page too, 404.soffio, which
     a server gives at any address, so its layout's links start from
-    the root.
+    the root, as .BaseURL or a '/'.
 
     The functions are what only soffio knows:
 
     doc id            the page of an ID, or nothing: a header link's
                       page is doc .Meta.by
+    href id target    the address of target, written as in a text,
+                      seen from the page id: relative, as in the texts
     size path         an image's .Width and .Height, as for the
                       images of the texts, or nothing
     today             -today, the day of the build, or nothing
 
-        {{ with doc .Meta.by }}<a href="/{{ .ID }}.html">{{ .Meta.title }}</a>{{ end }}
-        <img src="{{ .Meta.image }}"{{ with size .Meta.image }}
-          width="{{ .Width }}" height="{{ .Height }}"{{ end }}>
+        {{ with doc .Meta.by }}
+          <a href="{{ href $.ID (print "/" .ID) }}">{{ .Meta.title }}</a>
+        {{ end }}
+        <link rel="stylesheet" href="{{ href .ID "/static/style.css" }}">
+        <img src="{{ href .ID .Meta.image }}"{{ with size .Meta.image }}
+          width="{{ .Width }}" height="{{ .Height }}"{{ end }} alt="">
 
     Without -t, soffio uses the template built into it, layout.html,
     and says nothing about it, as it says nothing when all is well. It
     needs only a title, and has no word of its own: the header's lang
-    is the page's language if there is one, a page leads to the home,
-    index, by its title, and the home lists every page. Pages come by
+    is the page's language if there is one, the text is an <article>
+    in <main>, a page leads to the home, index, by its title, and the
+    home lists every page in a <nav>. Pages come by
     ID, so a name says where one goes: 2026-10-19-soffio. The same file
     is in templates/ of the release archives and of the source: copy it
     into a directory of your own to start one for -t.
@@ -183,7 +207,7 @@ EXTENDING
     and a site's program, with soffio's flags, checks and output, and
     its own:
 
-        func main() { soffio.Main(template.FuncMap{"sortUp": sortUp}, check) }
+        func main() { soffio.Main(funcs, check) }
 
     A function of soffio's can't be taken.
 
@@ -194,15 +218,76 @@ EXTENDING
     soffio does: Load gives every Document, whose Lines say where each
     header key is and HeaderLinks which hold a link, and Links the
     pages it links to; the pages that link to one are Links read the
-    other way.
+    other way. Parse, Check and Render are there too: go doc
+    github.com/jcostd/soffio says the rest, with examples.
 
     The markup and what a header means are not extended.
 
-DIAGNOSTICS
-    Errors are file:line: message, one per line, all of them, in the
-    same order every time; about the command, its name: message. Exit
-    status 0 if the site was written (or, with -n, would be), 1 if
-    anything was wrong, 2 for bad usage.
+    A site's program, whole: a check that every date is a date, and a
+    function that lists the pages, the newest first.
+
+        package main
+
+        import (
+            "cmp"
+            "errors"
+            "fmt"
+            "html/template"
+            "maps"
+            "slices"
+            "strings"
+            "time"
+
+            "github.com/jcostd/soffio"
+        )
+
+        func check(docs map[string]*soffio.Document) error {
+            var errs []error
+            for _, id := range slices.Sorted(maps.Keys(docs)) {
+                d := docs[id]
+                date := d.Meta["date"]
+                _, err := time.Parse(time.DateOnly, date)
+                if date != "" && err != nil {
+                    errs = append(errs, fmt.Errorf("%s:%d: %q is no date",
+                        d.File, d.Lines["date"], date))
+                }
+            }
+            return errors.Join(errs...)
+        }
+
+        func newest(docs map[string]*soffio.Document) []*soffio.Document {
+            list := slices.Collect(maps.Values(docs))
+            slices.SortFunc(list, func(a, b *soffio.Document) int {
+                return cmp.Or(strings.Compare(b.Meta["date"], a.Meta["date"]),
+                    strings.Compare(a.ID, b.ID))
+            })
+            return list
+        }
+
+        func main() {
+            soffio.Main(template.FuncMap{"newest": newest}, check)
+        }
+
+EXAMPLES
+    A site, checked, then built into an empty directory and served by
+    any static server:
+
+        soffio -n -s static texts && rm -rf public &&
+            soffio -baseurl https://example.org -s static texts
+        python3 -m http.server -d public
+
+    One text, as HTML, or only checked:
+
+        soffio < about.soffio > about.html
+        soffio -n < about.soffio
+
+    A sitemap and a robots.txt are made of the pages, by what publishes
+    them: the sitemap protocol takes a list of addresses, one a line.
+
+        cd public && find . -name '*.html' ! -name 404.html | sort |
+            sed 's,^\.,https://example.org,' > sitemap.txt
+        printf 'User-agent: *\nAllow: /\n\nSitemap: %s\n' \
+            https://example.org/sitemap.txt > robots.txt
 
 LIMITS
     No code blocks, tables, ordered or nested lists, raw HTML or h1 in
@@ -210,10 +295,19 @@ LIMITS
     A line of a block is reported as the line where the block starts.
     A * or _ closes at the end of a word even inside a link: in
     _see (here -> a_) now_ the italic ends at a_ and the link is lost;
-    escape it, a\_. Soffio never deletes: a page that is gone or became
-    private stays in -o from an earlier build, so build into an empty
-    directory. It has no version flag: go version -m soffio says which
-    it is, and the name of its archive.
+    escape it, a\_.
+
+    Soffio makes pages and nothing else: no sitemap, robots.txt, feed
+    or 404 of its own, and no server. It knows no dates, languages or
+    orders but its IDs': a site that wants them is a program of its own
+    (see EXTENDING). The links of the texts are checked; those a
+    template writes are the template's. An image of a kind the standard
+    library doesn't read, as svg or webp, gets no size.
+
+    Soffio never deletes: a page that is gone or became private stays
+    in -o from an earlier build, so build into an empty directory. It
+    has no version flag: go version -m soffio says which it is, and
+    the name of its archive.
 
 MACOS
     macOS will not run a program downloaded from the internet that
@@ -237,6 +331,14 @@ BUILD
                                from a clean tag
 
     ChangeLog.txt says what changed, newest first.
+
+SEE ALSO
+    go doc github.com/jcostd/soffio, the package and its examples;
+    https://pkg.go.dev/html/template, the templates;
+    https://www.sitemaps.org/protocol.html, sitemaps as text;
+    https://www.w3.org/TR/dpub-aria-1.1/, the roles of the notes;
+    https://developer.mozilla.org/docs/Web/HTML, the elements soffio
+    writes; ChangeLog.txt, what changed and why.
 
 AUTHOR
     Written and designed by Jacopo Costantini.

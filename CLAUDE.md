@@ -24,7 +24,7 @@ Soffio is to a site what Lua's core is to its host: mechanisms, never policies. 
 in four ways, and no other:
 
 1. functions for its templates, `Main`'s `funcs`, never with one of soffio's
-   names (`doc`, `size`, `today`);
+   names (`doc`, `href`, `size`, `today`);
 2. a `check` of its texts, which reads them and changes none, its errors
    `file:line: message` from `Document.Lines`, said after soffio's, all at once;
 3. its templates, the `.html` files of `-t`: a layout per page, and partials; soffio
@@ -197,15 +197,22 @@ serves a site (the Fucina's writers have fucina-engine's `preview`).
   never copies one. `loadTemplates` parses either `-t` or the embedded
   `templates/*`, never a mix, with `missingkey=zero` (a header key a page lacks is
   "", as in Go, so a function given `.Meta.by` gets a string); `funcs` gives
-  templates soffio's three functions, what only it knows: `doc` (the page of an
-  ID, or nil), `size` (an image's `image.Config`, its Width and Height, read once
+  templates soffio's four functions, what only it knows: `doc` (the page of an
+  ID, or nil), `href` (url.go's: a target, as a text writes it, from a page,
+  relative, so a template's addresses are as the texts'), `size` (an image's `image.Config`, its Width and Height, read once
   per path from its file in a `-s` by `image.DecodeConfig`: jpeg, png, gif; or nil)
   and `today` (`-today` or empty: a template never reads the clock, so the output
   stays reproducible). They are made before the templates are parsed, and ask the
   site, whose pages come later. `prepare` gives every `ImageBlock` of a text its
   size, which `Render` writes. The embedded `layout.html` is the showcase: it
   needs only a title (and lang if there), has no word of its own (its nav is the
-  home's title), lists every page on the home; keep it that small.
+  home's title), puts the text in an `<article>` in `<main>`, lists every page on
+  the home in a `<nav>`, writes every address with `href`, so the site works from
+  the disk; keep it that small.
+
+- **`example_test.go`**: the examples `go doc` shows, run by `go test`: Parse,
+  Render, Links. The README's site program (EXTENDING) is checked by hand: build
+  it against the checkout when the API moves.
 
 - **Messages and exit status**: errors are `file:line: message`, all of them, in a
   fixed order, with no timestamps (`log.SetFlags(0)`); about the command, its name

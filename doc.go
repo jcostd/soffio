@@ -2,10 +2,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 // Package soffio parses, checks and renders Soffio markup, and is the
-// command soffio: Main makes a directory of texts a static site, or one
-// text on standard input HTML on standard output. A site that wants
-// more, functions for its templates or rules for its texts, is a
-// program of its own that calls Main with them: soffio is Main(nil, nil).
+// command soffio: Main makes a directory of texts a static site, a page
+// each, or one text on standard input HTML on standard output.
+//
+// A text goes through Parse, the text alone, then Load, which reads a
+// directory of them into Documents by ID and resolves their header
+// links; Check says what is wrong with the whole site, and Render makes
+// one Document an HTML fragment. Links says which pages a Document
+// links to.
+//
+// Soffio is to a site what Lua's core is to its host: it gives the
+// mechanisms, and a site says the rest in four ways and no other:
+// functions for its templates and a check of its texts, both given to
+// Main; its templates; and programs of its own on this package. Soffio
+// itself is Main(nil, nil). The README, a manual page, says what the
+// markup and the command are.
 package soffio
 
 // A Document is one .soffio file.

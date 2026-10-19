@@ -51,7 +51,15 @@ soffio: Soffio makes HTML pages, a text each, and nothing else.
   are the .html files of -t, as html/template writes HTML; -baseurl
   needs no longer hold only what it would not escape.
 soffio: The built-in template is layout.html, with no word of its own.
-  A page leads to the home by its title; no date, no footer.
+  A page leads to the home by its title; no date, no footer. The text
+  is an <article> in <main>, the home's list of pages a <nav>.
+soffio: href, for the templates: a target's address from a page.
+  Relative, written as in a text and made as the texts' are, so a
+  template's addresses work under any base, and the built-in site from
+  the disk.
+README: What soffio makes of the markup, in THE HTML; EXAMPLES, a
+  site's program whole, the sitemap made of the pages; SEE ALSO; what
+  it can't do, in LIMITS. go doc soffio has examples, run as tests.
 soffio: A heading skips no level, and a section holds those below it.
   The first section is ==, each next at most one level below the one
   before: the outline of a page is in its <section>s, not only in its
