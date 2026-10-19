@@ -27,14 +27,14 @@ type site struct {
 	dry     bool // -n: execute, write nothing
 	tmpl    *template.Template
 	docs    map[string]*Document
-	ids     []string              // docs' keys, sorted
-	static  []string              // the -s dirs
-	sizes   map[string]*imageSize // size's answers, by path
+	ids     []string                 // docs' keys, sorted
+	static  []string                 // the -s dirs
+	sizes   map[string]*image.Config // size's answers, by path
 }
 
 // prepare gives every image of the texts its size.
 func (s *site) prepare() {
-	s.sizes = map[string]*imageSize{}
+	s.sizes = map[string]*image.Config{}
 	for _, id := range s.ids {
 		doc := s.docs[id]
 		for i := range doc.Sections {
@@ -50,19 +50,16 @@ func (s *site) prepare() {
 	}
 }
 
-// imageSize is an image's, in pixels: with it the browser keeps the
-// image's place before it comes.
-type imageSize struct{ Width, Height int }
-
-// size returns the size of the image at path, /static/..., from its
-// file in the -s dirs, or nil: an address out of the site, or a kind
-// the standard library doesn't read (svg, webp). Each file is read
-// once, and only as far as its size.
-func (s *site) size(path string) *imageSize {
+// size returns the size of the image at path, /static/..., in pixels,
+// as its Width and Height: with it the browser keeps the image's place
+// before it comes. It is read from its file in the -s dirs, once, and
+// only as far as its size; nil for an address out of the site, or a
+// kind the standard library doesn't read (svg, webp).
+func (s *site) size(path string) *image.Config {
 	if sz, ok := s.sizes[path]; ok {
 		return sz
 	}
-	var sz *imageSize
+	var sz *image.Config
 	if file, ok := strings.CutPrefix(path, "/static/"); ok {
 		for _, dir := range s.static {
 			f, err := os.Open(filepath.Join(dir, filepath.FromSlash(file)))
@@ -70,7 +67,7 @@ func (s *site) size(path string) *imageSize {
 				continue
 			}
 			if c, _, err := image.DecodeConfig(f); err == nil {
-				sz = &imageSize{c.Width, c.Height}
+				sz = &c
 			}
 			f.Close()
 			break
@@ -185,8 +182,6 @@ func copyTree(src, dst string, top fs.FileInfo, dry bool, seen map[string]string
 //go:embed templates
 var embedded embed.FS
 
-var patterns = []string{"*.html", "*.xml", "*.txt"}
-
 // funcs are soffio's functions for the templates, what only it knows:
 // doc, the page of an ID, or nil; size, an image's, or nil; today, the
 // day of the build, or "". What a site wants more, Main adds.
@@ -209,7 +204,7 @@ func loadTemplates(dir string, funcs template.FuncMap) (*template.Template, erro
 	// a key a header doesn't hold is "", as one that holds nothing: a
 	// function given .Meta.by gets a string either way
 	tmpl := template.New("").Option("missingkey=zero").Funcs(funcs)
-	for _, p := range patterns {
+	for _, p := range []string{"*.html", "*.xml", "*.txt"} {
 		// ParseFS fails on a pattern matching nothing
 		if m, _ := fs.Glob(fsys, p); m != nil {
 			if _, err := tmpl.ParseFS(fsys, p); err != nil {
