@@ -1,6 +1,7 @@
 package soffio
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -19,7 +20,7 @@ func FuzzParse(f *testing.F) {
 		"title: T\n\n== s | S\n*bold* _it_ (a -> b) (*n)\n\n:: note: n | note\n",
 		"\n== s | S\n- a\n- b\n:: img: /static/a.png | <b>cap</b>\n",
 		"\n== s | S\n(a (b -> c) -> d) \\* <script>x</script> & \"q\"\n",
-		"\n=== t | T\n(*bold*) snake_case 2*3*4 (x -> #t) (y -> https://x.org/a_b)\n",
+		"\n== s | S\n\n=== t | T\n(*bold*) snake_case 2*3*4 (x -> #t) (y -> https://x.org/a_b)\n",
 		"notes_title: <N>\n\n== s | S\n(*a)\n\n:: note: a | (*b)\n\n:: note: b | (*a)\n",
 		"title: d\n\n== fn-x | S\n(*x)\n\n== footnotes-d | F\n\n:: note: x | x\n",
 	} {
@@ -46,6 +47,27 @@ func FuzzParse(f *testing.F) {
 		}
 		if depth != 0 {
 			t.Fatalf("unbalanced <a>:\n%s", out)
+		}
+		// sections nest, each closed, its heading one level below the
+		// section holding it: the outline is the markup's
+		open := 0
+		for i := range len(out) {
+			switch {
+			case strings.HasPrefix(out[i:], "<section id="):
+				open++
+				if h := fmt.Sprintf("<h%d>", open+1); !strings.HasPrefix(out[strings.IndexByte(out[i:], '\n')+i+1:], h) {
+					t.Fatalf("a section at depth %d without %s:\n%s", open, h, out)
+				}
+			case strings.HasPrefix(out[i:], "<section role="):
+				open++
+			case strings.HasPrefix(out[i:], "</section>"):
+				if open--; open < 0 {
+					t.Fatalf("unbalanced <section>:\n%s", out)
+				}
+			}
+		}
+		if open != 0 {
+			t.Fatalf("unbalanced <section>:\n%s", out)
 		}
 		seen := map[string]bool{}
 		for _, id := range ids.FindAllString(out, -1) {

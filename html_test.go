@@ -261,3 +261,29 @@ func TestRenderImageAlt(t *testing.T) {
 		t.Errorf("got %q", got)
 	}
 }
+
+// a section holds the ones of the levels below it: the outline is in
+// the markup, not only in the headings
+func TestRenderNested(t *testing.T) {
+	doc, err := Parse("t.soffio", strings.NewReader("title: T\n\n== a | A\nx\n\n=== b | B\n\n==== c | C\n\n== d | D"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `<section id="a">
+<h2>A</h2>
+<p>x</p>
+<section id="b">
+<h3>B</h3>
+<section id="c">
+<h4>C</h4>
+</section>
+</section>
+</section>
+<section id="d">
+<h2>D</h2>
+</section>
+`
+	if got := Render(doc); got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}

@@ -125,6 +125,8 @@ func TestParseErrors(t *testing.T) {
 		{"\n== id Title", `t.soffio:2: "== id Title" is not == id | Title`},
 		{"\n== | Title", `t.soffio:2: section "== | Title" needs an id and a title`},
 		{"\n======= a | A", `t.soffio:2: section level 7: want 2 to 6`},
+		{"\n=== a | A", `t.soffio:2: section level 3 after 1: one level at a time`},
+		{"\n== a | A\n\n=== b | B\n\n===== c | C", `t.soffio:6: section level 5 after 3: one level at a time`},
 		{"\n== a | A\n\n== a | Again", `t.soffio:4: duplicate section id "a"`},
 		{"\n== a b | A", `t.soffio:2: invalid section id "a b": it contains a space`},
 		{"\n== s | S\n:: gallery: a | b", `t.soffio:3: unknown command "gallery": want img or note`},

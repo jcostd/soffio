@@ -28,9 +28,18 @@ func Render(doc *Document) string {
 		num:   map[string]int{},
 		count: map[string]int{},
 	}
+	// a section holds those of the levels below it, up to the next of
+	// its own level or above
+	var open []int
 	for _, s := range doc.Sections {
+		for len(open) > 0 && open[len(open)-1] >= s.Level {
+			r.w.WriteString("</section>\n")
+			open = open[:len(open)-1]
+		}
 		r.section(s)
+		open = append(open, s.Level)
 	}
+	r.w.WriteString(strings.Repeat("</section>\n", len(open)))
 
 	if len(r.refs) > 0 {
 		r.w.WriteString("\n<section role=\"doc-endnotes\">\n\t<ol>\n")
@@ -53,7 +62,6 @@ func (r *renderer) section(sec Section) {
 	for _, b := range sec.Blocks {
 		r.block(b)
 	}
-	r.w.WriteString("</section>\n")
 }
 
 func (r *renderer) block(b Block) {

@@ -164,12 +164,21 @@ func checkID(id string) string {
 	return ""
 }
 
-// section decodes "== id | Title": as many '=' as the level, 2 to 6;
-// if it refuses it, it says why and returns false.
+// section decodes "== id | Title": as many '=' as the level, 2 to 6,
+// one below the section before at most, as the title is 1: a heading
+// skips no level. If it refuses it, it says why and returns false.
 func (p *parser) section(n int, line string) bool {
 	level := len(line) - len(strings.TrimLeft(line, "="))
-	if level > 6 {
+	prev := 1
+	if k := len(p.doc.Sections); k > 0 {
+		prev = p.doc.Sections[k-1].Level
+	}
+	switch {
+	case level > 6:
 		p.errorf(n, "section level %d: want 2 to 6", level)
+		return false
+	case level > prev+1:
+		p.errorf(n, "section level %d after %d: one level at a time", level, prev)
 		return false
 	}
 	id, title, ok := strings.Cut(line[level:], "|")
