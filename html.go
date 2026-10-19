@@ -6,7 +6,6 @@ package soffio
 import (
 	"fmt"
 	"html"
-	"net/url"
 	"strings"
 )
 
@@ -20,8 +19,8 @@ type renderer struct {
 }
 
 // Render returns doc as HTML: its sections, then the notes in the
-// order they are first referenced, with no heading: it reads well in
-// any language, and role=doc-endnotes says what they are.
+// order they are first referenced, with no heading and no word: it
+// reads well in any language, and the roles say what they are.
 func Render(doc *Document) string {
 	r := renderer{
 		id:    doc.ID,
@@ -39,9 +38,9 @@ func Render(doc *Document) string {
 		for i := 0; i < len(r.refs); i++ {
 			ref := html.EscapeString(r.refs[i])
 			if note, ok := r.notes[r.refs[i]]; ok {
-				fmt.Fprintf(&r.w, "\t\t<li id=\"fn:%s\" role=\"doc-endnote\">", ref)
+				fmt.Fprintf(&r.w, "\t\t<li id=\"fn:%s\">", ref)
 				r.inlines(note.Elements)
-				fmt.Fprintf(&r.w, " <a href=\"#fnref:%s:1\" aria-label=\"back to reference\">↩</a></li>\n", ref)
+				fmt.Fprintf(&r.w, " <a href=\"#fnref:%s:1\" role=\"doc-backlink\">↩</a></li>\n", ref)
 			}
 		}
 		r.w.WriteString("\t</ol>\n</section>\n")
@@ -103,12 +102,7 @@ func (r *renderer) inline(in Inline) {
 		r.inlines(v.Elements)
 		r.w.WriteString("</em>")
 	case Link:
-		h := href(r.id, v.Target)
-		if u, err := url.Parse(h); err == nil && (u.Scheme == "http" || u.Scheme == "https") {
-			fmt.Fprintf(&r.w, "<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">", html.EscapeString(h))
-		} else {
-			fmt.Fprintf(&r.w, "<a href=\"%s\">", html.EscapeString(h))
-		}
+		fmt.Fprintf(&r.w, "<a href=\"%s\">", html.EscapeString(href(r.id, v.Target)))
 		r.inlines(v.Label)
 		r.w.WriteString("</a>")
 	case FootnoteRef:

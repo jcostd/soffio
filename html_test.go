@@ -120,7 +120,7 @@ func TestRender_Links(t *testing.T) {
 	got := Render(doc)
 
 	expectedLinks := []string{
-		`<a href="https://plan9.io" target="_blank" rel="noopener noreferrer">Plan 9</a>`,
+		`<a href="https://plan9.io">Plan 9</a>`,
 		`<a href="../en/home.html#intro">Home</a>`,
 		`<a href="contact.html">Contact</a>`,
 		`<a href="../static/docs/manual.pdf">Manual</a>`, // Notice the missing .html extension!
@@ -176,8 +176,8 @@ func TestRender_Footnotes(t *testing.T) {
 		// Endnotes section
 		// no heading: it reads well in any language
 		"<section role=\"doc-endnotes\">\n\t<ol>\n",
-		`<li id="fn:n1" role="doc-endnote">Note one. <a href="#fnref:n1:1" aria-label="back to reference">↩</a></li>`,
-		`<li id="fn:n2" role="doc-endnote">Note two. <a href="#fnref:n2:1" aria-label="back to reference">↩</a></li>`,
+		`<li id="fn:n1">Note one. <a href="#fnref:n1:1" role="doc-backlink">↩</a></li>`,
+		`<li id="fn:n2">Note two. <a href="#fnref:n2:1" role="doc-backlink">↩</a></li>`,
 	}
 
 	for _, part := range expectedParts {
@@ -204,7 +204,7 @@ func TestRenderNoteInNote(t *testing.T) {
 		NoteBlock{ID: "b", Elements: []Inline{PlainText{Content: "B"}}},
 	}}}}
 	// b is referenced only from note a, yet it is an endnote too
-	if got, want := Render(doc), `<li id="fn:b" role="doc-endnote">B`; !strings.Contains(got, want) {
+	if got, want := Render(doc), `<li id="fn:b">B`; !strings.Contains(got, want) {
 		t.Errorf("missing %s in:\n%s", want, got)
 	}
 }
