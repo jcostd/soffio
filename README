@@ -8,6 +8,7 @@ SYNOPSIS
            [-t dir] [-today day] dir
     soffio [-n] < text.soffio > text.html
     preview [-d dir] [-p port] [dir]
+    edges [-a] dir
 
 DESCRIPTION
     Soffio turns the .soffio texts under dir into a static site in -o,
@@ -30,6 +31,21 @@ DESCRIPTION
     shows the last build; the types of a site's files are fixed, not
     asked of the system; and no page's address goes out to a site it
     links to, as a preview holds the private texts.
+
+    edges prints the pages under dir and the links between them, read
+    as soffio reads them, a line each, sorted by ID: a page is its ID
+    and its layout, - if none; a link is the ID of its page, the header
+    key that holds it, or - for the body, and the ID of the page it
+    leads to, once. -a takes the private texts too. It checks nothing,
+    as soffio -n does that: it is for the rules a site has of its own,
+    which then are a few lines of awk, not a second reader of the
+    markup:
+
+        it/opere/centauro work
+        it/opere/centauro by it/persone/picasso
+        it/storia/vita - it/opere/centauro
+
+        edges site | awk '$3 == "it/persone/picasso"'   # who links here
 
     It uses the Go standard library and nothing else.
 
@@ -120,6 +136,9 @@ LINKS AND FILES
     disk.
 
     An image is a file under /static/, or an address out of the site.
+    One of the files of -s gets its width and height, read from the
+    file (jpeg, png, gif), so the browser keeps its place before it
+    comes.
 
 PRIVATE TEXTS AND FILES
     A text with 'visibility: private' is a draft: without -a it is not
@@ -170,22 +189,53 @@ TEMPLATES
     archives, and in cmd/soffio/templates of the source: copy them
     into a directory of your own to start one for -t.
 
-    sortBy orders pages, a list or .Docs, by a header key, highest
-    first; reverse turns them round; where keeps those whose header key
-    has a value, and a header link's value is the ID of its page; under
-    keeps those under an ID: under .Docs .ID are a page's own, under
-    .Docs .Lang every page of a language; doc gives the page of an
-    ID, or nothing, so a header link's page is doc .Meta.by; today is
-    -today, the day of the build, or nothing; past tells whether a date
-    has passed by then, as precise as it is written (2027-03 lasts all
-    March; without -today nothing has); rfc822
-    turns a date into the form RSS wants:
+    A header key a page doesn't have is "", as one it has empty.
+
+    The functions take pages, a list or .Docs, and give a list:
+
+    sortBy l key      by a header key, highest first, then by ID;
+                      those without it last
+    sortUp l key      lowest first, then by ID; those without it last:
+                      the oldest first, the undated after
+    reverse l         turned round
+    where l key v...  those whose header key is one of the values; a
+                      header link's value is the ID of its page
+    without l key v...
+                      those whose header key is none of them
+    except l id...    all but the pages of the IDs
+    under l id        those under an ID: under .Docs .ID are a page's
+                      own, under .Docs .Lang every page of a language
+    current l key     those whose date at the key is there and has not
+                      passed, as past says: current l "until"
+    group l key       a list for each value of the key, in the order
+                      of its first page; a page without it is in none
+    bySize groups     the groups, the smaller first, as they were
+                      among those of one size
+
+    and the others:
+
+    doc id            the page of an ID, or nothing: a header link's
+                      page is doc .Meta.by
+    parent id         the ID above: it/persone of it/persone/arp
+    fields s          the words of s: range fields "a b c"
+    size path         an image's .Width and .Height, as for the
+                      images of the texts, or nothing
+    today             -today, the day of the build, or nothing
+    past date         whether a date has passed by then, as precise as
+                      it is written (2027-03 lasts all March; without
+                      -today nothing has)
+    rfc822 date       the date in the form RSS wants
 
         {{ range sortBy (under .Docs .ID) "when" }}
           <a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>
         {{ end }}
         {{ with doc .Meta.by }}{{ .Title }}{{ end }}
-        {{ range where .Backlinks "by" .ID }}{{ .Title }}{{ end }}
+        {{ range group (sortUp .Backlinks "when") "kind" }}
+          <h2>{{ (index . 0).Meta.kind }}</h2>
+          {{ range . }}{{ .Title }}{{ end }}
+        {{ end }}
+        <img src="{{ .Meta.image }}"{{ with size .Meta.image }}
+          width="{{ .Width }}" height="{{ .Height }}"{{ end }}>
         <pubDate>{{ rfc822 .Meta.date }}</pubDate>
 
 DIAGNOSTICS
@@ -216,7 +266,7 @@ MACOS
 BUILD
     Requires Go 1.26 or higher.
 
-    make                       soffio and preview: static, for the
+    make                       soffio, preview and edges: static, for the
                                baseline CPU, stripped
     make GOOS=os GOARCH=arch OUT=dir   the same for another system
     make test                  go vet and the tests

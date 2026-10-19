@@ -21,7 +21,7 @@ way. Speed comes from the compiler's defaults and, if `cmd/soffio/default.pgo` e
 from profile-guided optimization; never `-gcflags=-B`.
 
 ```
-make                                     # soffio and preview for here, in the repo root
+make                                     # soffio, preview and edges for here, in the repo root
 make GOOS=windows GOARCH=amd64 OUT=dir   # for another system, into dir
 make test                                # go vet, then every test
 ./release.sh                             # the release archives, see Release
@@ -54,7 +54,7 @@ Every change worth knowing gets a line in `ChangeLog.txt`, newest first, Slackwa
 style. Bump `VERSION`, date the ChangeLog entry, commit "bump to vX.Y.Z",
 `git tag -a vX.Y.Z`, `./release.sh`, and upload what it made in `dist/` to the
 GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip`
-for windows), each holding the two programs as the Makefile builds them, README,
+for windows), each holding the three programs as the Makefile builds them, README,
 LICENSE and `templates/` (the built-in templates as files, to start a `-t` from),
 owned by root, 755/644; the darwin ones also `unquarantine.sh`, which a Mac user runs
 with `sh` to lift the quarantine of a download from that folder.
@@ -110,7 +110,8 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   reaches it: a note referred to only by itself, or by unreached notes, is "never
   referenced". A link to a document in all but not active is a **privacy leak**, an
   error of its own. This active-vs-all model is how `-a` works; keep it. Header links are
-  checked as body links, at their header line. `Links` is the other half: the
+  checked as body links, at their header line. `Links` is the other half (and `LinkKeys` the header keys
+  that hold a link, for edges): the
   IDs of the pages a document links to, header and body (notes, captions, list
   items), once each, sorted, never itself, a file or an outside address. Files have no
   visibility: everything in -s is published, and a draft's files live in a -s that only
@@ -139,17 +140,35 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   walks and checks the same and writes nothing, so `-n` exits as the build would.
   `Check` refuses a link to a hidden file under -s, as `copyDir` never copies one.
   `template.go` parses either `-t` or the embedded `cmd/soffio/templates/*`, never a
-  mix, and gives templates `sortBy`, `where`, `under` (the pages under an ID: `under .Docs
-  .Lang` is a language), `reverse` (each takes a list of pages or `.Docs`, a map,
-  taken by ID), `doc` (the page of an ID, or nil: bound to the site's pages by
-  `site.prepare`, which also gives every page its `Lang`), `today`, `past` (a date,
-  as far as it is written, before `today`; false with no `-today`) and `rfc822` (a date, YYYY-MM-DD or less, as `ParseDate` reads one).
+  mix, with `missingkey=zero` (a header key a page lacks is "", so a function given
+  `.Meta.by` gets a string), and gives templates the functions on lists of pages
+  (each takes a list or `.Docs`, a map, taken by ID): `sortBy` (highest first),
+  `sortUp` (lowest first, those without the key last either way), `reverse`, `where`
+  and `without` (the header key one of, none of the values), `except` (all but some
+  IDs), `under` (the pages under an ID: `under .Docs .Lang` is a language), `current`
+  (whose date at a key has not passed), `group` (a list per value of a key, in the
+  order of its first page) and `bySize` (groups, the smaller first, stable); and
+  `parent` (the ID above), `fields` (`strings.Fields`, for a list written in a
+  template), `doc` (the page of an ID, or nil), `size` (an image's width and height,
+  or nil), `today`, `past` (a date, as far as it is written, before `today`; false
+  with no `-today`) and `rfc822` (a date, YYYY-MM-DD or less, as `ParseDate` reads
+  one). `doc`, `today`, `past`, `current` and `size` are bound to the site by
+  `site.prepare`, which also gives every page its `Lang`, and every `ImageBlock`
+  of a text the size of its file in a `-s` (`image.DecodeConfig`: jpeg, png, gif;
+  read once per path), which `Render` writes as width and height. Adding a function
+  is for what a template can't say plainly: what it can, it says.
   `today` is `-today` or empty: a template never reads the clock, so the output stays
   reproducible. The embedded ones are the showcase:
   they need only a title (date and updated if there) and use `.Lang`, `.Alternates`,
   `under .Docs .ID` with `sortBy`, `.Backlinks`, `rfc822`, a shared `style` partial; keep them that small. `siteFiles` in `main.go` (index.html, rss.xml,
   sitemap.xml, robots.txt, 404.html, manifest.json) are each made if the template is
   there.
+
+- **`cmd/edges`**: the site's graph as text, for a site's own rules (fucina-content's
+  `rete.sh` is awk on it): `Load`, then, by ID, a line per page (`ID layout`, `-` if
+  none) and per link (`ID key ID`, the header key or `-` for the body, from
+  `LinkKeys` and `Links`), public pages only unless `-a`. It checks nothing: that is
+  `soffio -n`'s job, so there is one reader of the markup and one checker.
 
 - **`cmd/preview`**: a static file server (`http.FileServer`) over the output dir
   that opens the default browser (`open` on macOS, `start` on Windows, else `xdg-open`,

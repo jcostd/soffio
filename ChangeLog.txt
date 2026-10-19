@@ -1,3 +1,29 @@
+(not yet released)
+soffio 4.1.0, since v4.0.0. The templates say what they mean: the
+functions a list of pages wants, and the size of every image. edges
+prints a site's graph for the rules a site has of its own.
+soffio: sortUp, without, except, group, bySize, current, for templates.
+  sortUp orders lowest first, those without the key last: the oldest
+  first and the undated after, which reverse (sortBy) could not say.
+  without keeps the pages whose key is none of the values, and where,
+  now, one of them. except drops pages by ID. group makes a list per
+  value of a key, in the order of its first page; bySize puts the
+  smaller groups first. current keeps the pages whose date at a key
+  has not passed: current .Docs "until" are the news.
+soffio: parent and fields, for templates.
+  parent is the ID above, it/persone of it/persone/arp; fields the
+  words of a string, for a list a template writes: range fields "a b".
+soffio: An image has its width and height.
+  Read from its file in -s (jpeg, png, gif), in the texts as size gives
+  them to templates: the browser keeps an image's place before it
+  comes, and the page doesn't jump.
+soffio: A header key a page doesn't have is "" to the templates.
+  As one it has empty, so .Meta.by is a string to a function either way.
+edges: A third program: a site's pages and links, a line each.
+  Read as soffio reads them, for awk and grep: a site's own rules of
+  what links to what no longer need a second reader of the markup.
+  It checks nothing; soffio -n does.
++--------------------------+
 Sun Oct 18 19:31:49 UTC 2026
 soffio 4.0.0, since v3.1.1. Pages know the pages that link to them,
 and a header can hold a link. A page has one name, its file's.
