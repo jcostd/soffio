@@ -99,7 +99,10 @@ owned by root, 755/644; the darwin ones also `unquarantine.sh`, which a Mac user
 with `sh` to lift the quarantine of a download from that folder (it checks soffio
 runs with `soffio -n < /dev/null`). Build them from the clean tag: the binaries carry
 the git revision, and `vcs.modified=true` if the tree was dirty. A site's own command
-(fucina-engine) requires the tagged module, so tag and push before releasing it.
+(fucina-engine) requires the tagged module, so tag and push before releasing it. `go.mod`
+retracts v0.0.5 and v1.1.0 to v1.2.3, the old numbering the Go proxy remembers;
+v1.2.3 is that retraction only, with no archives: the next soffio is v1.0.1, never a
+v1.1.x or v1.2.x, and the retract block stays in `go.mod` for good.
 
 ## Architecture
 

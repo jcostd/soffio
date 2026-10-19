@@ -1,3 +1,9 @@
+Mon Oct 19 21:28:05 UTC 2026
+v1.2.3, no release: go.mod retracts v0.0.5 and v1.1.0 to v1.2.3.
+  The old numbering, whose module was soffio, is still known to
+  proxy.golang.org, and its v1.2.2 was @latest; now @latest is v1.0.0.
+  The next soffio is v1.0.1.
++--------------------------+
 Mon Oct 19 21:26:14 UTC 2026
 soffio 1.0.0, since v4.0.0, numbered anew: the first soffio whose core
 is fixed. Soffio is cut to the bone: its markup, its links, its files,
