@@ -1,4 +1,4 @@
-(not yet released)
+Mon Oct 19 21:26:14 UTC 2026
 soffio 1.0.0, since v4.0.0, numbered anew: the first soffio whose core
 is fixed. Soffio is cut to the bone: its markup, its links, its files,
 and nothing of what a site is about, as Lua's core is to its host.
