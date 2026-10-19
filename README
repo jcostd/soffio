@@ -109,9 +109,11 @@ LINKS AND FILES
     it starts from the site root. #section points at a section, of
     another page or, alone, of this one. A target under /static/ is a
     file in -s; anything else is a page. A target is cleaned, so .. can't
-    climb out of the site, and must be a valid address. Addresses are
-    written relative, so the site works under any base, even from the
-    disk.
+    climb out of the site, and must be a valid address. The addresses
+    soffio writes, of links and images, are relative: they work under
+    any base, even from the disk. Those a template writes are its own:
+    the built-in ones start from .BaseURL, or without it from the root,
+    which a server gives, as preview does.
 
     An image is a file under /static/, or an address out of the site.
     One of the files of -s gets its width and height, read from the

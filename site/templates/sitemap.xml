@@ -1,6 +1,6 @@
 {{ .XMLHeader -}}
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-{{- range $id, $doc := .Docs }}
+{{- if .BaseURL }}{{ range $id, $doc := .Docs }}
 <url><loc>{{ $.BaseURL }}/{{ $id }}.html</loc>{{ with or $doc.Meta.updated $doc.Meta.date }}<lastmod>{{ . }}</lastmod>{{ end }}</url>
-{{- end }}
+{{- end }}{{ end }}
 </urlset>

@@ -9,7 +9,8 @@
 *.coverprofile
 
 # Local user content (personal site)
-# Core templates live in cmd/soffio/templates/ and are embedded
+# The built-in templates live in site/templates/ and are embedded;
+# /templates/ is a -t of one's own
 /content/
 /static/
 /templates/

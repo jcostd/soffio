@@ -127,10 +127,13 @@ func TestSoffio(t *testing.T) {
 		t.Errorf("-a: exit %d, draft.html there: %v: %s", code, exists(dir, "all/draft.html"), stderr)
 	}
 	for file, want := range map[string]string{
-		"public/index.html": `<link rel="canonical" href="https://example.org/index.html">`,
-		"all/index.html":    `<li><a href="/about.html">About</a></li>`, // no -baseurl, from the root
-		"public/about.html": `<h1>About</h1>`,
-		"public/robots.txt": "Sitemap: https://example.org/sitemap.xml",
+		"public/index.html":  `<link rel="canonical" href="https://example.org/index.html">`,
+		"all/index.html":     `<li><a href="/about.html">About</a></li>`, // no -baseurl, from the root
+		"public/about.html":  `<h1>About</h1>`,
+		"public/robots.txt":  "Sitemap: https://example.org/sitemap.xml",
+		"public/sitemap.xml": "<url><loc>https://example.org/about.html</loc></url>",
+		// a sitemap's addresses are full: without -baseurl it has none
+		"all/sitemap.xml": "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n</urlset>",
 	} {
 		if got, _ := os.ReadFile(filepath.Join(dir, file)); !strings.Contains(string(got), want) {
 			t.Errorf("%s has no %s", file, want)

@@ -97,7 +97,7 @@ var types = map[string]string{
 
 // handler serves dir and labels every response with it. Nothing is
 // kept: the browser shows the last build, not one it cached before
-// compila ran again. What the files are is said, not guessed, and the
+// the site was built again. What the files are is said, not guessed, and the
 // address of a private page never leaves for a site it links to.
 func handler(dir string) http.Handler {
 	files := http.FileServer(http.Dir(dir))
