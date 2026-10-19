@@ -137,8 +137,9 @@ package, `soffio`, at the module root; package `site` is the command, which
   works; keep it. Header links and files are checked at their header line. `Links`
   is the other half: the IDs of the pages a document links to, header and body
   (notes, captions, list items), once each, sorted, never itself, a file or an
-  outside address; `LinkKeys` the header keys that hold a link, for a site's own
-  rules. Files have no visibility: everything in -s is published, and a draft's
+  outside address. A `Document` is plain data for a site's own program too:
+  `Lines` (each header key's line, for its messages) and `HeaderLinks` (the keys
+  that hold a link) are fields, not accessors. Files have no visibility: everything in -s is published, and a draft's
   files live in a -s that only the preview gets, so a public text pointing at one is
   a missing file. Never guess privacy from links (headers, CSS and templates point
   at files too): fail closed. `CheckDoc` is what pipe mode can check alone: notes and

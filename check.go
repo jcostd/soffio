@@ -74,15 +74,15 @@ func check(doc *Document, target func(string) string) []error {
 	// the header's links and files, in its order: a value under
 	// /static/ is a file, whatever its key
 	keys := slices.SortedFunc(maps.Keys(doc.Meta), func(a, b string) int {
-		return cmp.Or(cmp.Compare(doc.lines[a], doc.lines[b]), cmp.Compare(a, b))
+		return cmp.Or(cmp.Compare(doc.Lines[a], doc.Lines[b]), cmp.Compare(a, b))
 	})
 	for _, key := range keys {
 		switch {
-		case slices.Contains(doc.links, key):
+		case slices.Contains(doc.HeaderLinks, key):
 			// Load made it the page's ID
-			address(doc.lines[key], "/"+doc.Meta[key])
+			address(doc.Lines[key], "/"+doc.Meta[key])
 		case strings.HasPrefix(doc.Meta[key], "/static/"):
-			address(doc.lines[key], doc.Meta[key])
+			address(doc.Lines[key], doc.Meta[key])
 		}
 	}
 
@@ -151,7 +151,7 @@ func check(doc *Document, target func(string) string) []error {
 // page.
 func Links(doc *Document) []string {
 	seen := map[string]bool{}
-	for _, key := range doc.links {
+	for _, key := range doc.HeaderLinks {
 		seen[doc.Meta[key]] = true
 	}
 	var walk func([]Inline)
@@ -187,12 +187,6 @@ func Links(doc *Document) []string {
 	}
 	delete(seen, doc.ID)
 	return slices.Sorted(maps.Keys(seen))
-}
-
-// LinkKeys returns the header keys of doc that hold a link, in the
-// header's order: Meta holds, for each, the ID of its page.
-func LinkKeys(doc *Document) []string {
-	return slices.Clone(doc.links)
 }
 
 // checkTarget says what is wrong with target in the document from, or "".

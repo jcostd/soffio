@@ -54,7 +54,7 @@ list continuation
 		File:  "t.soffio",
 		Title: "The Title",
 		Meta:  map[string]string{"layout": "custom"},
-		lines: map[string]int{"title": 1, "layout": 2},
+		Lines: map[string]int{"title": 1, "layout": 2},
 		Sections: []Section{
 			{
 				Level: 2,
@@ -225,8 +225,8 @@ func TestParseHeaderLinks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []string{"artist", "place"}; !slices.Equal(doc.links, want) {
-		t.Errorf("links %q, want %q", doc.links, want)
+	if want := []string{"artist", "place"}; !slices.Equal(doc.HeaderLinks, want) {
+		t.Errorf("links %q, want %q", doc.HeaderLinks, want)
 	}
 	for key, want := range map[string]string{"artist": "picasso", "place": "/it/luoghi/murano", "layout": "-> x", "note": "a -> b"} {
 		if doc.Meta[key] != want {
@@ -249,8 +249,8 @@ func TestParseHeaderOpaque(t *testing.T) {
 			t.Errorf("%s = %q, want %q", k, doc.Meta[k], want)
 		}
 	}
-	if want := []string{"until"}; !slices.Equal(doc.links, want) {
-		t.Errorf("links %q, want %q", doc.links, want)
+	if want := []string{"until"}; !slices.Equal(doc.HeaderLinks, want) {
+		t.Errorf("links %q, want %q", doc.HeaderLinks, want)
 	}
 }
 

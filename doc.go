@@ -11,8 +11,10 @@ type Document struct {
 	Title    string
 	Meta     map[string]string
 	Sections []Section
-	lines    map[string]int // header key to its line, for messages
-	links    []string       // the header keys that hold a link, in order
+	Lines    map[string]int // header key to its line, for messages
+	// HeaderLinks are the header keys that hold a link, in order:
+	// Meta holds, for each, the ID of its page
+	HeaderLinks []string
 }
 
 // A Section is a heading and the blocks under it.

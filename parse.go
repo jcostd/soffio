@@ -37,7 +37,7 @@ func Parse(name string, r io.Reader) (*Document, error) {
 	// a byte order mark, as Notepad may write, is ignored, as Go does
 	lines := strings.Split(strings.TrimPrefix(string(src), "\uFEFF"), "\n")
 	p := parser{
-		doc:      Document{File: name, Meta: map[string]string{}, lines: map[string]int{}},
+		doc:      Document{File: name, Meta: map[string]string{}, Lines: map[string]int{}},
 		keys:     map[string]bool{},
 		sections: map[string]bool{},
 		notes:    map[string]bool{},
@@ -107,7 +107,7 @@ func (p *parser) header(n int, line string) {
 		return
 	}
 	p.keys[key] = true
-	p.doc.lines[key] = n
+	p.doc.Lines[key] = n
 
 	switch {
 	case key == "title":
@@ -123,7 +123,7 @@ func (p *parser) header(n int, line string) {
 			return
 		}
 		p.doc.Meta[key] = target
-		p.doc.links = append(p.doc.links, key)
+		p.doc.HeaderLinks = append(p.doc.HeaderLinks, key)
 	default:
 		p.doc.Meta[key] = val
 	}

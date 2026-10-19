@@ -190,7 +190,9 @@ EXTENDING
 
     has soffio's flags, checks and output, and its own. A function of
     soffio's can't be taken. What a site's own tools read, the texts as
-    soffio reads them, is package soffio: Load, Links, LinkKeys.
+    soffio reads them, is package soffio: Load gives every Document,
+    whose Lines say where each header key is and HeaderLinks which hold
+    a link, and Links the pages it links to.
 
 DIAGNOSTICS
     Errors are file:line: message, one per line, all of them, in the

@@ -192,19 +192,6 @@ by: -> x
 	}
 }
 
-// the header keys that hold a link, in the header's order, as a copy
-func TestLinkKeys(t *testing.T) {
-	doc := parse(t, "a.soffio", "it/a", "title: A\nwhere: -> y\nkind: k\nby: -> x\n\n== s | S\nx")
-	keys := LinkKeys(doc)
-	if want := []string{"where", "by"}; !slices.Equal(keys, want) {
-		t.Errorf("LinkKeys = %q, want %q", keys, want)
-	}
-	keys[0] = "kind"
-	if LinkKeys(doc)[0] != "where" {
-		t.Error("LinkKeys gave the document's own")
-	}
-}
-
 func BenchmarkCheck(b *testing.B) {
 	doc := &Document{
 		ID: "bench",

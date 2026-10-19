@@ -26,6 +26,10 @@ soffio: A header is words, but for title, layout and visibility.
   and id is a key as any other. Two values mean something whatever
   their key: -> target, a link, and a value under /static/, a file,
   checked as an image is.
+soffio: A site file has .ID, its name without its extension: 404.
+  What a template makes has an ID, where it goes, a page's or not.
+soffio: A Document's Lines and HeaderLinks are fields.
+  A site's program says file:line of its own rules, as soffio does.
 soffio: -baseurl is .BaseURL, empty if not given.
   No default that depends on another flag, no refusal of a public
   site without it: what is asked for is what is made. An address made

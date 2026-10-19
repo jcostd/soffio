@@ -107,7 +107,7 @@ func parseFile(fsys fs.FS, name, file string) (*Document, error) {
 	// the text's directory; the templates get the page's ID. Whether it
 	// is there is for Check to say, as for every link
 	var errs []error
-	for _, key := range doc.links {
+	for _, key := range doc.HeaderLinks {
 		id, frag, ok := resolve(doc.ID, doc.Meta[key])
 		why := ""
 		switch {
@@ -119,7 +119,7 @@ func parseFile(fsys fs.FS, name, file string) (*Document, error) {
 			why = "is a file: a header link points at a page"
 		}
 		if why != "" {
-			errs = append(errs, fmt.Errorf("%s:%d: %s %q %s", file, doc.lines[key], key, doc.Meta[key], why))
+			errs = append(errs, fmt.Errorf("%s:%d: %s %q %s", file, doc.Lines[key], key, doc.Meta[key], why))
 			continue
 		}
 		doc.Meta[key] = id
