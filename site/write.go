@@ -28,22 +28,16 @@ type site struct {
 	dry     bool // -n: execute, write nothing
 	tmpl    *template.Template
 	docs    map[string]*soffio.Document
-	ids     []string                      // docs' keys, sorted
-	back    map[string][]*soffio.Document // the pages linking to each, by ID
-	static  []string                      // the -s dirs
-	sizes   map[string]*imageSize         // size's answers, by path
+	ids     []string              // docs' keys, sorted
+	static  []string              // the -s dirs
+	sizes   map[string]*imageSize // size's answers, by path
 }
 
-// prepare finds, for every page, the pages that link to it, by ID, as
-// s.ids is sorted, and the size of every image of its text.
+// prepare gives every image of the texts its size.
 func (s *site) prepare() {
-	s.back = map[string][]*soffio.Document{}
 	s.sizes = map[string]*imageSize{}
 	for _, id := range s.ids {
 		doc := s.docs[id]
-		for _, to := range soffio.Links(doc) {
-			s.back[to] = append(s.back[to], doc)
-		}
 		for i := range doc.Sections {
 			for j, b := range doc.Sections[i].Blocks {
 				if img, ok := b.(soffio.ImageBlock); ok {
@@ -97,12 +91,11 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 		return fmt.Errorf("no layout %s in the templates", layout)
 	}
 	return s.write(doc.ID+".html", layout, map[string]any{
-		"ID":        doc.ID,
-		"Meta":      doc.Meta,
-		"Content":   template.HTML(soffio.Render(doc)),
-		"BaseURL":   s.baseURL,
-		"Backlinks": s.back[doc.ID],
-		"Docs":      s.docs,
+		"ID":      doc.ID,
+		"Meta":    doc.Meta,
+		"Content": template.HTML(soffio.Render(doc)),
+		"BaseURL": s.baseURL,
+		"Docs":    s.docs,
 	})
 }
 

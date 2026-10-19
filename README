@@ -141,10 +141,9 @@ TEMPLATES
     Go html/template files. A page goes through its 'layout' (post means
     post.html), or layout.html; a layout that is not there is an error.
     A page gets .ID, .Meta (its header, title too: .Meta.title; a key it
-    doesn't have is "", as one it has empty), .Content, .BaseURL, .Backlinks, the pages
-    that link to it, from their header or their body, by ID, and .Docs,
-    every page, by ID: range .Docs goes through them in that order. A
-    page among others has .ID and .Meta.
+    doesn't have is "", as one it has empty), .Content, .BaseURL and .Docs, every page, by ID: range
+    .Docs goes through them in that order. A page among others has .ID
+    and .Meta.
 
     index.html, 404.html, robots.txt and sitemap.xml are made at the
     site root, each if its template is there; a page with the same
@@ -162,7 +161,6 @@ TEMPLATES
     today             -today, the day of the build, or nothing
 
         {{ with doc .Meta.by }}<a href="/{{ .ID }}.html">{{ .Meta.title }}</a>{{ end }}
-        {{ range .Backlinks }}{{ .Meta.title }}{{ end }}
         <img src="{{ .Meta.image }}"{{ with size .Meta.image }}
           width="{{ .Width }}" height="{{ .Height }}"{{ end }}>
 
@@ -170,8 +168,8 @@ TEMPLATES
     nothing about it, as it says nothing when all is well: layout.html,
     404.html, robots.txt and sitemap.xml. They need only a title: the
     header's lang is the page's language if there is one, its updated
-    or date is shown if there is one, the home, index, lists every
-    page, and the pages that link to a page are listed under it. Pages
+    or date is shown if there is one, and the home, index, lists every
+    page. Pages
     come by ID, so a name says where one goes: 2026-10-19-soffio.
     The same files are in templates/ of the release archives, and in
     site/templates of the source: copy them into a directory of your own

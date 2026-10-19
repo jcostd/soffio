@@ -157,9 +157,8 @@ package, `soffio`, at the module root; package `site` is the command, which
   visibility filter -> `Check` -> the site's `check` -> static copy -> pages and site
   files. `write.go`: each page goes through its layout (`layout` header, else
   `layout.html`; a missing one is an error) with `ID`, `Meta`, `Content`,
-  `BaseURL`, `Backlinks` (the pages whose `Links` hold it: `prepare` turns every
-  page's links round once, in ID order, so they come by ID) and `Docs` (every active
-  page, as the site files get). Every file is executed into a buffer and written in
+  `BaseURL` and `Docs` (every active page, as the site files get): the pages that
+  link to a page are `Links` read the other way, a site's function. Every file is executed into a buffer and written in
   one call; html/template alone writes in small pieces; with `-n` it is executed and
   dropped. `copyDir` copies every -s into `<o>/static`, refusing a path in two of them
   or twice in letter case only (one address, two files), and refuses, by
@@ -177,7 +176,7 @@ package, `soffio`, at the module root; package `site` is the command, which
   parsed; they ask the site, whose pages come later. `prepare` also gives every
   `ImageBlock` of a text its size, which `Render` writes. The embedded templates are
   the showcase: they need only a title (lang, date and updated if there), list every
-  page on the home and the backlinks under each, share a `style` partial; keep them
+  page on the home, share a `style` partial; keep them
   that small. `siteFiles` (index.html, 404.html, robots.txt, sitemap.xml) are each
   made if the template is there, with `ID` (the name without its extension: what
   a template makes has an ID, where it goes), `BaseURL`, `Docs`, `XMLHeader`.

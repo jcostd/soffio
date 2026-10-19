@@ -24,10 +24,6 @@
 {{- end }}{{ end }}
 </ul>
 {{- end }}
-{{- with .Backlinks }}
-<p>←
-{{- range $i, $p := . }}{{ if $i }},{{ end }} <a href="{{ $.BaseURL }}/{{ $p.ID }}.html">{{ $p.Meta.title }}</a>{{ end }}</p>
-{{- end }}
 </main>
 <footer>Made with <a href="https://github.com/jcostd/soffio">Soffio</a>.</footer>
 </body>

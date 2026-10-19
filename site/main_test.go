@@ -126,7 +126,7 @@ func TestSoffio(t *testing.T) {
 	for file, want := range map[string]string{
 		"public/index.html": `<link rel="canonical" href="https://example.org/index.html">`,
 		"all/index.html":    `<li><a href="/about.html">About</a></li>`, // no -baseurl, from the root
-		"public/about.html": `<p>← <a href="https://example.org/index.html">Home</a></p>`,
+		"public/about.html": `<h1>About</h1>`,
 		"public/robots.txt": "Sitemap: https://example.org/sitemap.xml",
 	} {
 		if got, _ := os.ReadFile(filepath.Join(dir, file)); !strings.Contains(string(got), want) {
@@ -279,46 +279,16 @@ func TestWriteDoc(t *testing.T) {
 	}
 }
 
-// a page gets its ID, every page by ID, and the pages linking to it,
-// from their headers or bodies, by ID
-func TestWriteDocBacklinks(t *testing.T) {
-	link := func(to string) []soffio.Section {
-		return []soffio.Section{{Level: 2, ID: "s", Title: "S", Blocks: []soffio.Block{
-			soffio.TextBlock{Elements: []soffio.Inline{soffio.Link{Target: to, Label: []soffio.Inline{soffio.PlainText{Content: "x"}}}}},
-		}}}
-	}
-	docs := map[string]*soffio.Document{
-		"it/b":   page("it/b", nil),
-		"it/c":   page("it/c", nil),
-		"it/a":   {ID: "it/a", Meta: map[string]string{"title": "A"}, Sections: link("b")},
-		"it/z":   {ID: "it/z", Meta: map[string]string{"title": "Z"}, Sections: link("/it/b#s")},
-		"it/hdr": parseDoc(t, "it/hdr", "title: H\nartist: -> c\n\n== s | S\n(b -> b)"),
-	}
-	s := testSite(t, `{{define "layout.html"}}{{.ID}}|{{range .Backlinks}}{{.ID}};{{end}}|{{len .Docs}}{{end}}`, docs)
-	for id, want := range map[string]string{
-		"it/b": "it/b|it/a;it/hdr;it/z;|5",
-		"it/c": "it/c|it/hdr;|5",
-		"it/a": "it/a||5",
-	} {
-		if err := s.writeDoc(docs[id]); err != nil {
-			t.Fatal(err)
-		}
-		if got, _ := os.ReadFile(filepath.Join(s.outDir, id+".html")); string(got) != want {
-			t.Errorf("%s: got %q, want %q", id, got, want)
-		}
-	}
-}
-
-// parseDoc parses src as the text id, its header links resolved as
-// Load does.
-func parseDoc(t *testing.T, id, src string) *soffio.Document {
-	t.Helper()
-	dir := writeFiles(t, map[string]string{id + ".soffio": src})
-	docs, err := soffio.Load(dir)
-	if err != nil {
+// a page gets its ID and every page, by ID
+func TestWriteDocDocs(t *testing.T) {
+	docs := map[string]*soffio.Document{"it/a": page("it/a", nil), "it/b": page("it/b", nil)}
+	s := testSite(t, `{{define "layout.html"}}{{.ID}}|{{range .Docs}}{{.ID}};{{end}}{{end}}`, docs)
+	if err := s.writeDoc(docs["it/b"]); err != nil {
 		t.Fatal(err)
 	}
-	return docs[id]
+	if got, _ := os.ReadFile(filepath.Join(s.outDir, "it/b.html")); string(got) != "it/b|it/a;it/b;" {
+		t.Errorf("got %q", got)
+	}
 }
 
 func TestCopyDir(t *testing.T) {
