@@ -1,10 +1,12 @@
 package soffio
 
 import (
+	"io"
 	"reflect"
 	"slices"
 	"strings"
 	"testing"
+	"testing/iotest"
 )
 
 // stripLines zeroes the Line of every block, to compare trees alone.
@@ -136,6 +138,7 @@ func TestParseErrors(t *testing.T) {
 		{"\n== s | S\n:: note: n | x\n\n:: note: n | y", `t.soffio:5: duplicate note id "n"`},
 		{"\n== s | S\n- a\n-\n- c", `t.soffio:4: empty list item`},
 		{"bad header\n", `t.soffio:1: "bad header" is not key: value`},
+		{": x\n", `t.soffio:1: empty header key`},
 		{"title: a\ntitle: b\n", `t.soffio:2: duplicate header key "title"`},
 		{"id: toro\n", `t.soffio:1: id: a text's ID is its file's name: rename the file instead`},
 		{"visibility: pubic\n", `t.soffio:1: invalid visibility "pubic": want public or private`},
@@ -252,6 +255,27 @@ func TestParseDates(t *testing.T) {
 	for k, want := range map[string]string{"date": "2026-10-17", "when": "1954", "until": "2027-03", "event_date": "1912-04-22"} {
 		if doc.Meta[k] != want {
 			t.Errorf("%s = %q, want %q", k, doc.Meta[k], want)
+		}
+	}
+}
+
+func TestParseReadError(t *testing.T) {
+	if _, err := Parse("t.soffio", iotest.ErrReader(io.ErrUnexpectedEOF)); err != io.ErrUnexpectedEOF {
+		t.Errorf("Parse of a reader that fails: %v", err)
+	}
+}
+
+func TestCheckID(t *testing.T) {
+	for id, want := range map[string]string{
+		"toro-1954": "",
+		"":          "it is empty",
+		".git":      "it can't start with '.'",
+		"a b":       "it contains a space",
+		"città":     `'à' is not a plain ASCII character`,
+		"a#b":       `'#' is not allowed`,
+	} {
+		if got := CheckID(id); got != want {
+			t.Errorf("CheckID(%q) = %q, want %q", id, got, want)
 		}
 	}
 }

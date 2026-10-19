@@ -89,7 +89,15 @@ func main() {
 	if err := checkFlags(*baseURL, *langs, *today, staticDirs, *tmplDir, *outDir); err != nil {
 		log.Fatalf("soffio: %v", err)
 	}
-	tmpl, err := loadTemplates(*tmplDir)
+	s := &site{
+		baseURL: *baseURL,
+		today:   *today,
+		langs:   strings.Split(*langs, ","),
+		outDir:  *outDir,
+		dry:     *dry,
+		static:  staticDirs,
+	}
+	tmpl, err := loadTemplates(*tmplDir, s.funcs())
 	if err != nil {
 		log.Fatalf("soffio: %v", err)
 	}
@@ -106,17 +114,7 @@ func main() {
 	if err := soffio.Check(docs, active, staticDirs); err != nil {
 		log.Fatal(err)
 	}
-	s := &site{
-		baseURL: *baseURL,
-		today:   *today,
-		langs:   strings.Split(*langs, ","),
-		outDir:  *outDir,
-		dry:     *dry,
-		tmpl:    tmpl,
-		docs:    active,
-		ids:     slices.Sorted(maps.Keys(active)),
-		static:  staticDirs,
-	}
+	s.tmpl, s.docs, s.ids = tmpl, active, slices.Sorted(maps.Keys(active))
 	s.prepare()
 	if err := copyDir(staticDirs, filepath.Join(*outDir, "static"), *dry); err != nil {
 		log.Fatalf("soffio: %v", err)

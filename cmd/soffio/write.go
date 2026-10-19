@@ -40,10 +40,7 @@ type site struct {
 // ID, if it is one of -langs, or else the first of them (IDs use '/'
 // everywhere, so no filepath: on Windows it would turn en/x into en\x).
 // It finds, for every page, the pages that link to it, by ID, as s.ids
-// is sorted, and the size of every image of its text; and it gives the
-// templates doc, the page of an ID, today, the day of the build or "",
-// past, whether a date has passed, current, the pages whose date has
-// not, and size, an image's.
+// is sorted, and the size of every image of its text.
 func (s *site) prepare() {
 	s.back = map[string][]*soffio.Document{}
 	s.sizes = map[string]*imageSize{}
@@ -67,13 +64,6 @@ func (s *site) prepare() {
 			}
 		}
 	}
-	s.tmpl.Funcs(template.FuncMap{
-		"doc":     func(id string) *soffio.Document { return s.docs[id] },
-		"today":   func() string { return s.today },
-		"past":    func(date string) bool { return past(date, s.today) },
-		"current": func(v any, key string) ([]*soffio.Document, error) { return current(v, key, s.today) },
-		"size":    s.size,
-	})
 }
 
 // imageSize is an image's, in pixels: with it the browser keeps the

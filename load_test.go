@@ -129,3 +129,21 @@ func TestLoadHeaderLinks(t *testing.T) {
 		}
 	}
 }
+
+// what can't be read fails the load, and says where
+func TestLoadUnreadable(t *testing.T) {
+	if os.Getuid() == 0 {
+		t.Skip("root reads everything")
+	}
+	for name, want := range map[string]string{"locked": "locked: permission denied", "locked.soffio": "locked.soffio: permission denied"} {
+		dir := writeFiles(t, map[string]string{"locked/a.soffio": "title: A" + body, "locked.soffio": "title: L" + body})
+		path := filepath.Join(dir, name)
+		if err := os.Chmod(path, 0); err != nil {
+			t.Fatal(err)
+		}
+		defer os.Chmod(path, 0o755)
+		if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("Load with %s unreadable: %v", name, err)
+		}
+	}
+}

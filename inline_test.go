@@ -158,6 +158,16 @@ func TestParseInline(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:  "escaped marker in bold",
+			input: `*a\* b*`,
+			want:  []Inline{Bold{Elements: []Inline{PlainText{Content: "a* b"}}}},
+		},
+		{
+			name:  "parenthesis never closed",
+			input: "a (b",
+			want:  []Inline{PlainText{Content: "a (b"}},
+		},
 	}
 
 	for _, tt := range tests {

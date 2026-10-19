@@ -22,7 +22,7 @@
 {{ .Content }}
 {{- with under .Docs .ID }}
 <ul>
-{{- range sortBy . "date" }}
+{{- range sortDown . "date" }}
 <li><a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>{{ with .Meta.date }} <time datetime="{{ . }}">{{ . }}</time>{{ end }}</li>
 {{- end }}
 </ul>

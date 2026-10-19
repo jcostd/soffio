@@ -193,11 +193,10 @@ TEMPLATES
 
     The functions take pages, a list or .Docs, and give a list:
 
-    sortBy l key      by a header key, highest first, then by ID;
-                      those without it last
+    sortDown l key    by a header key, highest first, then by ID;
+                      those without it last: the newest first
     sortUp l key      lowest first, then by ID; those without it last:
                       the oldest first, the undated after
-    reverse l         turned round
     where l key v...  those whose header key is one of the values; a
                       header link's value is the ID of its page
     without l key v...
@@ -226,7 +225,7 @@ TEMPLATES
                       -today nothing has)
     rfc822 date       the date in the form RSS wants
 
-        {{ range sortBy (under .Docs .ID) "when" }}
+        {{ range sortDown (under .Docs .ID) "when" }}
           <a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Title }}</a>
         {{ end }}
         {{ with doc .Meta.by }}{{ .Title }}{{ end }}

@@ -69,15 +69,19 @@ func exists(dir, name string) bool {
 
 func TestSoffio(t *testing.T) {
 	dir := writeFiles(t, map[string]string{
-		"src/index.soffio":  "title: Home\n\n== s | S\n(about -> about)",
-		"src/about.soffio":  "title: About\n\n== s | S\n:: img: /static/a.png | A",
-		"src/draft.soffio":  "title: Draft\nvisibility: private\n\n== s | S\nx",
-		"static/a.png":      "png",
-		"broken/x.soffio":   "title: X\n\n== s | S\n(gone -> nope)",
-		"leak/x.soffio":     "title: X\n\n== s | S\n(draft -> draft)",
-		"leak/draft.soffio": "title: D\nvisibility: private\n\n== s | S\nx",
-		"e404/404.soffio":   "title: Not found\n\n== s | S\nx",
-		"hlink/x.soffio":    "title: X\nby: -> nope\n\n== s | S\nx",
+		"src/index.soffio":   "title: Home\n\n== s | S\n(about -> about)",
+		"src/about.soffio":   "title: About\n\n== s | S\n:: img: /static/a.png | A",
+		"src/draft.soffio":   "title: Draft\nvisibility: private\n\n== s | S\nx",
+		"static/a.png":       "png",
+		"broken/x.soffio":    "title: X\n\n== s | S\n(gone -> nope)",
+		"leak/x.soffio":      "title: X\n\n== s | S\n(draft -> draft)",
+		"leak/draft.soffio":  "title: D\nvisibility: private\n\n== s | S\nx",
+		"e404/404.soffio":    "title: Not found\n\n== s | S\nx",
+		"hlink/x.soffio":     "title: X\nby: -> nope\n\n== s | S\nx",
+		"layout/x.soffio":    "title: X\nlayout: nope\n\n== s | S\nx",
+		"badtmpl/x.html":     "{{ if }}",
+		"badsite/x.html":     "x",
+		"badsite/robots.txt": `{{ template "none" }}`,
 	})
 
 	if code, stderr := soffioRun(t, dir, "-baseurl", "https://example.org", "-s", "static", "src"); code != 0 {
@@ -126,11 +130,23 @@ func TestSoffio(t *testing.T) {
 		{[]string{"-s", "static", "-o", "nowhere", "src"}, 2, "the public site needs -baseurl"},
 		{[]string{"-n", "-s", "static", "e404"}, 1, "page 404 is the site file 404.html too"},
 		{[]string{"-n", "hlink"}, 1, filepath.Join("hlink", "x.soffio") + `:2: link to missing page "/nope"`},
+		{[]string{"-n", "nope"}, 1, "nope: no such file or directory"},
+		{[]string{"-n", "-t", "badtmpl", "src"}, 1, "soffio: template: x.html:1: missing value for if"},
+		{[]string{"-n", "-t", "layout", "layout"}, 1, filepath.Join("layout", "x.soffio") + ": no layout nope.html in the templates"},
+		{[]string{"-n", "-s", "static", "-t", "badsite", "src"}, 1, "soffio: robots.txt: "},
 	} {
 		code, stderr := soffioRun(t, dir, tt.args...)
 		if code != tt.code || !strings.Contains(stderr, tt.want) {
 			t.Errorf("soffio %v: exit %d, %q; want exit %d, %q", tt.args, code, stderr, tt.code, tt.want)
 		}
+	}
+}
+
+func TestSoffioVersion(t *testing.T) {
+	cmd := exec.Command(os.Args[0], "-v")
+	cmd.Env = append(os.Environ(), "SOFFIO_MAIN=1")
+	if out, err := cmd.Output(); err != nil || string(out) != "soffio vdev\n" {
+		t.Errorf("-v: %v: %q", err, out)
 	}
 }
 
@@ -162,6 +178,22 @@ func TestSoffioPipe(t *testing.T) {
 	if err := cmd.Run(); err == nil || !strings.Contains(stderr.String(), `<stdin>:4: note "n" is not defined`) {
 		t.Errorf("pipe with a missing note: %v: %s", err, stderr.String())
 	}
+
+	// what can't be written is said, not lost
+	ro, err := os.Open(os.DevNull)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ro.Close()
+	cmd = exec.Command(os.Args[0])
+	cmd.Env = append(os.Environ(), "SOFFIO_MAIN=1")
+	cmd.Stdin = strings.NewReader("title: T\n\n== s | S\nx")
+	cmd.Stdout = ro
+	stderr.Reset()
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err == nil || !strings.Contains(stderr.String(), "soffio: write /dev/stdout: bad file descriptor") {
+		t.Errorf("pipe to a file it can't write: %v: %s", err, stderr.String())
+	}
 }
 
 func testSite(t *testing.T, layouts string, docs map[string]*soffio.Document) *site {
@@ -170,10 +202,10 @@ func testSite(t *testing.T, layouts string, docs map[string]*soffio.Document) *s
 		baseURL: "https://example.org",
 		langs:   []string{"it", "en"},
 		outDir:  t.TempDir(),
-		tmpl:    template.Must(template.New("").Funcs(funcs).Parse(layouts)),
 		docs:    docs,
 		ids:     slices.Sorted(maps.Keys(docs)),
 	}
+	s.tmpl = template.Must(template.New("").Funcs(s.funcs()).Parse(layouts))
 	s.prepare()
 	return s
 }
@@ -210,8 +242,15 @@ func TestWriteDoc(t *testing.T) {
 		t.Errorf("unknown layout: %v", err)
 	}
 
+	// a page that can't be written fails
+	file := filepath.Join(s.outDir, "a.html")
+	s.outDir = file
+	if err := s.writeDoc(docs["a"]); err == nil {
+		t.Error("writing under a file: no error")
+	}
+
 	s.dry = true
-	s.outDir = filepath.Join(s.outDir, "dry")
+	s.outDir = filepath.Join(filepath.Dir(file), "dry")
 	if err := s.writeDoc(docs["a"]); err != nil || exists(s.outDir, ".") {
 		t.Errorf("dry run: %v, wrote %v", err, exists(s.outDir, "."))
 	}
@@ -476,16 +515,15 @@ func TestSoffioStaticOntoItself(t *testing.T) {
 func TestWriteDocToday(t *testing.T) {
 	// the templates know the day only if told, so the same flags make the
 	// same site
-	docs := map[string]*soffio.Document{"a": page("a", nil)}
-	s := testSite(t, `{{define "layout.html"}}[{{today}}]{{end}}`, docs)
-	for _, today := range []string{"", "2026-10-17"} {
+	docs := map[string]*soffio.Document{"a": page("a", map[string]string{"until": "2026-10-16"})}
+	s := testSite(t, `{{define "layout.html"}}[{{today}}] {{past .Meta.until}} {{len (current .Docs "until")}}{{end}}`, docs)
+	for today, want := range map[string]string{"": "[] false 1", "2026-10-17": "[2026-10-17] true 0"} {
 		s.today = today
-		s.prepare()
 		if err := s.writeDoc(docs["a"]); err != nil {
 			t.Fatal(err)
 		}
-		if got, _ := os.ReadFile(filepath.Join(s.outDir, "a.html")); string(got) != "["+today+"]" {
-			t.Errorf("-today %q: got %q", today, got)
+		if got, _ := os.ReadFile(filepath.Join(s.outDir, "a.html")); string(got) != want {
+			t.Errorf("-today %q: got %q, want %q", today, got, want)
 		}
 	}
 }
@@ -530,5 +568,27 @@ func TestWriteDocSizes(t *testing.T) {
 		if !strings.Contains(string(got), want) {
 			t.Errorf("no %q in %q", want, got)
 		}
+	}
+}
+
+// what can't be copied fails the copy: a destination under a file, a
+// source that is not there, a file that can't be read
+func TestCopyDirErrors(t *testing.T) {
+	src := writeFiles(t, map[string]string{"a.txt": "a", "file": ""})
+	if err := copyDir([]string{src}, filepath.Join(src, "file", "static"), false); err == nil {
+		t.Error("a destination under a file: no error")
+	}
+	dst := filepath.Join(t.TempDir(), "static")
+	if err := copyDir([]string{filepath.Join(src, "nope")}, dst, false); err == nil {
+		t.Error("a missing source: no error")
+	}
+	if os.Getuid() == 0 {
+		t.Skip("root reads everything")
+	}
+	if err := os.Chmod(filepath.Join(src, "a.txt"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if err := copyDir([]string{src}, dst, false); err == nil || !strings.Contains(err.Error(), "permission denied") {
+		t.Errorf("an unreadable file: %v", err)
 	}
 }

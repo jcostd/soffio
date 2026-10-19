@@ -23,14 +23,21 @@ var embedded embed.FS
 
 var patterns = []string{"*.html", "*.xml", "*.txt", "*.json"}
 
-// doc, the page of an ID, today, the day of the build, past, current
-// and size: site.prepare binds them to the site
-var funcs = template.FuncMap{"sortBy": sortBy, "sortUp": sortUp, "where": where, "without": without,
-	"except": except, "under": under, "reverse": reverse, "group": group, "bySize": bySize,
-	"fields": strings.Fields, "parent": parent, "rfc822": rfc822,
-	"doc": func(string) *soffio.Document { return nil }, "today": func() string { return "" },
-	"past": func(string) bool { return false }, "current": func(any, string) ([]*soffio.Document, error) { return nil, nil },
-	"size": func(string) *imageSize { return nil }}
+// funcs are the templates' functions. doc, the page of an ID, today,
+// the day of the build or "", past, whether a date has passed, current,
+// the pages whose date has not, and size, an image's, ask s.
+func (s *site) funcs() template.FuncMap {
+	return template.FuncMap{
+		"sortDown": sortDown, "sortUp": sortUp, "where": where, "without": without,
+		"except": except, "under": under, "group": group, "bySize": bySize,
+		"fields": strings.Fields, "parent": parent, "rfc822": rfc822,
+		"doc":     func(id string) *soffio.Document { return s.docs[id] },
+		"today":   func() string { return s.today },
+		"past":    func(date string) bool { return past(date, s.today) },
+		"current": func(v any, key string) ([]*soffio.Document, error) { return current(v, key, s.today) },
+		"size":    s.size,
+	}
+}
 
 // past reports whether date, as precise as it is written, has passed by
 // today: 2027-03 has not on 2027-03-31, 2027 not until 2028. Nothing has
@@ -60,9 +67,10 @@ func pages(v any) ([]*soffio.Document, error) {
 	return nil, fmt.Errorf("%T is not a list of pages", v)
 }
 
-// sortBy returns the pages sorted by the header key, highest first,
-// then by ID; what it was given is not changed.
-func sortBy(v any, key string) ([]*soffio.Document, error) {
+// sortDown returns the pages sorted by the header key, highest first,
+// then by ID, those without it last: the newest first, by date; what it
+// was given is not changed.
+func sortDown(v any, key string) ([]*soffio.Document, error) {
 	docs, err := pages(v)
 	if err != nil {
 		return nil, err
@@ -196,18 +204,6 @@ func under(v any, id string) ([]*soffio.Document, error) {
 	return found, nil
 }
 
-// reverse returns the pages in the opposite order: lowest first, after
-// sortBy.
-func reverse(v any) ([]*soffio.Document, error) {
-	docs, err := pages(v)
-	if err != nil {
-		return nil, err
-	}
-	r := slices.Clone(docs)
-	slices.Reverse(r)
-	return r, nil
-}
-
 // rfc822 turns a date, YYYY-MM-DD or less, into the form RSS wants. It
 // is HTML, or html/template would write its '+' as &#43;.
 func rfc822(date string) (template.HTML, error) {
@@ -219,9 +215,9 @@ func rfc822(date string) (template.HTML, error) {
 }
 
 // loadTemplates parses the templates in dir, or the built-in ones if
-// dir is "". The two are never mixed: what a site has is what is in
-// its directory.
-func loadTemplates(dir string) (*template.Template, error) {
+// dir is "", with funcs. The two are never mixed: what a site has is
+// what is in its directory.
+func loadTemplates(dir string, funcs template.FuncMap) (*template.Template, error) {
 	fsys, _ := fs.Sub(embedded, "templates")
 	if dir != "" {
 		fsys = os.DirFS(dir)

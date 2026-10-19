@@ -9,14 +9,14 @@ import (
 	"soffio"
 )
 
-func TestSortBy(t *testing.T) {
+func TestSortDown(t *testing.T) {
 	docs := []*soffio.Document{
 		{ID: "a", Meta: map[string]string{"event_date": "1964-01-01"}},
 		{ID: "b", Meta: map[string]string{"event_date": "2020-05-10"}},
 		{ID: "c", Meta: map[string]string{"event_date": "1964-01-01"}},
 		{ID: "d", Meta: map[string]string{}},
 	}
-	sorted, err := sortBy(docs, "event_date")
+	sorted, err := sortDown(docs, "event_date")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -29,11 +29,11 @@ func TestSortBy(t *testing.T) {
 	}
 	// docs itself is not sorted
 	if docs[0].ID != "a" {
-		t.Error("sortBy changed docs")
+		t.Error("sortDown changed docs")
 	}
 }
 
-func TestWhereReverse(t *testing.T) {
+func TestWhereUnder(t *testing.T) {
 	docs := map[string]*soffio.Document{
 		"c": {ID: "c", Meta: map[string]string{"layout": "opera", "artist": "it/persone/arp"}},
 		"a": {ID: "a", Meta: map[string]string{"layout": "opera"}},
@@ -49,7 +49,7 @@ func TestWhereReverse(t *testing.T) {
 		}
 		return strings.Join(s, ",")
 	}
-	sorted, _ := sortBy(docs, "layout")
+	sorted, _ := sortDown(docs, "layout")
 	// it/ is a namespace: it itself and itx/ are not under it
 	langs := map[string]*soffio.Document{}
 	for _, id := range []string{"it", "it/a", "it/b/c", "itx/a", "en/a"} {
@@ -61,10 +61,11 @@ func TestWhereReverse(t *testing.T) {
 		{ids(where(docs, "artist", "it/persone/arp")), "c"},
 		{ids(where(docs, "layout", "")), ""},
 		{ids(where(nil, "layout", "opera")), ""},
-		{ids(reverse(docs)), "c,b,a"},
 		{ids(sorted, nil), "a,c,b"},
-		{ids(reverse(sorted)), "b,c,a"},
 		{ids(where("x", "layout", "opera")), "string is not a list of pages"},
+		{ids(sortDown("x", "layout")), "string is not a list of pages"},
+		{ids(sortUp("x", "layout")), "string is not a list of pages"},
+		{ids(under("x", "it")), "string is not a list of pages"},
 		{ids(under(langs, "it")), "it/a,it/b/c"},
 		{ids(under(langs, "it/b")), "it/b/c"},
 		{ids(under(langs, "")), "en/a,it,it/a,it/b/c,itx/a"},
@@ -88,7 +89,7 @@ func TestRFC822(t *testing.T) {
 }
 
 func TestLoadTemplates(t *testing.T) {
-	builtin, err := loadTemplates("")
+	builtin, err := loadTemplates("", (&site{}).funcs())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +103,7 @@ func TestLoadTemplates(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "layout.html"), []byte(`mine`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	local, err := loadTemplates(dir)
+	local, err := loadTemplates(dir, (&site{}).funcs())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +215,7 @@ func TestSortUpGroup(t *testing.T) {
 // given it gets a string
 func TestLoadTemplatesMissingKey(t *testing.T) {
 	dir := writeFiles(t, map[string]string{"layout.html": `[{{.Meta.by}}]{{len (except .Docs .Meta.by)}}`})
-	tmpl, err := loadTemplates(dir)
+	tmpl, err := loadTemplates(dir, (&site{}).funcs())
 	if err != nil {
 		t.Fatal(err)
 	}

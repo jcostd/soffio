@@ -23,7 +23,7 @@ from profile-guided optimization; never `-gcflags=-B`.
 ```
 make                                     # soffio, preview and edges for here, in the repo root
 make GOOS=windows GOARCH=amd64 OUT=dir   # for another system, into dir
-make test                                # go vet, then every test
+make test                                # go vet, then every test, with its coverage
 ./release.sh                             # the release archives, see Release
 ```
 
@@ -34,6 +34,14 @@ go test .
 go test . -run TestCheckTarget
 go test ./... -v
 ```
+
+Every package is covered at 100% of its statements (`go test -cover ./...`), and
+stays so: a new branch comes with the test that takes it. The commands are tested
+end to end, as they run: each test binary's `TestMain` runs `main` when an
+environment variable says so (`SOFFIO_MAIN`, `EDGES_MAIN`, `PREVIEW_MAIN`), and the
+tests run it as the command, whose coverage `go test` counts as its own; what can't
+be written is a standard output open read-only, what can't be read a file of mode 0.
+The empty `isBlock` and `isInline` methods have no statements to cover.
 
 Requires Go 1.26+ (see `go.mod`).
 
@@ -142,8 +150,8 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   `template.go` parses either `-t` or the embedded `cmd/soffio/templates/*`, never a
   mix, with `missingkey=zero` (a header key a page lacks is "", so a function given
   `.Meta.by` gets a string), and gives templates the functions on lists of pages
-  (each takes a list or `.Docs`, a map, taken by ID): `sortBy` (highest first),
-  `sortUp` (lowest first, those without the key last either way), `reverse`, `where`
+  (each takes a list or `.Docs`, a map, taken by ID): `sortDown` (highest first),
+  `sortUp` (lowest first, those without the key last either way), `where`
   and `without` (the header key one of, none of the values), `except` (all but some
   IDs), `under` (the pages under an ID: `under .Docs .Lang` is a language), `current`
   (whose date at a key has not passed), `group` (a list per value of a key, in the
@@ -152,15 +160,16 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   template), `doc` (the page of an ID, or nil), `size` (an image's width and height,
   or nil), `today`, `past` (a date, as far as it is written, before `today`; false
   with no `-today`) and `rfc822` (a date, YYYY-MM-DD or less, as `ParseDate` reads
-  one). `doc`, `today`, `past`, `current` and `size` are bound to the site by
-  `site.prepare`, which also gives every page its `Lang`, and every `ImageBlock`
+  one). `site.funcs` makes them, before the templates are parsed: `doc`, `today`,
+  `past`, `current` and `size` ask the site, whose pages come later. `site.prepare`
+  gives every page its `Lang`, and every `ImageBlock`
   of a text the size of its file in a `-s` (`image.DecodeConfig`: jpeg, png, gif;
   read once per path), which `Render` writes as width and height. Adding a function
   is for what a template can't say plainly: what it can, it says.
   `today` is `-today` or empty: a template never reads the clock, so the output stays
   reproducible. The embedded ones are the showcase:
   they need only a title (date and updated if there) and use `.Lang`, `.Alternates`,
-  `under .Docs .ID` with `sortBy`, `.Backlinks`, `rfc822`, a shared `style` partial; keep them that small. `siteFiles` in `main.go` (index.html, rss.xml,
+  `under .Docs .ID` with `sortDown`, `.Backlinks`, `rfc822`, a shared `style` partial; keep them that small. `siteFiles` in `main.go` (index.html, rss.xml,
   sitemap.xml, robots.txt, 404.html, manifest.json) are each made if the template is
   there.
 
@@ -171,8 +180,8 @@ package, `soffio`, at the module root; `cmd/soffio` builds the site with it.
   `soffio -n`'s job, so there is one reader of the markup and one checker.
 
 - **`cmd/preview`**: a static file server (`http.FileServer`) over the output dir
-  that opens the default browser (`open` on macOS, `start` on Windows, else `xdg-open`,
-  one switch on `runtime.GOOS`, so it builds on the BSDs too).
+  that opens the default browser (`open` on macOS, `start` on Windows, else `xdg-open`:
+  `browsers`, a table by `runtime.GOOS`, so it builds on the BSDs too).
   Every response carries a `Soffio-Preview: <abs dir>` header, so a second `preview`
   of the same dir finds the first one when the port is taken, opens the browser on
   it, and exits 0. Also `Cache-Control: no-store` (a rebuilt site is never shown from
@@ -192,7 +201,7 @@ Frontmatter (`key: value` lines) + blank line + body. Known frontmatter keys:
 dates) is a link to a page, and templates get that page's ID; `date`, `updated`, `*_date` are dates;
 `image`, `*_image` are images, checked as `:: img:` (parse: under `/static/`; `Check`: the
 file is there, at the header line, which `Document.lines` keeps); any other key lands in `Meta` and is
-available to templates/`sortBy`; `visibility` is `public` or `private`. Body syntax: `== id | Title` (section header, level
+available to templates and their sorts; `visibility` is `public` or `private`. Body syntax: `== id | Title` (section header, level
 2–6 `=`), `*bold*`, `_italic_`, `(Label -> target)` links, `:: img: /static/path | caption`,
 `- item` lists, `:: note: id | text` footnote defs, `(*note-id)` footnote refs. Link
 targets without a leading `/` resolve relative to the current document's directory

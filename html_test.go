@@ -248,3 +248,18 @@ func BenchmarkRender(b *testing.B) {
 		_ = Render(doc)
 	}
 }
+
+// an image's alt is its caption without the markup; a note ref is not
+// words
+func TestRenderImageAlt(t *testing.T) {
+	doc := &Document{ID: "a", Sections: []Section{{Level: 2, ID: "s", Title: "S", Blocks: []Block{
+		ImageBlock{Path: "/static/a.png", Caption: []Inline{
+			Bold{Elements: []Inline{PlainText{Content: "Toro"}}}, PlainText{Content: ", "},
+			Italic{Elements: []Inline{PlainText{Content: "1954"}}}, PlainText{Content: ", "},
+			Link{Target: "arp", Label: []Inline{PlainText{Content: "Arp"}}}, FootnoteRef{Target: "n"},
+		}},
+	}}}}
+	if got := Render(doc); !strings.Contains(got, `alt="Toro, 1954, Arp"`) {
+		t.Errorf("got %q", got)
+	}
+}

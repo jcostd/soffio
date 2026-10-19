@@ -1,10 +1,15 @@
 (not yet released)
-soffio 4.1.0, since v4.0.0. The templates say what they mean: the
+soffio 5.0.0, since v4.0.0. The templates say what they mean: the
 functions a list of pages wants, and the size of every image. edges
-prints a site's graph for the rules a site has of its own.
+prints a site's graph for the rules a site has of its own. Every
+package is tested to the last statement.
+soffio: sortBy is sortDown; reverse is gone.
+  The two sorts are named by their way, and put the pages without the
+  key last both: sortDown . "date" is the newest first. reverse turned
+  sortBy round for the oldest first, which sortUp says.
 soffio: sortUp, without, except, group, bySize, current, for templates.
   sortUp orders lowest first, those without the key last: the oldest
-  first and the undated after, which reverse (sortBy) could not say.
+  first and the undated after.
   without keeps the pages whose key is none of the values, and where,
   now, one of them. except drops pages by ID. group makes a list per
   value of a key, in the order of its first page; bySize puts the

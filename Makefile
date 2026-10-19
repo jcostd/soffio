@@ -14,7 +14,7 @@
 #
 #   make                                     soffio, preview and edges, for here
 #   make GOOS=windows GOARCH=amd64 OUT=dir   for another system, into dir
-#   make test                                go vet and the tests
+#   make test                                go vet, then the tests and their coverage
 
 VERSION != cat VERSION
 GOOS != go env GOOS
@@ -29,6 +29,6 @@ all:
 
 test:
 	go vet ./...
-	go test ./...
+	go test -cover ./...
 
 .PHONY: all test

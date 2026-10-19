@@ -69,9 +69,7 @@ func main() {
 	}
 	log.Printf("preview: serving %s at %s; Ctrl+C stops it", *dir, url)
 	openBrowser(url)
-	if err := http.Serve(listener, handler(absDir)); err != nil {
-		log.Fatalf("preview: %v", err)
-	}
+	log.Fatalf("preview: %v", http.Serve(listener, handler(absDir)))
 }
 
 // types are the media types of what a site holds. Go asks the system
@@ -136,17 +134,21 @@ func servesDir(url, dir string) bool {
 	return errA == nil && errB == nil && os.SameFile(a, b)
 }
 
+// browsers are the commands that open an address in the default
+// browser, by system; the others, Linux and the BSDs, have xdg-open.
+var browsers = map[string][]string{
+	"darwin":  {"open"},
+	"windows": {"cmd", "/c", "start", ""},
+}
+
 // openBrowser opens url in the default browser, or says why it can't:
 // the site is served all the same.
 func openBrowser(url string) {
-	cmd := []string{"xdg-open", url} // Linux and the BSDs
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = []string{"open", url}
-	case "windows":
-		cmd = []string{"cmd", "/c", "start", "", url}
+	cmd, ok := browsers[runtime.GOOS]
+	if !ok {
+		cmd = []string{"xdg-open"}
 	}
-	if err := exec.Command(cmd[0], cmd[1:]...).Start(); err != nil {
+	if err := exec.Command(cmd[0], append(cmd[1:], url)...).Start(); err != nil {
 		log.Printf("preview: %v", err)
 	}
 }

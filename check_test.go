@@ -178,7 +178,7 @@ func TestLinks(t *testing.T) {
 by: -> x
 
 == s | S
-(b -> b) (again -> /it/b#s) _(c -> ../en/c)_ (me -> #s) (self -> a) (out -> https://example.org) (pdf -> /static/a.pdf)(*n)
+(b -> b) (again -> /it/b#s) _(c -> ../en/c)_ (me -> #s) (self -> a) (out -> https://example.org) (pdf -> /static/a.pdf)(*n) *(g -> g)*
 
 - (d -> d)
 
@@ -186,9 +186,22 @@ by: -> x
 
 :: note: n | (f -> f)`)
 	doc.Meta["by"] = "it/x"
-	want := []string{"en/c", "it/b", "it/d", "it/e", "it/f", "it/x"}
+	want := []string{"en/c", "it/b", "it/d", "it/e", "it/f", "it/g", "it/x"}
 	if got := Links(doc); !slices.Equal(got, want) {
 		t.Errorf("Links = %q, want %q", got, want)
+	}
+}
+
+// the header keys that hold a link, in the header's order, as a copy
+func TestLinkKeys(t *testing.T) {
+	doc := parse(t, "a.soffio", "it/a", "title: A\nwhere: -> y\nkind: k\nby: -> x\n\n== s | S\nx")
+	keys := LinkKeys(doc)
+	if want := []string{"where", "by"}; !slices.Equal(keys, want) {
+		t.Errorf("LinkKeys = %q, want %q", keys, want)
+	}
+	keys[0] = "kind"
+	if LinkKeys(doc)[0] != "where" {
+		t.Error("LinkKeys gave the document's own")
 	}
 }
 

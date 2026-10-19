@@ -132,11 +132,9 @@ func linkOrNote(inner string, inLabel bool, why *string) (Inline, bool) {
 	if i < 0 {
 		return nil, false
 	}
+	// inner ends in no space, so the target is never empty
 	label, target := strings.TrimSpace(inner[:i]), unescape(strings.TrimSpace(inner[i+len(" -> "):]))
-	switch {
-	case target == "":
-		return nil, false
-	case inLabel:
+	if inLabel {
 		*why = "a link inside a link"
 		return Link{Target: target, Label: []Inline{PlainText{Content: label}}}, true
 	}
