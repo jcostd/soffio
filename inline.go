@@ -120,7 +120,7 @@ func linkOrNote(inner string, inLabel bool, why *string) (Inline, bool) {
 
 	// (*id) is a note only with a valid ID: (*bold*) is prose
 	if id, ok := strings.CutPrefix(inner, "*"); ok {
-		if id = strings.TrimSpace(id); id != "" && CheckID(id) == "" {
+		if id = strings.TrimSpace(id); id != "" && checkID(id) == "" {
 			if inLabel {
 				*why = "a note inside a link"
 			}

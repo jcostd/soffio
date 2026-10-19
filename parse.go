@@ -138,11 +138,11 @@ func isKeyRune(r rune) bool {
 // (URL escape) and parentheses (they close a link).
 const idForbidden = `/\:*?"<>|#%()`
 
-// CheckID says what makes id unusable as a file name, page address or
+// checkID says what makes id unusable as a file name, page address or
 // anchor, or "" if nothing does. An ID is printable ASCII: no spaces, no
 // accents. The same rule holds for documents, their directories,
-// sections, notes and languages.
-func CheckID(id string) string {
+// sections and notes.
+func checkID(id string) string {
 	if id == "" {
 		return "it is empty"
 	}
@@ -180,7 +180,7 @@ func (p *parser) section(n int, line string) bool {
 		p.errorf(n, "section %q needs an id and a title", line)
 		return false
 	}
-	if why := CheckID(id); why != "" {
+	if why := checkID(id); why != "" {
 		p.errorf(n, "invalid section id %q: %s", id, why)
 		return false
 	}
@@ -261,7 +261,7 @@ func (p *parser) command(n int, line string, more []string) Block {
 		}
 		return ImageBlock{Line: n, Path: arg, Caption: in}
 	}
-	if why := CheckID(arg); why != "" {
+	if why := checkID(arg); why != "" {
 		p.errorf(n, "invalid note id %q: %s", arg, why)
 		return nil
 	}

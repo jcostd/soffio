@@ -269,8 +269,8 @@ func TestCheckID(t *testing.T) {
 		"città":     `'à' is not a plain ASCII character`,
 		"a#b":       `'#' is not allowed`,
 	} {
-		if got := CheckID(id); got != want {
-			t.Errorf("CheckID(%q) = %q, want %q", id, got, want)
+		if got := checkID(id); got != want {
+			t.Errorf("checkID(%q) = %q, want %q", id, got, want)
 		}
 	}
 }

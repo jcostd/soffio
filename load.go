@@ -94,7 +94,7 @@ func parseFile(fsys fs.FS, name, file string) (*Document, error) {
 	doc.ID = strings.TrimSuffix(name, ".soffio")
 	// the directories and the file name are part of the ID too
 	for part := range strings.SplitSeq(doc.ID, "/") {
-		if why := CheckID(part); why != "" {
+		if why := checkID(part); why != "" {
 			return nil, fmt.Errorf("%s: invalid id %q: %s", file, doc.ID, why)
 		}
 	}

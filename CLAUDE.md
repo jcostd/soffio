@@ -114,7 +114,7 @@ package, `soffio`, at the module root; package `site` is the command, which
   microseconds; order makes errors reproducible), skipping hidden files and refusing
   links to directories, and returns documents by ID: the file's path without
   `.soffio` (`it/about`), the one name of a page. Every part of an ID passes
-  `CheckID`; a text with no title is refused (an empty link in every list of pages);
+  `checkID`; a text with no title is refused (an empty link in every list of pages);
   IDs differing only in case are duplicates; `static/` is no ID, it is where the
   static files go. `Document.File` is the path for messages. A header link is
   resolved here, from the text's directory as a body link is, into the page's ID,
