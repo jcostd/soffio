@@ -12,7 +12,6 @@ import (
 	"maps"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -104,48 +103,17 @@ func Main(funcs template.FuncMap, check func(docs map[string]*Document) error) {
 		log.Fatalf("%s: %v", name, err)
 	}
 
-	// every page and file is attempted, but any that fails fails the
-	// build: a site missing a page is a broken site
+	// every page is attempted, but any that fails fails the build: a
+	// site missing a page is a broken site
 	var errs []error
 	for _, id := range s.ids {
 		if err := s.writeDoc(active[id]); err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", active[id].File, err))
 		}
 	}
-	data := map[string]any{
-		"BaseURL":   s.baseURL,
-		"Docs":      active,
-		"XMLHeader": template.HTML(`<?xml version="1.0" encoding="UTF-8"?>` + "\n"),
-	}
-	for _, f := range siteFiles(tmpl) {
-		// 404.soffio would be written, then overwritten
-		if id, ok := strings.CutSuffix(f, ".html"); ok && active[id] != nil {
-			errs = append(errs, fmt.Errorf("%s: page %s is the site file %s too", active[id].File, id, f))
-			continue
-		}
-		data["ID"] = strings.TrimSuffix(f, path.Ext(f))
-		if err := s.write(f, f, data); err != nil {
-			errs = append(errs, fmt.Errorf("%s: %s: %w", name, f, err))
-		}
-	}
 	if err := errors.Join(errs...); err != nil {
 		log.Fatal(err)
 	}
-}
-
-// siteFiles are the templates made at the root of the site, by name:
-// every .xml and .txt one, robots.txt, sitemap.xml, a feed, and
-// 404.html, which a server gives at any address: a text can't be it,
-// as its addresses are relative to where it is.
-func siteFiles(tmpl *template.Template) []string {
-	var files []string
-	for _, t := range tmpl.Templates() {
-		if f := t.Name(); f == "404.html" || path.Ext(f) == ".xml" || path.Ext(f) == ".txt" {
-			files = append(files, f)
-		}
-	}
-	slices.Sort(files)
-	return files
 }
 
 // pipe turns the text on standard input into HTML on standard output,
@@ -168,18 +136,17 @@ func pipe(name string, dry bool) {
 }
 
 // checkFlags refuses what would make a broken site: a base URL, if
-// there is one, that is not http(s)://host[/path], or holds what
-// html/template would escape in robots.txt, or ends in '/', as every
-// address is BaseURL + "/" + path; a day that is not YYYY-MM-DD (the
+// there is one, that is not http(s)://host[/path], or ends in '/', as
+// every address is BaseURL + "/" + path; a day that is not YYYY-MM-DD (the
 // templates' only clock is what they are told: the same flags make the
 // same site); a static or template directory that is not there;
-// templates in -o, where the site files would be written over them.
+// templates in -o, where the pages would be written over them.
 func checkFlags(baseURL, today string, staticDirs []string, tmplDir, outDir string) error {
 	if baseURL != "" {
 		u, err := url.Parse(baseURL)
 		switch {
 		case err != nil || u.Scheme != "http" && u.Scheme != "https" || u.Host == "" ||
-			u.RawQuery != "" || u.Fragment != "" || strings.ContainsAny(baseURL, `"'&<>+ `):
+			u.RawQuery != "" || u.Fragment != "":
 			return fmt.Errorf("-baseurl %q: want http(s)://host[/path]", baseURL)
 		case strings.HasSuffix(baseURL, "/"):
 			return fmt.Errorf("-baseurl %q: drop the final '/'", baseURL)

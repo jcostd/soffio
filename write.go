@@ -193,9 +193,9 @@ func (s *site) funcs() template.FuncMap {
 	}
 }
 
-// loadTemplates parses the templates in dir, or the built-in ones if
-// dir is "", with funcs. The two are never mixed: what a site has is
-// what is in its directory.
+// loadTemplates parses the templates in dir, its .html files, or the
+// built-in ones if dir is "", with funcs. The two are never mixed: what
+// a site has is what is in its directory.
 func loadTemplates(dir string, funcs template.FuncMap) (*template.Template, error) {
 	fsys, _ := fs.Sub(embedded, "templates")
 	if dir != "" {
@@ -203,14 +203,5 @@ func loadTemplates(dir string, funcs template.FuncMap) (*template.Template, erro
 	}
 	// a key a header doesn't hold is "", as one that holds nothing: a
 	// function given .Meta.by gets a string either way
-	tmpl := template.New("").Option("missingkey=zero").Funcs(funcs)
-	for _, p := range []string{"*.html", "*.xml", "*.txt"} {
-		// ParseFS fails on a pattern matching nothing
-		if m, _ := fs.Glob(fsys, p); m != nil {
-			if _, err := tmpl.ParseFS(fsys, p); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return tmpl, nil
+	return template.New("").Option("missingkey=zero").Funcs(funcs).ParseFS(fsys, "*.html")
 }

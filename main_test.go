@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"image"
 	imagepng "image/png"
+	"io/fs"
 	"maps"
 	"os"
 	"os/exec"
@@ -73,31 +74,26 @@ func exists(dir, name string) bool {
 
 func TestSoffio(t *testing.T) {
 	dir := writeFiles(t, map[string]string{
-		"src/index.soffio":   "title: Home\n\n== s | S\n(about -> about)",
-		"src/about.soffio":   "title: About\n\n== s | S\n:: img: /static/a.png | A",
-		"src/draft.soffio":   "title: Draft\nvisibility: private\n\n== s | S\nx",
-		"static/a.png":       "png",
-		"broken/x.soffio":    "title: X\n\n== s | S\n(gone -> nope)",
-		"leak/x.soffio":      "title: X\n\n== s | S\n(draft -> draft)",
-		"leak/draft.soffio":  "title: D\nvisibility: private\n\n== s | S\nx",
-		"e404/404.soffio":    "title: Not found\n\n== s | S\nx",
-		"hlink/x.soffio":     "title: X\nby: -> nope\n\n== s | S\nx",
-		"layout/x.soffio":    "title: X\nlayout: nope\n\n== s | S\nx",
-		"badtmpl/x.html":     "{{ if }}",
-		"badsite/x.html":     "x",
-		"badsite/robots.txt": `{{ template "none" }}`,
-		"named/layout.html":  "x",
-		"named/404.html":     "{{ .ID }}",
-		"named/sitemap.xml":  "{{ .ID }}",
-		"named/feed.xml":     "{{ .ID }}",
-		"named/humans.txt":   "{{ .ID }}",
-		"named/index.html":   "a layout, not a site file",
+		"src/index.soffio":    "title: Home\n\n== s | S\n(about -> about)",
+		"src/about.soffio":    "title: About\n\n== s | S\n:: img: /static/a.png | A",
+		"src/draft.soffio":    "title: Draft\nvisibility: private\n\n== s | S\nx",
+		"static/a.png":        "png",
+		"broken/x.soffio":     "title: X\n\n== s | S\n(gone -> nope)",
+		"leak/x.soffio":       "title: X\n\n== s | S\n(draft -> draft)",
+		"leak/draft.soffio":   "title: D\nvisibility: private\n\n== s | S\nx",
+		"hlink/x.soffio":      "title: X\nby: -> nope\n\n== s | S\nx",
+		"layout/x.soffio":     "title: X\nlayout: nope\n\n== s | S\nx",
+		"badtmpl/x.html":      "{{ if }}",
+		"badsite/layout.html": `{{ template "none" }}`,
+		"named/layout.html":   "{{ .ID }}",
+		"named/robots.txt":    "not a template",
+		"named/sitemap.xml":   "not a template",
 	})
 
 	if code, stderr := soffioRun(t, dir, "-baseurl", "https://example.org", "-s", "static", "src"); code != 0 {
 		t.Fatalf("build: exit %d: %s", code, stderr)
 	}
-	for _, name := range []string{"index.html", "about.html", "static/a.png", "404.html", "robots.txt", "sitemap.xml"} {
+	for _, name := range []string{"index.html", "about.html", "static/a.png"} {
 		if !exists(dir, "public/"+name) {
 			t.Errorf("public/%s missing", name)
 		}
@@ -110,27 +106,32 @@ func TestSoffio(t *testing.T) {
 		t.Errorf("-a: exit %d, draft.html there: %v: %s", code, exists(dir, "all/draft.html"), stderr)
 	}
 	for file, want := range map[string]string{
-		"public/index.html":  `<link rel="canonical" href="https://example.org/index.html">`,
-		"all/index.html":     `<li><a href="/about.html">About</a></li>`, // no -baseurl, from the root
-		"public/about.html":  `<h1>About</h1>`,
-		"public/robots.txt":  "Sitemap: https://example.org/sitemap.xml",
-		"public/sitemap.xml": "<url><loc>https://example.org/about.html</loc></url>",
-		// a sitemap's addresses are full: without -baseurl it has none
-		"all/sitemap.xml": "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n</urlset>",
+		"public/index.html": `<link rel="canonical" href="https://example.org/index.html">`,
+		"all/index.html":    `<li><a href="/about.html">About</a></li>`, // no -baseurl, from the root
+		"public/about.html": `<nav><a href="https://example.org/index.html">Home</a></nav>`,
 	} {
 		if got, _ := os.ReadFile(filepath.Join(dir, file)); !strings.Contains(string(got), want) {
 			t.Errorf("%s has no %s", file, want)
 		}
 	}
-	// every .xml and .txt template is a site file, and 404.html; its ID
-	// is its name, without its extension. index.html is the text index
+	// the home leads nowhere: it is where the others lead
+	if got, _ := os.ReadFile(filepath.Join(dir, "public/index.html")); strings.Contains(string(got), "<nav>") {
+		t.Error("index.html has a nav")
+	}
+	// soffio makes pages, a text each, and nothing else: the templates
+	// are the .html files of -t
 	if code, stderr := soffioRun(t, dir, "-s", "static", "-t", "named", "-o", "named-out", "src"); code != 0 {
 		t.Errorf("named: exit %d: %s", code, stderr)
 	}
-	for file, want := range map[string]string{"404.html": "404", "sitemap.xml": "sitemap", "feed.xml": "feed", "humans.txt": "humans", "index.html": "x"} {
-		if got, _ := os.ReadFile(filepath.Join(dir, "named-out", file)); string(got) != want {
-			t.Errorf("%s: %q, want %q", file, got, want)
+	var made []string
+	filepath.WalkDir(filepath.Join(dir, "named-out"), func(path string, d fs.DirEntry, err error) error {
+		if !d.IsDir() {
+			made = append(made, filepath.Base(path))
 		}
+		return nil
+	})
+	if want := []string{"about.html", "index.html", "a.png"}; !slices.Equal(made, want) { // static/ comes after
+		t.Errorf("made %q, want %q", made, want)
 	}
 	if code, stderr := soffioRun(t, dir, "-n", "-s", "static", "-o", "none", "src"); code != 0 || exists(dir, "none") {
 		t.Errorf("-n: exit %d, none/ there: %v: %s", code, exists(dir, "none"), stderr)
@@ -148,12 +149,12 @@ func TestSoffio(t *testing.T) {
 		{[]string{"-n", "-baseurl", "https://x.org/", "src"}, 1, `drop the final '/'`},
 		{[]string{"-n", "-today", "17-10-2026", "src"}, 1, `-today "17-10-2026": want YYYY-MM-DD`},
 		{[]string{"src", "more"}, 2, "usage: soffio [-a]"},
-		{[]string{"-n", "-s", "static", "e404"}, 1, "page 404 is the site file 404.html too"},
 		{[]string{"-n", "hlink"}, 1, filepath.Join("hlink", "x.soffio") + `:2: link to missing page "/nope"`},
 		{[]string{"-n", "nope"}, 1, "nope: no such file or directory"},
 		{[]string{"-n", "-t", "badtmpl", "src"}, 1, "soffio: template: x.html:1: missing value for if"},
-		{[]string{"-n", "-t", "layout", "layout"}, 1, filepath.Join("layout", "x.soffio") + ": no layout nope.html in the templates"},
-		{[]string{"-n", "-s", "static", "-t", "badsite", "src"}, 1, "soffio: robots.txt: "},
+		{[]string{"-n", "-t", "named", "layout"}, 1, filepath.Join("layout", "x.soffio") + ": no layout nope.html in the templates"},
+		{[]string{"-n", "-t", "layout", "layout"}, 1, "soffio: template: pattern matches no files: `*.html`"},
+		{[]string{"-n", "-s", "static", "-t", "badsite", "src"}, 1, `no such template "none"`},
 	} {
 		code, stderr := soffioRun(t, dir, tt.args...)
 		if code != tt.code || !strings.Contains(stderr, tt.want) {
@@ -381,7 +382,7 @@ func TestCheckFlags(t *testing.T) {
 		{"example.org", "", false},
 		{"ftp://example.org", "", false},
 		{"https://example.org/?a=1", "", false},
-		{"https://example.org/c++", "", false},
+		{"https://example.org/c++&x", "", true},
 		{"https://example.org", filepath.Join(static, "nope"), false},
 		{"https://example.org", file, false},
 	}
@@ -431,13 +432,11 @@ func TestSoffioTemplatesOntoThemselves(t *testing.T) {
 	dir := writeFiles(t, map[string]string{
 		"src/a.soffio":     "title: A\n\n== s | S\nx",
 		"site/layout.html": "{{ .Content }}",
-		"site/robots.txt":  "ROBOTS",
 	})
 	// site and ./site/ are one directory
 	code, stderr := soffioRun(t, dir, "-t", "site", "-o", "./site/", "src")
-	got, _ := os.ReadFile(filepath.Join(dir, "site", "robots.txt"))
-	if code != 1 || !strings.Contains(stderr, "written over its templates") || string(got) != "ROBOTS" {
-		t.Errorf("exit %d, %q, robots.txt %q", code, stderr, got)
+	if code != 1 || !strings.Contains(stderr, "written over its templates") || exists(dir, "site/a.html") {
+		t.Errorf("exit %d, %q, a.html there: %v", code, stderr, exists(dir, "site/a.html"))
 	}
 }
 
@@ -571,10 +570,8 @@ func TestLoadTemplates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"layout.html", "404.html", "sitemap.xml", "robots.txt"} {
-		if builtin.Lookup(name) == nil {
-			t.Errorf("built-in %s missing", name)
-		}
+	if builtin.Lookup("layout.html") == nil {
+		t.Error("built-in layout.html missing")
 	}
 
 	dir := t.TempDir()
@@ -589,10 +586,9 @@ func TestLoadTemplates(t *testing.T) {
 		t.Error("layout.html of dir missing")
 	}
 	// the built-in ones are not mixed in
-	if local.Lookup("robots.txt") != nil {
-		t.Error("built-in robots.txt mixed into dir's templates")
+	if local.Lookup("style") != nil {
+		t.Error("built-in style mixed into dir's templates")
 	}
-
 }
 
 // a key a header doesn't hold is "" to the templates, so a function

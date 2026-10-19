@@ -10,30 +10,27 @@
 {{ template "style" }}
 </head>
 <body>
-<nav><a href="{{ .BaseURL }}/index.html">home</a></nav>
+{{- if ne .ID "index" }}{{ with doc "index" }}
+<nav><a href="{{ $.BaseURL }}/index.html">{{ .Meta.title }}</a></nav>
+{{- end }}{{ end }}
 <main>
 <h1>{{ .Meta.title }}</h1>
-{{- with or .Meta.updated .Meta.date }}
-<time datetime="{{ . }}">{{ . }}</time>
-{{- end }}
 {{ .Content }}
 {{- if eq .ID "index" }}
 <ul>
 {{- range .Docs }}{{ if ne .ID "index" }}
-<li><a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Meta.title }}</a>{{ with .Meta.date }} <time datetime="{{ . }}">{{ . }}</time>{{ end }}</li>
+<li><a href="{{ $.BaseURL }}/{{ .ID }}.html">{{ .Meta.title }}</a></li>
 {{- end }}{{ end }}
 </ul>
 {{- end }}
 </main>
-<footer>Made with <a href="https://github.com/jcostd/soffio">Soffio</a>.</footer>
 </body>
 </html>
 {{- define "style" -}}
 <style>
 body{max-width:65ch;margin:2rem auto;padding:0 1rem;font:1.1rem/1.6 serif;color:#222;background:#fff}
 a{color:#06c}
-nav,footer,time{font:.9rem sans-serif;color:#666}
-footer{margin-top:3rem}
+nav{font:.9rem sans-serif}
 img{max-width:100%;height:auto}
 figure{margin:1.5rem 0}
 figcaption,section[role=doc-endnotes]{font-size:.9rem}
