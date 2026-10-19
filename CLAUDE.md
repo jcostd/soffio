@@ -154,7 +154,8 @@ package, `soffio`, at the module root; package `site` is the command, which
   up to its first dot): flags (`checkFlags`: a -baseurl, if given, is
   http(s)://host[/path] with nothing html/template would escape), templates with
   soffio's functions and the site's (one of soffio's names is refused), load ->
-  visibility filter -> `Check` -> the site's `check` -> static copy -> pages and site
+  visibility filter -> `Check` and the site's `check` (it reads, never changes; its
+  errors after soffio's, all at once) -> static copy -> pages and site
   files. `write.go`: each page goes through its layout (`layout` header, else
   `layout.html`; a missing one is an error) with `ID`, `Meta`, `Content`,
   `BaseURL` and `Docs` (every active page, as the site files get): the pages that

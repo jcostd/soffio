@@ -511,7 +511,7 @@ func TestWriteDocDoc(t *testing.T) {
 func TestMainExtended(t *testing.T) {
 	dir := writeFiles(t, map[string]string{
 		"src/a.soffio":     "title: A\n\n== s | S\nx",
-		"bad/bad.soffio":   "title: B\n\n== s | S\nx",
+		"bad/bad.soffio":   "title: B\n\n== s | S\n(gone -> gone)",
 		"tmpl/layout.html": "{{ shout .Meta.title }}",
 	})
 	if code, stderr := run(t, "ext", dir, "-t", "tmpl", "src"); code != 0 {
@@ -520,7 +520,9 @@ func TestMainExtended(t *testing.T) {
 	if got, _ := os.ReadFile(filepath.Join(dir, "public", "a.html")); string(got) != "A" {
 		t.Errorf("a.html: %q", got)
 	}
-	if code, stderr := run(t, "ext", dir, "-n", "-t", "tmpl", "bad"); code != 1 || !strings.Contains(stderr, "bad: a page this site refuses") {
+	// soffio's errors and the site's come at once, soffio's first
+	if code, stderr := run(t, "ext", dir, "-n", "-t", "tmpl", "bad"); code != 1 ||
+		!strings.HasSuffix(stderr, `bad.soffio:4: link to missing page "gone"`+"\nbad: a page this site refuses\n") {
 		t.Errorf("check: exit %d, %q", code, stderr)
 	}
 	if code, stderr := run(t, "clash", dir, "-n", "src"); code != 1 || !strings.Contains(stderr, "site: the templates' function doc is soffio's") {

@@ -27,9 +27,10 @@ import (
 )
 
 // Main is the command, named as it was run. funcs are added to the
-// templates' functions, and check is given the texts to build once
-// soffio has found nothing wrong with them: what it returns is wrong
-// too. Either may be nil.
+// templates' functions, and check is given the texts to build, as
+// soffio checks them: what it returns is wrong too, said after what
+// soffio finds, all of it at once. check reads the texts and changes
+// none. Either may be nil.
 func Main(funcs template.FuncMap, check func(docs map[string]*soffio.Document) error) {
 	name, _, _ := strings.Cut(filepath.Base(os.Args[0]), ".")
 	log.SetFlags(0)
@@ -97,13 +98,12 @@ func Main(funcs template.FuncMap, check func(docs map[string]*soffio.Document) e
 			active[id] = doc
 		}
 	}
-	if err := soffio.Check(docs, active, staticDirs); err != nil {
-		log.Fatal(err)
-	}
+	err = soffio.Check(docs, active, staticDirs)
 	if check != nil {
-		if err := check(active); err != nil {
-			log.Fatal(err)
-		}
+		err = errors.Join(err, check(active))
+	}
+	if err != nil {
+		log.Fatal(err)
 	}
 	s.tmpl, s.docs, s.ids = tmpl, active, slices.Sorted(maps.Keys(active))
 	s.prepare()

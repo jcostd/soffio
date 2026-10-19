@@ -181,8 +181,9 @@ TEMPLATES
 EXTENDING
     What a site wants more, functions for its lists or rules for its
     texts, is its own program: package site is soffio, and its Main
-    takes the templates' functions to add and a check of the texts, run
-    once soffio has found nothing wrong with them. soffio is
+    takes the templates' functions to add and a check of the texts,
+    which reads them and changes none: what it finds is said after
+    what soffio finds, all of it at once. soffio is
 
         func main() { site.Main(nil, nil) }
 

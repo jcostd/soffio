@@ -9,8 +9,8 @@ soffio: The module is github.com/jcostd/soffio/v5.
   own program requires it.
 soffio: package site is the command; Main(funcs, check) extends it.
   cmd/soffio is site.Main(nil, nil). A site's program adds functions
-  for its templates and a check of its texts, run once soffio's have
-  passed, and has soffio's flags, checks and output: a function of
+  for its templates and a check of its texts, whose errors come after
+  soffio's, all at once, and has soffio's flags, checks and output: a function of
   soffio's can't be taken. Messages are named as the program is run.
 soffio: The templates' functions are doc, size and today.
   What only soffio knows: the page of an ID, an image's size, the day
