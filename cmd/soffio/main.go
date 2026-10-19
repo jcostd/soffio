@@ -3,9 +3,9 @@
 
 // Command soffio turns a directory of .soffio texts into a static site,
 // or one text on standard input into HTML on standard output. It is
-// package site, with nothing added.
+// soffio.Main, with nothing added.
 package main
 
-import "github.com/jcostd/soffio/site"
+import "github.com/jcostd/soffio"
 
-func main() { site.Main(nil, nil) }
+func main() { soffio.Main(nil, nil) }

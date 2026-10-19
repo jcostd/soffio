@@ -1,12 +1,7 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package site is the command soffio: a directory of .soffio texts
-// into a static site, or one text on standard input into HTML on
-// standard output. A site that wants more of it, functions for its
-// templates or rules for its texts, is a command of its own that calls
-// Main with them: soffio itself is Main(nil, nil).
-package site
+package soffio
 
 import (
 	"errors"
@@ -22,8 +17,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-
-	"github.com/jcostd/soffio"
 )
 
 // Main is the command, named as it was run. funcs are added to the
@@ -31,7 +24,7 @@ import (
 // soffio checks them: what it returns is wrong too, said after what
 // soffio finds, all of it at once. check reads the texts and changes
 // none. Either may be nil.
-func Main(funcs template.FuncMap, check func(docs map[string]*soffio.Document) error) {
+func Main(funcs template.FuncMap, check func(docs map[string]*Document) error) {
 	name, _, _ := strings.Cut(filepath.Base(os.Args[0]), ".")
 	log.SetFlags(0)
 	all := flag.Bool("a", false, "all texts: the private ones too")
@@ -88,17 +81,17 @@ func Main(funcs template.FuncMap, check func(docs map[string]*soffio.Document) e
 	if err != nil {
 		log.Fatalf("%s: %v", name, err)
 	}
-	docs, err := soffio.Load(flag.Arg(0))
+	docs, err := Load(flag.Arg(0))
 	if err != nil {
 		log.Fatal(err)
 	}
-	active := map[string]*soffio.Document{}
+	active := map[string]*Document{}
 	for id, doc := range docs {
 		if *all || doc.Meta["visibility"] != "private" {
 			active[id] = doc
 		}
 	}
-	err = soffio.Check(docs, active, staticDirs)
+	err = Check(docs, active, staticDirs)
 	if check != nil {
 		err = errors.Join(err, check(active))
 	}
@@ -159,9 +152,9 @@ func siteFiles(tmpl *template.Template) []string {
 // or with -n only checks it. Alone, a text can check only its notes and
 // its own sections.
 func pipe(name string, dry bool) {
-	doc, err := soffio.Parse("<stdin>", os.Stdin)
+	doc, err := Parse("<stdin>", os.Stdin)
 	if err == nil {
-		err = soffio.CheckDoc(doc)
+		err = CheckDoc(doc)
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -169,7 +162,7 @@ func pipe(name string, dry bool) {
 	if dry {
 		return
 	}
-	if _, err := os.Stdout.WriteString(soffio.Render(doc)); err != nil {
+	if _, err := os.Stdout.WriteString(Render(doc)); err != nil {
 		log.Fatalf("%s: %v", name, err)
 	}
 }

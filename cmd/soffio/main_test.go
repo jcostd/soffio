@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// soffio is package site with nothing added: a text in, HTML out
+// soffio is soffio.Main with nothing added: a text in, HTML out
 func TestSoffio(t *testing.T) {
 	cmd := exec.Command(os.Args[0])
 	cmd.Env = append(os.Environ(), "SOFFIO_MAIN=1")

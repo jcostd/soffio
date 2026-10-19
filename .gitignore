@@ -8,11 +8,9 @@
 *.coverprofile
 
 # Local user content (personal site)
-# The built-in templates live in site/templates/ and are embedded;
-# /templates/ is a -t of one's own
+# The built-in templates live in templates/ and are embedded
 /content/
 /static/
-/templates/
 *.soffio
 
 # Environment and editor files

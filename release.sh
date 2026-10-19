@@ -40,7 +40,7 @@ for t in $TARGETS; do
   mkdir "$TMP/$NAME"
   make -s GOOS=$OS GOARCH=$ARCH OUT="$TMP/$NAME"
   cp README LICENSE "$TMP/$NAME"
-  cp -R site/templates "$TMP/$NAME/templates"
+  cp -R templates "$TMP/$NAME/templates"
 
   cd "$TMP"
   chmod 755 $NAME $NAME/soffio* $NAME/templates

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package site
+package soffio
 
 import (
 	"bytes"
@@ -16,8 +16,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/jcostd/soffio"
 )
 
 // site is what the pages are made from.
@@ -27,7 +25,7 @@ type site struct {
 	outDir  string
 	dry     bool // -n: execute, write nothing
 	tmpl    *template.Template
-	docs    map[string]*soffio.Document
+	docs    map[string]*Document
 	ids     []string              // docs' keys, sorted
 	static  []string              // the -s dirs
 	sizes   map[string]*imageSize // size's answers, by path
@@ -40,7 +38,7 @@ func (s *site) prepare() {
 		doc := s.docs[id]
 		for i := range doc.Sections {
 			for j, b := range doc.Sections[i].Blocks {
-				if img, ok := b.(soffio.ImageBlock); ok {
+				if img, ok := b.(ImageBlock); ok {
 					if sz := s.size(img.Path); sz != nil {
 						img.Width, img.Height = sz.Width, sz.Height
 						doc.Sections[i].Blocks[j] = img
@@ -82,7 +80,7 @@ func (s *site) size(path string) *imageSize {
 }
 
 // writeDoc renders doc through its layout into <outDir>/<id>.html.
-func (s *site) writeDoc(doc *soffio.Document) error {
+func (s *site) writeDoc(doc *Document) error {
 	layout := "layout.html"
 	if l := doc.Meta["layout"]; l != "" {
 		layout = l + ".html"
@@ -93,7 +91,7 @@ func (s *site) writeDoc(doc *soffio.Document) error {
 	return s.write(doc.ID+".html", layout, map[string]any{
 		"ID":      doc.ID,
 		"Meta":    doc.Meta,
-		"Content": template.HTML(soffio.Render(doc)),
+		"Content": template.HTML(Render(doc)),
 		"BaseURL": s.baseURL,
 		"Docs":    s.docs,
 	})

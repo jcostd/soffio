@@ -1,15 +1,13 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-package site
+package soffio
 
 import (
 	"embed"
 	"html/template"
 	"io/fs"
 	"os"
-
-	"github.com/jcostd/soffio"
 )
 
 //go:embed templates
@@ -22,7 +20,7 @@ var patterns = []string{"*.html", "*.xml", "*.txt"}
 // day of the build, or "". What a site wants more, Main adds.
 func (s *site) funcs() template.FuncMap {
 	return template.FuncMap{
-		"doc":   func(id string) *soffio.Document { return s.docs[id] },
+		"doc":   func(id string) *Document { return s.docs[id] },
 		"size":  s.size,
 		"today": func() string { return s.today },
 	}

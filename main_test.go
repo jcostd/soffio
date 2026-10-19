@@ -1,4 +1,4 @@
-package site
+package soffio
 
 import (
 	"bytes"
@@ -14,8 +14,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/jcostd/soffio"
 )
 
 // TestMain lets the test binary be the command, for the tests that run
@@ -27,7 +25,7 @@ func TestMain(m *testing.M) {
 		Main(nil, nil)
 		os.Exit(0)
 	case "ext":
-		Main(template.FuncMap{"shout": strings.ToUpper}, func(docs map[string]*soffio.Document) error {
+		Main(template.FuncMap{"shout": strings.ToUpper}, func(docs map[string]*Document) error {
 			if docs["bad"] != nil {
 				return errors.New("bad: a page this site refuses")
 			}
@@ -66,21 +64,6 @@ func run(t *testing.T, main, dir string, args ...string) (int, string) {
 		t.Fatal(err)
 	}
 	return 0, stderr.String()
-}
-
-func writeFiles(t *testing.T, files map[string]string) string {
-	t.Helper()
-	dir := t.TempDir()
-	for name, content := range files {
-		path := filepath.Join(dir, filepath.FromSlash(name))
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return dir
 }
 
 func exists(dir, name string) bool {
@@ -164,13 +147,13 @@ func TestSoffio(t *testing.T) {
 		{[]string{"-n", "-t", "nope", "src"}, 1, "nope"},
 		{[]string{"-n", "-baseurl", "https://x.org/", "src"}, 1, `drop the final '/'`},
 		{[]string{"-n", "-today", "17-10-2026", "src"}, 1, `-today "17-10-2026": want YYYY-MM-DD`},
-		{[]string{"src", "more"}, 2, "usage: site [-a]"},
+		{[]string{"src", "more"}, 2, "usage: soffio [-a]"},
 		{[]string{"-n", "-s", "static", "e404"}, 1, "page 404 is the site file 404.html too"},
 		{[]string{"-n", "hlink"}, 1, filepath.Join("hlink", "x.soffio") + `:2: link to missing page "/nope"`},
 		{[]string{"-n", "nope"}, 1, "nope: no such file or directory"},
-		{[]string{"-n", "-t", "badtmpl", "src"}, 1, "site: template: x.html:1: missing value for if"},
+		{[]string{"-n", "-t", "badtmpl", "src"}, 1, "soffio: template: x.html:1: missing value for if"},
 		{[]string{"-n", "-t", "layout", "layout"}, 1, filepath.Join("layout", "x.soffio") + ": no layout nope.html in the templates"},
-		{[]string{"-n", "-s", "static", "-t", "badsite", "src"}, 1, "site: robots.txt: "},
+		{[]string{"-n", "-s", "static", "-t", "badsite", "src"}, 1, "soffio: robots.txt: "},
 	} {
 		code, stderr := soffioRun(t, dir, tt.args...)
 		if code != tt.code || !strings.Contains(stderr, tt.want) {
@@ -195,7 +178,7 @@ func TestSoffioPipe(t *testing.T) {
 	if out, err := cmd.Output(); err != nil || len(out) != 0 {
 		t.Errorf("pipe -n: %v: %q", err, out)
 	}
-	if code, stderr := soffioRun(t, t.TempDir(), "-o", "x"); code != 2 || !strings.Contains(stderr, "site: -o needs a dir") {
+	if code, stderr := soffioRun(t, t.TempDir(), "-o", "x"); code != 2 || !strings.Contains(stderr, "soffio: -o needs a dir") {
 		t.Errorf("pipe -o: exit %d, %q", code, stderr)
 	}
 
@@ -220,12 +203,12 @@ func TestSoffioPipe(t *testing.T) {
 	cmd.Stdout = ro
 	stderr.Reset()
 	cmd.Stderr = &stderr
-	if err := cmd.Run(); err == nil || !strings.Contains(stderr.String(), "site: write /dev/stdout: bad file descriptor") {
+	if err := cmd.Run(); err == nil || !strings.Contains(stderr.String(), "soffio: write /dev/stdout: bad file descriptor") {
 		t.Errorf("pipe to a file it can't write: %v: %s", err, stderr.String())
 	}
 }
 
-func testSite(t *testing.T, layouts string, docs map[string]*soffio.Document) *site {
+func testSite(t *testing.T, layouts string, docs map[string]*Document) *site {
 	t.Helper()
 	s := &site{
 		baseURL: "https://example.org",
@@ -238,18 +221,18 @@ func testSite(t *testing.T, layouts string, docs map[string]*soffio.Document) *s
 	return s
 }
 
-func page(id string, meta map[string]string) *soffio.Document {
+func page(id string, meta map[string]string) *Document {
 	m := map[string]string{"title": "T " + id}
 	maps.Copy(m, meta)
-	return &soffio.Document{ID: id, Meta: m, Sections: []soffio.Section{
-		{Level: 2, ID: "s", Title: "S", Blocks: []soffio.Block{
-			soffio.TextBlock{Elements: []soffio.Inline{soffio.PlainText{Content: "Hello"}}},
+	return &Document{ID: id, Meta: m, Sections: []Section{
+		{Level: 2, ID: "s", Title: "S", Blocks: []Block{
+			TextBlock{Elements: []Inline{PlainText{Content: "Hello"}}},
 		}},
 	}}
 }
 
 func TestWriteDoc(t *testing.T) {
-	docs := map[string]*soffio.Document{
+	docs := map[string]*Document{
 		"a": page("a", nil),
 		"b": page("b", map[string]string{"layout": "post"}),
 		"c": page("c", map[string]string{"layout": "postt"}),
@@ -288,7 +271,7 @@ func TestWriteDoc(t *testing.T) {
 
 // a page gets its ID and every page, by ID
 func TestWriteDocDocs(t *testing.T) {
-	docs := map[string]*soffio.Document{"it/a": page("it/a", nil), "it/b": page("it/b", nil)}
+	docs := map[string]*Document{"it/a": page("it/a", nil), "it/b": page("it/b", nil)}
 	s := testSite(t, `{{define "layout.html"}}{{.ID}}|{{range .Docs}}{{.ID}};{{end}}{{end}}`, docs)
 	if err := s.writeDoc(docs["it/b"]); err != nil {
 		t.Fatal(err)
@@ -483,7 +466,7 @@ func TestSoffioStaticOntoItself(t *testing.T) {
 func TestWriteDocToday(t *testing.T) {
 	// the templates know the day only if told, so the same flags make the
 	// same site
-	docs := map[string]*soffio.Document{"a": page("a", nil)}
+	docs := map[string]*Document{"a": page("a", nil)}
 	s := testSite(t, `{{define "layout.html"}}[{{today}}]{{end}}`, docs)
 	for _, today := range []string{"", "2026-10-17"} {
 		s.today = today
@@ -499,7 +482,7 @@ func TestWriteDocToday(t *testing.T) {
 func TestWriteDocDoc(t *testing.T) {
 	// doc finds a page by ID: a partial needs no more than the page it
 	// is given
-	docs := map[string]*soffio.Document{"it/a": page("it/a", nil), "en/c": page("en/c", nil)}
+	docs := map[string]*Document{"it/a": page("it/a", nil), "en/c": page("en/c", nil)}
 	s := testSite(t, `{{define "layout.html"}}{{with doc "en/c"}}{{.Meta.title}}{{end}}|{{with doc "nope"}}?{{end}}{{end}}`, docs)
 	if err := s.writeDoc(docs["it/a"]); err != nil {
 		t.Fatal(err)
@@ -528,7 +511,7 @@ func TestMainExtended(t *testing.T) {
 		!strings.HasSuffix(stderr, `bad.soffio:4: link to missing page "gone"`+"\nbad: a page this site refuses\n") {
 		t.Errorf("check: exit %d, %q", code, stderr)
 	}
-	if code, stderr := run(t, "clash", dir, "-n", "src"); code != 1 || !strings.Contains(stderr, "site: the templates' function doc is soffio's") {
+	if code, stderr := run(t, "clash", dir, "-n", "src"); code != 1 || !strings.Contains(stderr, "soffio: the templates' function doc is soffio's") {
 		t.Errorf("clash: exit %d, %q", code, stderr)
 	}
 }
@@ -541,11 +524,11 @@ func TestWriteDocSizes(t *testing.T) {
 		t.Fatal(err)
 	}
 	static := writeFiles(t, map[string]string{"a.png": png.String(), "b.svg": "<svg/>"})
-	img := func(path string) soffio.Section {
-		return soffio.Section{Level: 2, ID: path[len(path)-5 : len(path)-4], Title: "S", Blocks: []soffio.Block{soffio.ImageBlock{Path: path}}}
+	img := func(path string) Section {
+		return Section{Level: 2, ID: path[len(path)-5 : len(path)-4], Title: "S", Blocks: []Block{ImageBlock{Path: path}}}
 	}
-	docs := map[string]*soffio.Document{"x": {ID: "x", Meta: map[string]string{"title": "X", "image": "/static/a.png"},
-		Sections: []soffio.Section{img("/static/a.png"), img("/static/b.svg"), img("https://example.org/c.png")}}}
+	docs := map[string]*Document{"x": {ID: "x", Meta: map[string]string{"title": "X", "image": "/static/a.png"},
+		Sections: []Section{img("/static/a.png"), img("/static/b.svg"), img("https://example.org/c.png")}}}
 	s := testSite(t, `{{define "layout.html"}}{{with size .Meta.image}}{{.Width}}x{{.Height}}{{end}}|{{with size "/static/b.svg"}}?{{end}}|{{.Content}}{{end}}`, docs)
 	s.static = []string{static}
 	s.prepare()

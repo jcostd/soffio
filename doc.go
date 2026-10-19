@@ -1,7 +1,11 @@
 // Copyright (C) 2026 Jacopo Costantini
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Package soffio parses, checks and renders Soffio markup.
+// Package soffio parses, checks and renders Soffio markup, and is the
+// command soffio: Main makes a directory of texts a static site, or one
+// text on standard input HTML on standard output. A site that wants
+// more, functions for its templates or rules for its texts, is a
+// program of its own that calls Main with them: soffio is Main(nil, nil).
 package soffio
 
 // A Document is one .soffio file.
