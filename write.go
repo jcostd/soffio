@@ -77,7 +77,8 @@ func (s *site) size(path string) *image.Config {
 	return sz
 }
 
-// writeDoc renders doc through its layout into <outDir>/<id>.html.
+// writeDoc renders doc through its layout into <outDir>/<id>.html, in
+// one write: html/template writes in small pieces, one syscall each.
 func (s *site) writeDoc(doc *Document) error {
 	layout := "layout.html"
 	if l := doc.Meta["layout"]; l != "" {
@@ -86,23 +87,18 @@ func (s *site) writeDoc(doc *Document) error {
 	if s.tmpl.Lookup(layout) == nil {
 		return fmt.Errorf("no layout %s in the templates", layout)
 	}
-	return s.write(doc.ID+".html", layout, map[string]any{
+	var b bytes.Buffer
+	err := s.tmpl.ExecuteTemplate(&b, layout, map[string]any{
 		"ID":      doc.ID,
 		"Meta":    doc.Meta,
 		"Content": template.HTML(Render(doc)),
 		"BaseURL": s.baseURL,
 		"Docs":    s.docs,
 	})
-}
-
-// write executes the template name into <outDir>/<file> in one write:
-// html/template writes in small pieces, one syscall each.
-func (s *site) write(file, name string, data any) error {
-	var b bytes.Buffer
-	if err := s.tmpl.ExecuteTemplate(&b, name, data); err != nil || s.dry {
+	if err != nil || s.dry {
 		return err
 	}
-	path := filepath.Join(s.outDir, filepath.FromSlash(file))
+	path := filepath.Join(s.outDir, filepath.FromSlash(doc.ID+".html"))
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

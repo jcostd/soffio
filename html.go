@@ -42,7 +42,7 @@ func Render(doc *Document) string {
 	r.w.WriteString(strings.Repeat("</section>\n", len(open)))
 
 	if len(r.refs) > 0 {
-		r.w.WriteString("\n<section role=\"doc-endnotes\">\n\t<ol>\n")
+		r.w.WriteString("<section role=\"doc-endnotes\">\n\t<ol>\n")
 		// a note may refer to a later one: r.refs grows as it goes
 		for i := 0; i < len(r.refs); i++ {
 			ref := html.EscapeString(r.refs[i])
