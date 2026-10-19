@@ -100,9 +100,11 @@ with `sh` to lift the quarantine of a download from that folder (it checks soffi
 runs with `soffio -n < /dev/null`). Build them from the clean tag: the binaries carry
 the git revision, and `vcs.modified=true` if the tree was dirty. A site's own command
 (fucina-engine) requires the tagged module, so tag and push before releasing it. `go.mod`
-retracts v0.0.5 and v1.1.0 to v1.2.3, the old numbering the Go proxy remembers;
-v1.2.3 is that retraction only, with no archives: the next soffio is v1.0.1, never a
-v1.1.x or v1.2.x, and the retract block stays in `go.mod` for good.
+retracts v0.0.5, v1.0.0 and v1.1.0 to v1.2.4: the old numbering, which the Go proxy
+and checksum database keep for good, deleted tags or not (so a deleted tag's number
+is never used again). v1.2.3 and v1.2.4 are retractions only, with no archives; the
+first soffio numbered anew is v1.0.1, the next v1.0.2, never a v1.1.x or v1.2.x, and
+the retract block stays in `go.mod`. A new retraction needs a version above v1.2.4.
 
 ## Architecture
 

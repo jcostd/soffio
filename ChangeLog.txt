@@ -1,16 +1,16 @@
-Mon Oct 19 21:28:05 UTC 2026
-v1.2.3, no release: go.mod retracts v0.0.5 and v1.1.0 to v1.2.3.
-  The old numbering, whose module was soffio, is still known to
-  proxy.golang.org, and its v1.2.2 was @latest; now @latest is v1.0.0.
-  The next soffio is v1.0.1.
-+--------------------------+
-Mon Oct 19 21:26:14 UTC 2026
-soffio 1.0.0, since v4.0.0, numbered anew: the first soffio whose core
+Mon Oct 19 21:31:18 UTC 2026
+soffio 1.0.1, since v4.0.0, numbered anew: the first soffio whose core
 is fixed. Soffio is cut to the bone: its markup, its links, its files,
 and nothing of what a site is about, as Lua's core is to its host.
 What a site wants more is a program of its own, which soffio.Main
 makes: soffio with the functions and the checks it adds. The same flags
 make the same site, every package is tested to the last statement.
+soffio: 1.0.1, as 1.0.0 is the old soffio's for good.
+  proxy.golang.org and the checksum database keep what they once saw,
+  tags deleted or not: v0.0.5, v1.0.0 and v1.1.0 to v1.2.2 of the old
+  numbering, whose module was soffio. go.mod retracts them, and v1.2.3
+  and v1.2.4, which are retractions only, with no archives; @latest is
+  1.0.1. The next soffio is 1.0.2.
 soffio: The module is github.com/jcostd/soffio, v1.
   A path go can fetch, as a site's own program requires it. What it
   exports is the contract: a site extends soffio with functions, a
