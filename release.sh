@@ -12,20 +12,21 @@
 
 cd "$(dirname "$0")" || exit 1
 CWD=$(pwd)
-VERSION=$(cat VERSION)
 TARGETS=${TARGETS:-"linux/386 linux/amd64 linux/arm linux/arm64 darwin/amd64 darwin/arm64 windows/386 windows/amd64 windows/arm64"}
 
 set -eu
 
-# the binaries carry the git revision: build only the clean tag
+# the binaries carry the git revision: build only a clean tag, vX.Y.Z,
+# which is the version
 if [ -n "$(git status --porcelain)" ]; then
   echo "release.sh: the tree is not clean" >&2
   exit 1
 fi
-if [ "$(git describe --tags --exact-match 2>/dev/null)" != "v$VERSION" ]; then
-  echo "release.sh: HEAD is not tagged v$VERSION" >&2
+if ! TAG=$(git describe --tags --exact-match --match 'v[0-9]*' 2>/dev/null); then
+  echo "release.sh: HEAD is not tagged vX.Y.Z" >&2
   exit 1
 fi
+VERSION=${TAG#v}
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT

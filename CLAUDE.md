@@ -90,8 +90,8 @@ The README is the man page.
 ## Release
 
 Every change worth knowing gets a line in `ChangeLog.txt`, newest first, Slackware
-style. Bump `VERSION`, date the ChangeLog entry, commit "bump to vX.Y.Z",
-`git tag -a vX.Y.Z`, `./release.sh`, and upload what it made in `dist/` to the
+style. Date the ChangeLog entry, commit "release vX.Y.Z", `git tag -a
+vX.Y.Z` (the tag is the version: there is no VERSION file), `./release.sh`, and upload what it made in `dist/` to the
 GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip`
 for windows), each holding soffio as the Makefile builds it, README,
 LICENSE and `templates/` (the built-in templates as files, to start a `-t` from),
@@ -100,8 +100,8 @@ with `sh` to lift the quarantine of a download from that folder (it checks soffi
 runs with `soffio -n < /dev/null`). Build them from the clean tag: the binaries carry
 the git revision, and `vcs.modified=true` if the tree was dirty. A site's own command
 (fucina-engine) requires the tagged module, so tag and push before releasing it. One
-number for one thing: the tag, the release, `VERSION`, the ChangeLog and the module's
-major say the same. A version, once the Go proxy has seen it, is its for good, tag
+number for one thing: the tag, the release, the ChangeLog and the module's major say the
+same. A version, once the Go proxy has seen it, is its for good, tag
 deleted or not, so a number is never used twice: the path without /v5 holds the old
 numbering, whose module was `soffio`, and is not used.
 

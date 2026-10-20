@@ -7,6 +7,8 @@ soffio: Load keeps the links of every Document in Document.Links.
 soffio: The templates get .Pages, every page in the order of the IDs.
   A list for a site's functions, which had .Docs alone, a map, and
   sorted its keys again in each.
+release.sh: The version is the tag, vX.Y.Z; VERSION is gone.
+  One number in one place: the tag, which go and the release read.
 +--------------------------+
 Mon Oct 19 21:40:25 UTC 2026
 soffio 5.0.0, since v4.0.0: the first soffio whose core is fixed.
