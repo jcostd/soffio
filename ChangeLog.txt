@@ -1,4 +1,4 @@
-(not yet released)
+Tue Oct 20 18:28:11 UTC 2026
 soffio 5.1.0: a site reads the links of its pages, and the pages in
 their order, from soffio, once.
 soffio: Load keeps the links of every Document in Document.Links.
