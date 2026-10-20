@@ -9,6 +9,7 @@ soffio: The templates get .Pages, every page in the order of the IDs.
   sorted its keys again in each.
 release.sh: The version is the tag, vX.Y.Z; VERSION is gone.
   One number in one place: the tag, which go and the release read.
+README: The site program of EXTENDING sorts .Pages.
 +--------------------------+
 Mon Oct 19 21:40:25 UTC 2026
 soffio 5.0.0, since v4.0.0: the first soffio whose core is fixed.

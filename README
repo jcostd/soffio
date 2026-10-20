@@ -14,10 +14,10 @@ DESCRIPTION
     else. Before it writes anything it checks the whole site: every
     link points at a page, a section or a file that is there; every
     note is defined and referenced; no public page points at a private
-    one. If a text is
-    wrong it says where, file:line, writes nothing and exits 1; a page
-    whose template fails is reported too, and soffio exits 1. It has no
-    warnings: what is worth saying is worth fixing.
+    one. If a text is wrong it says where, file:line, writes nothing
+    and exits 1; a page whose template fails is reported too, and
+    soffio exits 1. It has no warnings: what is worth saying is worth
+    fixing.
 
     With no dir, soffio is a filter: one text on standard input, an
     HTML fragment on standard output. Alone, a text can only check its
@@ -25,7 +25,7 @@ DESCRIPTION
     nothing, and the flags about a site are refused.
 
     Soffio knows its markup, links and files, and nothing of what a
-    site is about: what a site wants more is a program of its own (see
+    site is about: a site that needs more is a program of its own (see
     EXTENDING). It uses the Go standard library and nothing else.
 
 OPTIONS
@@ -226,12 +226,11 @@ EXTENDING
     The markup and what a header means are not extended.
 
     A site's program, whole: a check that every date is a date, and a
-    function that lists the pages, the newest first.
+    function that lists the pages, the newest first: newest .Pages.
 
         package main
 
         import (
-            "cmp"
             "errors"
             "fmt"
             "html/template"
@@ -257,13 +256,11 @@ EXTENDING
             return errors.Join(errs...)
         }
 
-        func newest(docs map[string]*soffio.Document) []*soffio.Document {
-            list := slices.Collect(maps.Values(docs))
-            slices.SortFunc(list, func(a, b *soffio.Document) int {
-                return cmp.Or(strings.Compare(b.Meta["date"], a.Meta["date"]),
-                    strings.Compare(a.ID, b.ID))
-            })
-            return list
+        func newest(pages []*soffio.Document) []*soffio.Document {
+            return slices.SortedStableFunc(slices.Values(pages),
+                func(a, b *soffio.Document) int {
+                    return strings.Compare(b.Meta["date"], a.Meta["date"])
+                })
         }
 
         func main() {
@@ -271,12 +268,11 @@ EXTENDING
         }
 
 EXAMPLES
-    A site, checked, then built into an empty directory and served by
-    any static server:
+    A site, checked, then built into an empty directory, for any
+    static server:
 
         soffio -n -s static texts && rm -rf public &&
             soffio -baseurl https://example.org -s static texts
-        python3 -m http.server -d public
 
     One text, as HTML, or only checked:
 

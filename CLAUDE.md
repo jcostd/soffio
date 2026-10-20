@@ -2,259 +2,163 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Overview
+## What this is
 
-Soffio is a minimalist, strict static site generator written in Go with zero external
-dependencies, and a Unix tool: one job, done whole, the same way every time. It parses
-a custom `.soffio` markup format, builds an in-memory corpus of documents, validates
-referential integrity across the whole corpus (internal links, footnotes, files,
-public/private leaks), then renders HTML via `html/template` layouts. It also runs as a
-filter (stdin `.soffio` -> stdout HTML).
+Soffio is a strict static site generator in Go, stdlib only, and a Unix tool: one job,
+done whole, the same way every time. It parses `.soffio` texts, checks the whole site
+(links, notes, files, public pages pointing at private ones), and renders each text
+through an `html/template` layout. With no directory it is a filter: a text on
+standard input, HTML on standard output. The README is the man page.
 
 It knows its markup, its links and its files, and nothing of what a site is about: no
-languages, no dates, no lists. What a site wants more is a program of its own that calls
-`soffio.Main(funcs, check)` (the Fucina's is `fucina-engine`, in Fossil at
-`~/fossils/fucina-engine.fossil`). Before adding anything here, ask whether every site
-needs it and whether only soffio can do it; if not, it belongs to the site's program.
+languages, dates or lists. A site that needs more is a program of its own calling
+`soffio.Main(funcs, check)`; the Fucina's is fucina-engine (Fossil,
+`~/fossils/fucina-engine.fossil`). Before adding anything, ask whether every site needs
+it and whether only soffio can do it; if not, it belongs to the site's program.
 
 ## The contract
 
-Soffio is to a site what Lua's core is to its host: mechanisms, never policies. Since
-5.0.0 it is fixed; it changes to fix what is wrong, not to do more. A site extends it
-in four ways, and no other:
+Soffio gives mechanisms, never policies, as Lua's core does to its host. A site
+extends it in four ways and no other:
 
-1. functions for its templates, `Main`'s `funcs`, never with one of soffio's
-   names (`doc`, `href`, `size`, `today`);
-2. a `check` of its texts, which reads them and changes none, its errors
-   `file:line: message` from `Document.Lines`, said after soffio's, all at once;
-3. its templates, the `.html` files of `-t`: a layout per page, and partials; soffio
-   makes HTML pages, a text each, and nothing else (a sitemap, robots.txt, a 404
-   are a server's, or a text: `404.soffio`);
+1. functions for its templates, `Main`'s `funcs`, never named as soffio's (`doc`,
+   `href`, `size`, `today`);
+2. a `check` of its texts, which reads them and changes none; its errors are
+   `file:line: message` (from `Document.Lines`), said after soffio's, all at once;
+3. its templates, the `.html` files of `-t`: a layout per page, and partials. Soffio
+   makes HTML pages, one per text, and nothing else (a sitemap, robots.txt, a 404
+   are a server's, or a text, `404.soffio`);
 4. programs of its own on package `soffio` (`Load`, `Check`, `Links`, `Parse`,
-   `Render`), as fucina-engine's `rete`.
+   `Render`).
 
-The markup and what the header means (three keys, `title layout visibility`, words;
-two values, `-> target` and `/static/...`) are not extended. A need none of the four
-meets is a mechanism soffio lacks, and is discussed as one; a policy (a word, a
-choice of behaviour, what a site is about) is never added.
+The markup and the header (three keys, `title layout visibility`, each a word; two
+kinds of value, `-> target` and `/static/...`) are fixed since 5.0.0. Soffio changes
+to fix what is wrong, or to give a site in a better form what it already computes
+when the old form costs the site too much: 5.1.0 keeps `Links` in `Document.Links`,
+read once by `Load`, and gives the templates `.Pages`. It never gains a policy (a
+word, a choice of behaviour, what a site is about). A need none of the four meets is a
+missing mechanism, discussed as one.
 
 ## Commands
 
-The Makefile is the one place that says how soffio is compiled: static
-(`CGO_ENABLED=0`), for the baseline CPU of each family whatever the environment says
-(`GOAMD64=v1`, `GOARM64=v8.0`, `GOARM=6`, `GO386=sse2`), `-trimpath`, `-s -w`; go
-stamps the version from the tag (`go version -m soffio`). release.sh calls it; don't
-compile release binaries any other way. Speed comes from the compiler's defaults and,
-if `cmd/soffio/default.pgo` exists, from profile-guided optimization; never
-`-gcflags=-B`.
-
 ```
-make                                     # soffio for here, in the repo root
+make                                     # soffio for here
 make GOOS=windows GOARCH=amd64 OUT=dir   # for another system, into dir
-make test                                # go vet, then every test, with its coverage
+make test                                # go vet, then every test with its coverage
+go test . -run TestCheckTarget           # one test
+go test -fuzz FuzzParse -fuzztime 60s .  # after touching parse.go or inline.go
 ./release.sh                             # the release archives, see Release
 ```
 
-Run one package's tests, or one test by name:
+The Makefile is the one way soffio is compiled: static (`CGO_ENABLED=0`), for the
+baseline CPU of each family (`GOAMD64=v1`, `GOARM64=v8.0`, `GOARM=6`, `GO386=sse2`),
+`-trimpath`, `-s -w`; go stamps the version from the tag (`go version -m soffio`).
+Speed comes from the compiler's defaults and, if `cmd/soffio/default.pgo` exists,
+PGO; never `-gcflags=-B`.
 
-```
-go test .
-go test . -run TestCheckTarget
-go test ./... -v
-```
+Every package is covered at 100% of its statements, and a new branch comes with its
+test. The command is tested end to end: the test binary runs as soffio when
+`SOFFIO_MAIN` says so (`SOFFIO_MAIN=ext` is a site's own command, with a function and
+a check). The empty `isBlock` and `isInline` methods have no statements.
 
-Every package is covered at 100% of its statements (`go test -cover ./...`), and
-stays so: a new branch comes with the test that takes it. The commands are tested
-end to end, as they run: each test binary's `TestMain` runs the command when
-`SOFFIO_MAIN` or `PREVIEW_MAIN` says so (`SOFFIO_MAIN=ext` is a site's own command,
-with a function and a check), and the tests run it as the command, whose coverage
-`go test` counts as its own; what can't be written is a standard output open
-read-only, what can't be read a file of mode 0. The empty `isBlock` and `isInline`
-methods have no statements to cover.
+Go 1.26+. The module is `github.com/jcostd/soffio/v5`: what it exports is the
+contract; breaking it would need a /v6 path, and is not done.
 
-Requires Go 1.26+ (see `go.mod`). The module is `github.com/jcostd/soffio/v5`: what it
-exports is the contract, and a change that broke it would be a new path, /v6, as Go
-wants: it is not made.
-
-Generator mode: `soffio [-a] [-n] [-baseurl url] [-o dir] [-s dir]... [-t dir] [-today day] dir`
-reads the `.soffio` texts under dir and writes a site to `-o` (default `public`): `-a`
-takes the private texts too, `-n` checks everything and writes nothing, `-baseurl` is
-`.BaseURL` (empty if not given: no default that depends on another flag), `-s` a
-static dir copied to `<o>/static` (repeatable: the drafts' files go in one only the
-preview gets, as everything in `-s` is published), `-t` the templates instead of the
-built-in ones, `-today` the templates' day. Pipe mode, with no dir:
-`soffio [-n] < text.soffio > text.html` (`-n` only checks; any other flag is refused,
-exit 2). No server: any static one serves the site. No version flag.
-The README is the man page.
+`soffio [-a] [-n] [-baseurl url] [-o dir] [-s dir]... [-t dir] [-today day] dir`: `-a`
+takes the private texts too, `-n` checks and writes nothing, `-baseurl` is `.BaseURL`
+(empty without it), `-s` a static dir copied to `<o>/static` (repeatable), `-t` the
+templates instead of the built-in ones, `-today` the templates' day. Pipe mode,
+`soffio [-n] < text.soffio > text.html`, refuses the other flags (exit 2). No server,
+no version flag, no default that depends on another flag.
 
 ## Release
 
-Every change worth knowing gets a line in `ChangeLog.txt`, newest first, Slackware
-style. Date the ChangeLog entry, commit "release vX.Y.Z", `git tag -a
-vX.Y.Z` (the tag is the version: there is no VERSION file), `./release.sh`, and upload what it made in `dist/` to the
-GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip`
-for windows), each holding soffio as the Makefile builds it, README,
-LICENSE and `templates/` (the built-in templates as files, to start a `-t` from),
-owned by root, 755/644; the darwin ones also `unquarantine.sh`, which a Mac user runs
-with `sh` to lift the quarantine of a download from that folder (it checks soffio
-runs with `soffio -n < /dev/null`). Build them from the clean tag: the binaries carry
-the git revision, and `vcs.modified=true` if the tree was dirty. A site's own command
-(fucina-engine) requires the tagged module, so tag and push before releasing it. One
-number for one thing: the tag, the release, the ChangeLog and the module's major say the
-same. A version, once the Go proxy has seen it, is its for good, tag
-deleted or not, so a number is never used twice: the path without /v5 holds the old
-numbering, whose module was `soffio`, and is not used.
+`ChangeLog.txt` has a line for every change worth knowing, newest first, Slackware
+style. Date the entry, commit "release vX.Y.Z", `git tag -a vX.Y.Z` (the tag is the
+version; there is no VERSION file), push the commit and the tag, `./release.sh`, and
+upload `dist/` to the GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip` for
+windows), each with soffio, README, LICENSE and `templates/` (the built-in templates,
+to start a `-t` from), owned by root, 755/644; the darwin ones also
+`unquarantine.sh`, which lifts the quarantine of that folder and checks that soffio
+runs. Build from the clean tag: the binaries carry the git revision. fucina-engine
+requires the published module, so push the tag before releasing it. A version the Go
+proxy has seen is its for good: a number is never used twice, and the path without
+/v5 holds an old numbering that is not used.
 
 ## Architecture
 
-Pipeline: parse -> load -> check -> render -> site assembly. One package, `soffio`, at
-the module root: the language and the command, `Main`, which `cmd/soffio` runs with
-nothing added and a site's own program with its functions. No server: any static one
-serves a site (the Fucina's writers have fucina-engine's `preview`).
+One package, `soffio`, at the module root; `cmd/soffio` runs `Main(nil, nil)`.
+Parse, load, check, render, write.
 
-- **`doc.go`**: the document tree. `Document` (File, ID, Meta, `[]Section`),
-  `Section` (level, ID, title, `[]Block`), blocks (`TextBlock`, `ImageBlock` with its
-  width and height when known, `NoteBlock`, `ListBlock`, each with the line it starts
-  at) and inlines (`PlainText`, `Bold`, `Italic`, `Link`, `FootnoteRef`). Pure data.
+- **`doc.go`**: the tree, plain data. `Document` (File, ID, Meta, Sections, Lines,
+  HeaderLinks, Links), `Section`, the blocks (`TextBlock`, `ImageBlock` with its size
+  when known, `NoteBlock`, `ListBlock`, each with its first line) and the inlines
+  (`PlainText`, `Bold`, `Italic`, `Link`, `FootnoteRef`).
+- **`parse.go`**, **`inline.go`**: no state machine. The header is `key: value` lines
+  up to the first blank line, keys of `[a-z0-9_]`, each once; a `-> target` value is a
+  link (its key in `HeaderLinks`), a `/static/` value a file; any other value is a
+  word, as written. The body is cut into blocks at blank lines and before every `==`
+  and `::` line (`::img:` is refused); a block's first line says what it is. Headings
+  skip no level. A BOM is dropped, invalid UTF-8 refused. Inline markup is scanned
+  by byte, linearly: `*` and `_` open at the start of a word and close at its end,
+  `(*id)` is a note only if `id` is a valid ID, a label holds no link or note.
+  `fuzz_test.go` keeps it from panicking, nesting `<a>`, repeating an id or leaking
+  markup.
+- **`load.go`**: `Load` walks the directory in lexical order (so errors come in the
+  same order), skips hidden files, refuses links to directories, and returns the
+  documents by ID, the file's path without `.soffio`. Every part of an ID passes
+  `checkID`; a text needs a title; IDs that differ only in case clash; `static/` is
+  not an ID. Header links are resolved here, from the text's directory, into the
+  page's ID, which `Meta[key]` then holds; a section, file or outside address is
+  refused. Then `Document.Links` is set.
+- **`url.go`**: `resolve` is the one place a link target is read: its ID or static
+  file, and its `#fragment`. `Check` and `href` both use it, so what is checked is what
+  is linked. `href` writes the address relative to the page.
+- **`check.go`**: `Check(all, active, staticDirs)` walks the active documents in ID
+  order: every link, image and header file points at an active page, one of its
+  sections, or a regular file in a `-s`, through a valid address; every note is
+  defined and reached from the body, maybe through other notes. A link to a document
+  in all but not in active is a privacy leak. Files have no visibility: everything in
+  `-s` is published, so drafts' files go in a `-s` only the preview gets; never guess
+  privacy from links. `Links` reads the same walk: the pages a document links to,
+  once each, sorted, never itself, a file or an outside address. `checkDoc` is what
+  pipe mode can check alone.
+- **`html.go`**: `Render` makes one document an HTML fragment, knowing nothing of the
+  site. A `<section>` holds those of the levels below it. Notes are numbered as met
+  and listed at the end with no heading; their anchors, `fn:x` and `fnref:x:n`, never
+  clash with a section ID, which has no `:`.
+- **`main.go`**: `Main(funcs, check)`, named as it was run (`os.Args[0]` up to its first
+  dot): flags (`checkFlags`), templates with soffio's functions and the site's (a
+  name of soffio's is refused), load, visibility, `Check` then the site's check,
+  static copy, pages. `pipe` is the filter.
+- **`write.go`**: a page goes through its layout (`layout` header, else
+  `layout.html`; a missing one is an error) with `ID`, `Meta`, `Content`, `BaseURL`,
+  `Docs` (the active pages by ID) and `Pages` (the same in ID order). Each page is
+  executed into a buffer and written in one call; with `-n` it is executed and
+  dropped. `copyDir` copies every `-s` into `<o>/static`, refusing a path in two of
+  them, or twice in letter case, and a copy of a file onto itself (`os.SameFile`);
+  with `-n` it checks the same and writes nothing. `loadTemplates` parses `-t` or the
+  embedded `templates/*`, never a mix, with `missingkey=zero`. soffio's functions:
+  `doc`, `href`, `size` (an image's `image.Config`, read once per path; `image.go`
+  reads a WebP's from its first 30 bytes, the others by `image.DecodeConfig`) and
+  `today` (a template never reads the clock). `prepare` gives every `ImageBlock` its
+  size. The built-in `layout.html` needs only a title, has no word of its own and
+  writes every address with `href`, so its site works from the disk; keep it small.
+- **`example_test.go`**: the examples `go doc` shows, run by `go test`. The README's
+  site program (EXTENDING) is checked by hand against the checkout when the API moves.
 
-- **`parse.go`**: no state machine. The header is `key: value` lines up to the first
-  blank line: keys of `[a-z0-9_]` (a template reads `.Meta.key`), each once. soffio
-  reads three keys, `title`, `layout`, `visibility` (public or private), `words`, each
-  a word, never a link or a file, and two kinds of value in any other key: `-> target`,
-  a link, its key in `Document.HeaderLinks`, and a value under `/static/`, a file,
-  which `Check` checks. Every other value is a word, as written: no key has a type it does not
-  need (dates, images, ids are the site's). The body is cut into blocks at blank
-  lines, and before every `==` section line and `::` command line (`::img:` is
-  refused, not text); then a block's first line says what it is (command, `- ` list,
-  or text). A heading skips no level: the first section is `==`, each next at most one
-  level below the one before. A leading BOM is dropped, invalid UTF-8 refused.
-  `inline.go` scans inline markup by byte (every marker is ASCII): a `*` or `_` opens
-  only at the start of a word and closes only at its end; `(*id)` is a note only when
-  `id` is a valid ID; `(label -> target)` is a link, and a link or note inside a
-  label is an error, said by `inline` itself. The scan is linear: parentheses
-  are paired once (`parens`), a failed search for a closing marker is remembered (a
-  closer is good whatever opener it is for), and a label is parsed one level deep
-  only. The fuzz test in `fuzz_test.go` keeps it from panicking, nesting `<a>`,
-  repeating an id or leaking markup: `go test -fuzz FuzzParse -fuzztime 60s .`
-  after touching it.
+Messages are `file:line: message`, all of them, in a fixed order, no timestamps; about
+the command, its name first. Every page is attempted, but any failure exits 1; bad
+usage exits 2. No warnings: what is worth saying is worth fixing.
 
-- **`load.go`**: `Load` walks the source dir in lexical order, sequentially (parsing is
-  microseconds; order makes errors reproducible), skipping hidden files and refusing
-  links to directories, and returns documents by ID: the file's path without
-  `.soffio` (`it/about`), the one name of a page. Every part of an ID passes
-  `checkID`; a text with no title is refused (an empty link in every list of pages);
-  IDs differing only in case are duplicates; `static/` is no ID, it is where the
-  static files go. `Document.File` is the path for messages. A header link is
-  resolved here, from the text's directory as a body link is, into the page's ID,
-  which `Meta[key]` then holds: a section, a file or an address out of the site is
-  refused, as a header link names a page.
+## Conventions
 
-- **`url.go`**: `resolve` is the one place a link target is interpreted: the ID or
-  static file it points to, and its `#fragment`. `Check` and `href` both go through
-  it, so what is checked is what is linked. `href` makes the address relative to
-  the page (common prefix plus `../`), so a site needs no absolute URLs; a target
-  under `static/` is a file, anything else a page and gets `.html`.
-
-- **`check.go`**: `Check(all, active, staticDirs)` walks only the visibility-filtered
-  active documents, in ID order: every link, image and header file points at an
-  active page, one of its sections, or a regular file in one of `staticDirs`, through
-  a valid address; every note is defined and reached from the body, maybe through
-  other notes, as `Render` reaches it: a note referred to only by itself, or by
-  unreached notes, is "never referenced". A link to a document in all but not active
-  is a **privacy leak**, an error of its own. This active-vs-all model is how `-a`
-  works; keep it. Header links and files are checked at their header line. `Links`
-  is the other half, read off the same walk (`check` with a target that only
-  collects): the IDs of the pages a document links to, header and body (notes,
-  captions, list items), once each, sorted, never itself, a file or an outside
-  address. `Load` keeps them in `Document.Links`, so a site reads them once, not once
-  a page. A `Document` is plain data for a site's own program too: `Lines` (each
-  header key's line, for its messages), `HeaderLinks` (the keys that hold a link) and
-  `Links` are fields, not accessors. Files have no visibility: everything in -s is published, and a draft's
-  files live in a -s that only the preview gets, so a public text pointing at one is
-  a missing file. Never guess privacy from links (headers, CSS and templates point
-  at files too): fail closed. `checkDoc` is what pipe mode can check alone: notes and
-  `#section` links.
-
-- **`html.go`**: `Render` returns one document as an HTML fragment, knowing nothing of
-  the corpus. A `<section>` holds those of the levels below it (the fuzz test checks
-  the nesting and each heading's level against it). Note refs are numbered as met and the endnotes come last, in order of
-  first reference, with no heading (none reads well in any language). Their anchors are
-  `fn:x` and `fnref:x:n`: no section ID holds ':', so they never clash with one.
-
-- **`main.go`**: `Main(funcs, check)` is the command, named as it was run
-  (`os.Args[0]` up to its first dot): flags (`checkFlags`: a -baseurl, if given, is
-  http(s)://host[/path], no final '/'), templates with
-  soffio's functions and the site's (one of soffio's names is refused), load ->
-  visibility filter -> `Check` and the site's `check` (it reads, never changes; its
-  errors after soffio's, all at once) -> static copy -> pages. `pipe` is the filter.
-
-- **`write.go`**: each page goes through its layout (`layout` header, else
-  `layout.html`; a missing one is an error) with `ID`, `Meta`, `Content`, `BaseURL`
-  `Docs` (every active page, by ID) and `Pages` (the same, a list in the order of the
-  IDs, for a site's functions): the pages that link to a page are `Links` read the
-  other way, a site's function. Every file is executed
-  into a buffer and written in one call; html/template alone writes in small
-  pieces; with `-n` it is executed and dropped. `copyDir` copies every -s into
-  `<o>/static`, refusing a path in two of them or twice in letter case only (one
-  address, two files), and refuses, by `os.SameFile`, to copy a file onto itself (it
-  would come out empty) when a -s and `<o>/static` overlap, however the paths are
-  spelled; with `-n` it walks and checks the same and writes nothing, so `-n` exits
-  as the build would. `Check` refuses a link to a hidden file under -s, as `copyDir`
-  never copies one. `loadTemplates` parses either `-t` or the embedded
-  `templates/*`, never a mix, with `missingkey=zero` (a header key a page lacks is
-  "", as in Go, so a function given `.Meta.by` gets a string); `funcs` gives
-  templates soffio's four functions, what only it knows: `doc` (the page of an
-  ID, or nil), `href` (url.go's: a target, as a text writes it, from a page,
-  relative, so a template's addresses are as the texts'), `size` (an image's `image.Config`, its Width and
-  Height, read once per path from its file in a `-s`: `image.go`'s `imageConfig`
-  reads a WebP's from its first 30 bytes, VP8, VP8L or VP8X, as the standard library
-  has no WebP and soffio takes no module; jpeg, png and gif by `image.DecodeConfig`;
-  or nil)
-  and `today` (`-today` or empty: a template never reads the clock, so the output
-  stays reproducible). They are made before the templates are parsed, and ask the
-  site, whose pages come later. `prepare` gives every `ImageBlock` of a text its
-  size, which `Render` writes. The embedded `layout.html` is the showcase: it
-  needs only a title (and lang if there), has no word of its own (its nav is the
-  home's title), puts the text in an `<article>` in `<main>`, lists every page on
-  the home in a `<nav>`, writes every address with `href`, so the site works from
-  the disk; keep it that small.
-
-- **`example_test.go`**: the examples `go doc` shows, run by `go test`: Parse,
-  Render, Links. The README's site program (EXTENDING) is checked by hand: build
-  it against the checkout when the API moves.
-
-- **Messages and exit status**: errors are `file:line: message`, all of them, in a
-  fixed order, with no timestamps (`log.SetFlags(0)`); about the command, its name
-  first. Every page is attempted, but if any fails the command exits 1;
-  bad usage exits 2. A missing page is a broken site. No warnings, no defaults that
-  depend on other flags, no second way to say one thing.
-
-## Markup format (`.soffio`)
-
-Header (`key: value` lines) + blank line + body. Keys soffio reads: `title`, `layout`,
-`visibility`. Values it reads, in any other key: `-> target`, a link to a page (the
-templates get its ID), and `/static/...`, a file. Everything else lands in `Meta` as
-written, for the templates and a site's own program. Body syntax: `== id | Title`
-(section header, level 2–6 `=`), `*bold*`, `_italic_`, `(Label -> target)` links,
-`:: img: /static/path | caption`, `- item` lists, `:: note: id | text` footnote defs,
-`(*note-id)` footnote refs. Link targets without a leading `/` resolve relative to the
-current document's directory; a `#section-id` suffix targets a heading within a
-document (own document if the path part is omitted). Full syntax reference is in
-`README` (man-page style): treat it as the source of truth over any example content
-in `content/`.
-
-## Notable conventions
-
-- No third-party dependencies (stdlib only): keep it that way; this is a stated design
-  goal, not an oversight.
-- Validation is strict by design, and there are no warnings: as the Go FAQ says of
-  unused imports, what is worth complaining about is worth fixing. Broken links,
-  missing or unused notes, missing files, unknown layouts and privacy leaks fail the
-  build; bad input is refused with a reason, never guessed at.
-- Document IDs are output paths (`<id>.html`) and link targets, always with `/`, on
-  every system: turn one into a file path only where the file is opened, with
-  `filepath.FromSlash`.
-- Output is reproducible: anything ranged over a map (IDs, notes, errors) is sorted
-  first.
-- Measure before tuning: a big corpus (fucina-content copied 300 times) and
-  `runtime/pprof` found the unbuffered writes; guesses would not have.
+- Stdlib only: a stated goal, not an oversight.
+- Strict by design: broken links, missing or unused notes, missing files, unknown
+  layouts and privacy leaks fail the build; bad input is refused with a reason.
+- IDs are output paths and link targets, always with `/`; they become file paths only
+  where a file is opened, with `filepath.FromSlash`.
+- Output is reproducible: what is ranged over a map is sorted first.
+- Measure before tuning: a big corpus and `runtime/pprof` found the unbuffered writes,
+  as guesses would not have.
+- The README is the reference for the markup, over any example in `content/`.
