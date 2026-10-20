@@ -1,3 +1,13 @@
+(not yet released)
+soffio 5.1.0: a site reads the links of its pages, and the pages in
+their order, from soffio, once.
+soffio: Load keeps the links of every Document in Document.Links.
+  The pages a text links to, as Links says: a site that asked Links of
+  every page for every page, as backlinks do, read the site n times n.
+soffio: The templates get .Pages, every page in the order of the IDs.
+  A list for a site's functions, which had .Docs alone, a map, and
+  sorted its keys again in each.
++--------------------------+
 Mon Oct 19 21:40:25 UTC 2026
 soffio 5.0.0, since v4.0.0: the first soffio whose core is fixed.
 Soffio is cut to the bone: its markup, its links, its files, and

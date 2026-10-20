@@ -220,7 +220,7 @@ func testSite(t *testing.T, layouts string, docs map[string]*Document) *site {
 		baseURL: "https://example.org",
 		outDir:  t.TempDir(),
 		docs:    docs,
-		ids:     slices.Sorted(maps.Keys(docs)),
+		pages:   byID(docs),
 	}
 	s.tmpl = template.Must(template.New("").Funcs(s.funcs()).Parse(layouts))
 	s.prepare()
@@ -275,14 +275,14 @@ func TestWriteDoc(t *testing.T) {
 	}
 }
 
-// a page gets its ID and every page, by ID
+// a page gets its ID and every page, by ID and in their order
 func TestWriteDocDocs(t *testing.T) {
 	docs := map[string]*Document{"it/a": page("it/a", nil), "it/b": page("it/b", nil)}
-	s := testSite(t, `{{define "layout.html"}}{{.ID}}|{{range .Docs}}{{.ID}};{{end}}{{end}}`, docs)
+	s := testSite(t, `{{define "layout.html"}}{{.ID}}|{{range .Docs}}{{.ID}};{{end}}|{{range .Pages}}{{.ID}};{{end}}{{end}}`, docs)
 	if err := s.writeDoc(docs["it/b"]); err != nil {
 		t.Fatal(err)
 	}
-	if got, _ := os.ReadFile(filepath.Join(s.outDir, "it/b.html")); string(got) != "it/b|it/a;it/b;" {
+	if got, _ := os.ReadFile(filepath.Join(s.outDir, "it/b.html")); string(got) != "it/b|it/a;it/b;|it/a;it/b;" {
 		t.Errorf("got %q", got)
 	}
 }

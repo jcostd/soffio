@@ -127,5 +127,6 @@ func parseFile(fsys fs.FS, name, file string) (*Document, error) {
 	if errs != nil {
 		return nil, errors.Join(errs...)
 	}
+	doc.Links = Links(doc)
 	return doc, nil
 }

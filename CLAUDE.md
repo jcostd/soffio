@@ -166,9 +166,10 @@ serves a site (the Fucina's writers have fucina-engine's `preview`).
   is the other half, read off the same walk (`check` with a target that only
   collects): the IDs of the pages a document links to, header and body (notes,
   captions, list items), once each, sorted, never itself, a file or an outside
-  address. A `Document` is plain data for a site's own program too:
-  `Lines` (each header key's line, for its messages) and `HeaderLinks` (the keys
-  that hold a link) are fields, not accessors. Files have no visibility: everything in -s is published, and a draft's
+  address. `Load` keeps them in `Document.Links`, so a site reads them once, not once
+  a page. A `Document` is plain data for a site's own program too: `Lines` (each
+  header key's line, for its messages), `HeaderLinks` (the keys that hold a link) and
+  `Links` are fields, not accessors. Files have no visibility: everything in -s is published, and a draft's
   files live in a -s that only the preview gets, so a public text pointing at one is
   a missing file. Never guess privacy from links (headers, CSS and templates point
   at files too): fail closed. `checkDoc` is what pipe mode can check alone: notes and
@@ -189,8 +190,9 @@ serves a site (the Fucina's writers have fucina-engine's `preview`).
 
 - **`write.go`**: each page goes through its layout (`layout` header, else
   `layout.html`; a missing one is an error) with `ID`, `Meta`, `Content`, `BaseURL`
-  and `Docs` (every active page): the pages that link to a
-  page are `Links` read the other way, a site's function. Every file is executed
+  `Docs` (every active page, by ID) and `Pages` (the same, a list in the order of the
+  IDs, for a site's functions): the pages that link to a page are `Links` read the
+  other way, a site's function. Every file is executed
   into a buffer and written in one call; html/template alone writes in small
   pieces; with `-n` it is executed and dropped. `copyDir` copies every -s into
   `<o>/static`, refusing a path in two of them or twice in letter case only (one

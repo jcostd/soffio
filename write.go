@@ -24,7 +24,7 @@ type site struct {
 	dry     bool // -n: execute, write nothing
 	tmpl    *template.Template
 	docs    map[string]*Document
-	ids     []string                 // docs' keys, sorted
+	pages   []*Document              // docs, in the order of their IDs
 	static  []string                 // the -s dirs
 	sizes   map[string]*image.Config // size's answers, by path
 }
@@ -32,8 +32,7 @@ type site struct {
 // prepare gives every image of the texts its size.
 func (s *site) prepare() {
 	s.sizes = map[string]*image.Config{}
-	for _, id := range s.ids {
-		doc := s.docs[id]
+	for _, doc := range s.pages {
 		for i := range doc.Sections {
 			for j, b := range doc.Sections[i].Blocks {
 				if img, ok := b.(ImageBlock); ok {
@@ -91,6 +90,7 @@ func (s *site) writeDoc(doc *Document) error {
 		"Content": template.HTML(Render(doc)),
 		"BaseURL": s.baseURL,
 		"Docs":    s.docs,
+		"Pages":   s.pages,
 	})
 	if err != nil || s.dry {
 		return err

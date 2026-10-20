@@ -97,7 +97,7 @@ func Main(funcs template.FuncMap, check func(docs map[string]*Document) error) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s.tmpl, s.docs, s.ids = tmpl, active, slices.Sorted(maps.Keys(active))
+	s.tmpl, s.docs, s.pages = tmpl, active, byID(active)
 	s.prepare()
 	if err := copyDir(staticDirs, filepath.Join(*outDir, "static"), *dry); err != nil {
 		log.Fatalf("%s: %v", name, err)
@@ -106,9 +106,9 @@ func Main(funcs template.FuncMap, check func(docs map[string]*Document) error) {
 	// every page is attempted, but any that fails fails the build: a
 	// site missing a page is a broken site
 	var errs []error
-	for _, id := range s.ids {
-		if err := s.writeDoc(active[id]); err != nil {
-			errs = append(errs, fmt.Errorf("%s: %w", active[id].File, err))
+	for _, doc := range s.pages {
+		if err := s.writeDoc(doc); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", doc.File, err))
 		}
 	}
 	if err := errors.Join(errs...); err != nil {
@@ -175,4 +175,9 @@ func checkFlags(baseURL, today string, staticDirs []string, tmplDir, outDir stri
 		return fmt.Errorf("-t %s is -o %s: the site would be written over its templates", tmplDir, outDir)
 	}
 	return nil
+}
+
+// byID returns the documents in the order of their IDs.
+func byID(docs map[string]*Document) []*Document {
+	return slices.SortedFunc(maps.Values(docs), func(a, b *Document) int { return strings.Compare(a.ID, b.ID) })
 }

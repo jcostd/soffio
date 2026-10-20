@@ -9,7 +9,7 @@
 // directory of them into Documents by ID and resolves their header
 // links; Check says what is wrong with the whole site, and Render makes
 // one Document an HTML fragment. Links says which pages a Document
-// links to.
+// links to; Load keeps them in each, as Document.Links.
 //
 // Soffio is to a site what Lua's core is to its host: it gives the
 // mechanisms, and a site says the rest in four ways and no other:
@@ -29,6 +29,8 @@ type Document struct {
 	// HeaderLinks are the header keys that hold a link, in order:
 	// Meta holds, for each, the ID of its page
 	HeaderLinks []string
+	// Links are the pages it links to, as Links says; Load sets them
+	Links []string
 }
 
 // A Section is a heading and the blocks under it.

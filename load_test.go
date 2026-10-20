@@ -6,6 +6,7 @@ package soffio
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -114,7 +115,7 @@ func TestLoadMissingDir(t *testing.T) {
 }
 
 // a header link is resolved as a body link is, from the text's
-// directory, and becomes the page's ID
+// directory, and becomes the page's ID; Links are the pages it names
 func TestLoadHeaderLinks(t *testing.T) {
 	dir := writeFiles(t, map[string]string{
 		"it/opere/centauro.soffio": "title: Centauro\nartist: -> ../persone/picasso\nplace: -> /it/luoghi/murano\nsame: -> stella" + body,
@@ -127,6 +128,9 @@ func TestLoadHeaderLinks(t *testing.T) {
 		if got := docs["it/opere/centauro"].Meta[key]; got != want {
 			t.Errorf("Meta[%q] = %q, want %q", key, got, want)
 		}
+	}
+	if got, want := docs["it/opere/centauro"].Links, []string{"it/luoghi/murano", "it/opere/stella", "it/persone/picasso"}; !slices.Equal(got, want) {
+		t.Errorf("Links = %q, want %q", got, want)
 	}
 }
 
