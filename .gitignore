@@ -7,14 +7,7 @@
 *.out
 *.coverprofile
 
-# Local user content (personal site)
-# The built-in templates live in templates/ and are embedded
-/content/
-/static/
-*.soffio
-
-# Environment and editor files
-.env
+# Editor files
 .DS_Store
 *.swp
 *.swo

@@ -161,4 +161,4 @@ usage exits 2. No warnings: what is worth saying is worth fixing.
 - Output is reproducible: what is ranged over a map is sorted first.
 - Measure before tuning: a big corpus and `runtime/pprof` found the unbuffered writes,
   as guesses would not have.
-- The README is the reference for the markup, over any example in `content/`.
+- The README is the reference for the markup.
