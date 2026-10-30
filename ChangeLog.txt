@@ -97,8 +97,7 @@ soffio: A WebP has its size too.
   standard library has no WebP and soffio takes no module for it: 40
   lines in place of a dependency. jpeg, png and gif as before.
 preview: Gone from soffio.
-  A server is not soffio's job: any static one serves a site, and the
-  Fucina's writers have theirs in fucina-engine.
+  A server is not soffio's job: any static one serves a site.
 soffio: Links reads the targets of check's walk: one walk of a text.
 soffio: An image has its width and height.
   Read from its file in -s (jpeg, png, gif), in the texts as size gives
@@ -299,8 +298,8 @@ soffio: Fixed hreflang alternates.
   blog/x got an alternate in en/x, though blog is no language: the
   first part of an ID is a language only if -langs says so.
 soffio: .Children comes sorted by ID.
-  It came in map order, so a layout ranging over it, like Fucina's
-  galleria, shuffled on every build.
+  It came in map order, so a layout ranging over it, as a gallery
+  does, shuffled on every build.
 soffio: A -baseurl ending in '/' is refused.
   It gave https://x.org//page.html everywhere.
 soffio: Markers only at the edges of a word.

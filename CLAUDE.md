@@ -12,9 +12,8 @@ standard input, HTML on standard output. The README is the man page.
 
 It knows its markup, its links and its files, and nothing of what a site is about: no
 languages, dates or lists. A site that needs more is a program of its own calling
-`soffio.Main(funcs, check)`; the Fucina's is fucina-engine (Fossil,
-`~/fossils/fucina-engine.fossil`). Before adding anything, ask whether every site needs
-it and whether only soffio can do it; if not, it belongs to the site's program.
+`soffio.Main(funcs, check)`. Before adding anything, ask whether every site needs it
+and whether only soffio can do it; if not, it belongs to the site's program.
 
 ## The contract
 
@@ -80,7 +79,7 @@ upload `dist/` to the GitHub release: `soffio-<ver>-<os>-<arch>.tar.gz` (`.zip` 
 windows), each with soffio, README, LICENSE and `templates/` (the built-in templates,
 to start a `-t` from), owned by root, 755/644; the darwin ones also
 `unquarantine.sh`, which lifts the quarantine of that folder and checks that soffio
-runs. Build from the clean tag: the binaries carry the git revision. fucina-engine
+runs. Build from the clean tag: the binaries carry the git revision. A site's program
 requires the published module, so push the tag before releasing it. A version the Go
 proxy has seen is its for good: a number is never used twice, and the path without
 /v5 holds an old numbering that is not used.
